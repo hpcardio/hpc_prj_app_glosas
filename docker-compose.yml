@@ -1,0 +1,11 @@
+services:
+  frontend:
+    build: ./frontend
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8000}
+      API_BEARER_TOKEN: ${API_BEARER_TOKEN:-}
+      API_CONTA_ATENDIMENTO_PATH: ${API_CONTA_ATENDIMENTO_PATH:-/app_glosas/}
+    ports:
+      - "8080:8000"

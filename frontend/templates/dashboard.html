@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<section class="metrics-grid">
+  <div class="metric"><span>Total Glosado</span><strong>R$ {{ indicadores.total_glosado|default:"0" }}</strong></div>
+  <div class="metric"><span>Total Recursado</span><strong>R$ {{ indicadores.total_recursado|default:"0" }}</strong></div>
+  <div class="metric"><span>Total Recuperado</span><strong>R$ {{ indicadores.total_recuperado|default:"0" }}</strong></div>
+  <div class="metric"><span>Total Recebido</span><strong>R$ {{ indicadores.total_recebido|default:"0" }}</strong></div>
+  <div class="metric"><span>Recursos Pendentes</span><strong>{{ indicadores.recursos_pendentes|default:"0" }}</strong></div>
+  <div class="metric"><span>Glosas Sem Recebimento</span><strong>{{ indicadores.glosas_sem_recebimento|default:"0" }}</strong></div>
+</section>
+<section class="panel">
+  <div class="panel-title">Divergencias recentes</div>
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Tipo</th><th>Referencia</th><th>Descricao</th></tr></thead>
+    <tbody>
+      {% for item in divergencias %}
+      <tr><td>{{ item.tipo }}</td><td>{{ item.referencia }}</td><td>{{ item.descricao }}</td></tr>
+      {% empty %}
+      <tr><td colspan="3">Nenhuma divergencia encontrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

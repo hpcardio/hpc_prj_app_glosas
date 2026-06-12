@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block page_title %}Recebimentos{% endblock %}
+{% block content %}
+<section class="panel">
+  <form method="post" class="filters">
+    {% csrf_token %}
+    <input name="numero_nf" class="form-control" placeholder="Nota fiscal">
+    <input name="competencia" class="form-control" placeholder="Competencia">
+    <input name="convenio" class="form-control" placeholder="Convenio">
+    <input name="data_pagamento" type="date" class="form-control">
+    <input name="valor_recebido" class="form-control" placeholder="Valor recebido">
+    <button class="btn btn-primary">Cadastrar</button>
+  </form>
+</section>
+<section class="panel">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>ID</th><th>NF</th><th>Competencia</th><th>Convenio</th><th>Recebido</th><th>Saldo</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for recebimento in recebimentos %}
+      <tr>
+        <td>{{ recebimento.id }}</td>
+        <td>{{ recebimento.numero_nf }}</td>
+        <td>{{ recebimento.competencia }}</td>
+        <td>{{ recebimento.convenio }}</td>
+        <td>R$ {{ recebimento.valor_recebido }}</td>
+        <td>R$ {{ recebimento.saldo }}</td>
+        <td><span class="status">{{ recebimento.status }}</span></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7">Nenhum recebimento cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

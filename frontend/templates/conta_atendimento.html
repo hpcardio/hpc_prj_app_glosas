@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block page_title %}Triagem{% endblock %}
+{% block content %}
+
+<section class="panel filter-panel">
+  <form class="remessa-filters" method="get">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Remessa</label>
+        <input name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" placeholder="Ex: 1234">
+      </div>
+      <div class="filter-group">
+        <label>Atendimento</label>
+        <input name="cd_atendimento" value="{{ filtros.cd_atendimento }}" class="form-control" placeholder="Ex: 9876">
+      </div>
+      <div class="filter-group">
+        <label>Conta</label>
+        <input name="cd_reg" value="{{ filtros.cd_reg }}" class="form-control" placeholder="Ex: 456">
+      </div>
+      <div class="filter-group">
+        <label>Paciente</label>
+        <input name="nm_paciente" value="{{ filtros.nm_paciente }}" class="form-control" placeholder="Nome parcial">
+      </div>
+      <div class="filter-group">
+        <label>Convênio</label>
+        <input name="nm_convenio" value="{{ filtros.nm_convenio }}" class="form-control" placeholder="Nome parcial">
+      </div>
+      <div class="filter-group">
+        <label>Procedimento</label>
+        <input name="descricao" value="{{ filtros.descricao }}" class="form-control" placeholder="Descrição">
+      </div>
+      <div class="filter-group filter-group--sm">
+        <label>Tipo atend.</label>
+        <input name="tp_atendimento" value="{{ filtros.tp_atendimento }}" class="form-control" placeholder="Ex: A">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary">Filtrar</button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel results-summary-panel">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Contas faturadas</span>
+        {% if request.GET and pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} pacientes exibidos</span>
+        {% endif %}
+      </div>
+      {% if request.GET %}
+      <div class="collapse-actions">
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-results'))">Expandir todos</button>
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-results'))">Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if request.GET %}
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total">
+          <span>Pacientes</span>
+          <strong>{{ resumo.pacientes }}</strong>
+        </span>
+        <span class="result-total">
+          <span>Atendimentos</span>
+          <strong>{{ resumo.atendimentos }}</strong>
+        </span>
+        <span class="result-total result-total--value">
+          <span>Valor total</span>
+          <strong>R$ {{ resumo.valor_total|floatformat:2 }}</strong>
+        </span>
+      </div>
+      {% if pagination.total %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}
+        <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Anterior</span>
+        {% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <label for="page-select">Pagina</label>
+          <select id="page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}
+            <option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>
+            {% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}
+        <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+        {% else %}
+        <span class="page-step page-step--disabled">Proxima</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if request.GET %}
+  <div class="results-list">
+    {% for grupo in grupos %}
+    <div class="pac-card" x-data="{ open: false }" @expand-all-results.window="open = true" @collapse-all-results.window="open = false">
+      <button class="pac-header" @click="open = !open" :aria-expanded="open">
+        <div class="pac-header-left">
+          <span class="pac-chevron" :class="{ 'pac-chevron--open': open }">&#9654;</span>
+          <span class="pac-nome">{{ grupo.nm_paciente }}</span>
+          {% for conv in grupo.convenios %}
+          <span class="pac-convenio">{{ conv }}</span>
+          {% endfor %}
+        </div>
+        <div class="pac-header-pills">
+          <span class="mpill mpill--dim">{{ grupo.num_remessas }} rem.</span>
+          <span class="mpill mpill--dim">{{ grupo.num_atendimentos }} atend.</span>
+          <span class="mpill mpill--dim">{{ grupo.num_lancamentos }} lanc.</span>
+          <span class="mpill mpill--valor">R$ {{ grupo.total|floatformat:2 }}</span>
+        </div>
+      </button>
+
+      <div class="pac-body" x-show="open">
+        {% for rem in grupo.remessas %}
+        <div class="rem-block" x-data="{ remOpen: {% if grupo.num_remessas > 1 %}false{% else %}true{% endif %} }" @expand-all-results.window="remOpen = true" @collapse-all-results.window="remOpen = false">
+          <button class="rem-header" @click="remOpen = !remOpen" :aria-expanded="remOpen">
+            <span class="rem-chevron" :class="{ 'rem-chevron--open': remOpen }">&#9654;</span>
+            <span class="rem-title">Remessa <strong>#{{ rem.cd_remessa }}</strong></span>
+            <span class="rem-meta">
+              {{ rem.num_atendimentos }} atend. &middot; {{ rem.num_lancamentos }} lanc.
+              {% for conv in rem.convenios %} &middot; {{ conv }}{% endfor %}
+            </span>
+            <span class="rem-total">R$ {{ rem.total|floatformat:2 }}</span>
+          </button>
+
+          <div class="rem-body" x-show="remOpen">
+            {% for atd in rem.atendimentos %}
+            <div class="atd-block" x-data="{ atdOpen: false }" @expand-all-results.window="atdOpen = true" @collapse-all-results.window="atdOpen = false">
+              <button class="atd-header" @click="atdOpen = !atdOpen" :aria-expanded="atdOpen">
+                <span class="atd-chevron" :class="{ 'atd-chevron--open': atdOpen }">&#9654;</span>
+                <span class="atd-title">Atendimento <strong>#{{ atd.cd_atendimento }}</strong></span>
+                <span class="atd-meta">
+                  {{ atd.num_lancamentos }} lanc.
+                  {% for conv in atd.convenios %} &middot; {{ conv }}{% endfor %}
+                </span>
+                <span class="atd-total">R$ {{ atd.total|floatformat:2 }}</span>
+              </button>
+
+              <div class="atd-body" x-show="atdOpen">
+                <div class="table-responsive detail-table-wrap">
+                  <table class="table align-middle account-table">
+                    <thead>
+                      <tr>
+                        <th>Conta</th>
+                        <th>Convenio</th>
+                        <th>Procedimento</th>
+                        <th class="col-desc">Descricao</th>
+                        <th>Guia</th>
+                        <th>Prestador</th>
+                        <th>Data</th>
+                        <th class="col-valor">Valor</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    {% for conta in atd.itens %}
+                    <tbody x-data="{ glosar: false }">
+                      <tr class="item-row">
+                        <td class="cell-mono">{{ conta.cd_reg|default:"-" }}</td>
+                        <td>{{ conta.nm_convenio|default:"-" }}</td>
+                        <td><span class="badge-proc">{{ conta.cd_pro_fat|default:"-" }}</span></td>
+                        <td class="col-desc">{{ conta.descricao|default:"-" }}</td>
+                        <td class="cell-mono">{{ conta.cd_guia|default:"-" }}</td>
+                        <td>{{ conta.nm_prestador|default:"-" }}</td>
+                        <td class="cell-mono">{{ conta.dt_lancamento_formatada|default:"-" }}</td>
+                        <td class="col-valor cell-valor">R$ {{ conta.vl_total_conta|floatformat:2 }}</td>
+                        <td>
+                          <button type="button" class="btn-glosar" @click="glosar = true" :class="{ 'btn-glosar--active': glosar }">
+                            + Glosar
+                          </button>
+                          <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
+                            <div class="glosa-modal-backdrop" @click="glosar = false"></div>
+                            <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                              <form method="post" class="glosa-modal-form">
+                                {% csrf_token %}
+                                {% for key, value in conta.items %}
+                                  <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                {% endfor %}
+                                <input type="hidden" name="valor_glosado" value="0">
+                                <div class="glosa-modal-header">
+                                  <div>
+                                    <span class="glosa-modal-eyebrow">Registro de glosa</span>
+                                    <h2 id="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Conta {{ conta.cd_reg|default:"-" }}</h2>
+                                  </div>
+                                  <button type="button" class="glosa-modal-close" @click="glosar = false" aria-label="Fechar">x</button>
+                                </div>
+                                <div class="glosa-modal-context">
+                                  <span>{{ conta.nm_paciente|default:"Paciente nao informado" }}</span>
+                                  <span>{{ conta.nm_convenio|default:"Convenio nao informado" }}</span>
+                                  <span>Atend. {{ conta.cd_atendimento|default:"-" }}</span>
+                                </div>
+                                <div class="glosa-modal-grid">
+                                  <div class="glosa-field glosa-field--wide">
+                                    <label>Processo / N Controle / N Fatura / N GAB</label>
+                                    <input name="identificador_glosa" class="form-control" placeholder="Informe o identificador usado pelo convenio">
+                                  </div>
+                                  <div class="glosa-field">
+                                    <label>Data da glosa</label>
+                                    <input type="date" name="dt_glosa" class="form-control">
+                                  </div>
+                                  <div class="glosa-field glosa-field--wide">
+                                    <label>Motivo da glosa</label>
+                                    <input name="motivo_glosa" class="form-control" placeholder="Informe o motivo">
+                                  </div>
+                                  <div class="glosa-field glosa-field--full">
+                                    <label>Descricao</label>
+                                    <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes da glosa"></textarea>
+                                  </div>
+                                </div>
+                                <div class="glosa-modal-actions">
+                                  <button type="button" class="btn btn-outline-secondary" @click="glosar = false">Cancelar</button>
+                                  <button class="btn-danger-outline">Registrar glosa</button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                    {% endfor %}
+                  </table>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="panel">
+      <p class="empty-state">Nenhuma conta encontrada para os filtros informados.</p>
+    </div>
+    {% endfor %}
+  </div>
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination-footer">
+      {% if pagination.has_previous %}
+      <a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>
+      {% endif %}
+      <span>Pagina {{ pagination.page }} de {{ pagination.total_pages }}</span>
+      {% if pagination.has_next %}
+      <a class="page-step" href="{{ pagination.next_url }}">Proxima</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

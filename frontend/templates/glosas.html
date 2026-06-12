@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block page_title %}Glosas{% endblock %}
+{% block content %}
+<section class="panel">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>ID</th><th>Remessa</th><th>Paciente</th><th>Item</th><th>Motivo</th><th>Valor</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for glosa in glosas %}
+      <tr>
+        <td>{{ glosa.id }}</td>
+        <td>{{ glosa.cd_remessa }}</td>
+        <td>{{ glosa.nm_paciente }}</td>
+        <td>{{ glosa.item_glosado }}</td>
+        <td>{{ glosa.motivo_glosa }}</td>
+        <td>R$ {{ glosa.valor_glosado }}</td>
+        <td><span class="status">{{ glosa.status }}</span></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7">Nenhuma glosa registrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

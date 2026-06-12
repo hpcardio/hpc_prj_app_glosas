@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block page_title %}Recursos{% endblock %}
+{% block content %}
+<section class="panel">
+  <form method="post" class="filters">
+    {% csrf_token %}
+    <input name="glosa_id" class="form-control" placeholder="ID da glosa">
+    <input name="numero_processo_recurso" class="form-control" placeholder="Processo recurso">
+    <input name="data_envio" type="date" class="form-control">
+    <input name="valor_recursado" class="form-control" placeholder="Valor recursado">
+    <input name="valor_acatado" class="form-control" placeholder="Valor acatado">
+    <button class="btn btn-primary">Cadastrar</button>
+  </form>
+</section>
+<section class="panel">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>ID</th><th>Glosa</th><th>Processo</th><th>Recursado</th><th>Acatado</th><th>Mantido</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for recurso in recursos %}
+      <tr>
+        <td>{{ recurso.id }}</td>
+        <td>{{ recurso.glosa_id }}</td>
+        <td>{{ recurso.numero_processo_recurso }}</td>
+        <td>R$ {{ recurso.valor_recursado }}</td>
+        <td>R$ {{ recurso.valor_acatado }}</td>
+        <td>R$ {{ recurso.valor_mantido }}</td>
+        <td><span class="status">{{ recurso.status }}</span></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7">Nenhum recurso cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

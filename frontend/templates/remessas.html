@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block page_title %}Remessas{% endblock %}
+{% block content %}
+<section class="panel">
+  <form method="post" class="filters">
+    {% csrf_token %}
+    <input name="numero_remessa" class="form-control" placeholder="Numero da remessa">
+    <input name="competencia" class="form-control" placeholder="Competencia">
+    <input name="processo" class="form-control" placeholder="Processo">
+    <input name="numero_nf" class="form-control" placeholder="Nota fiscal">
+    <input name="valor_total" class="form-control" placeholder="Valor total">
+    <button class="btn btn-primary">Cadastrar</button>
+  </form>
+</section>
+<section class="panel">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Numero</th><th>Competencia</th><th>NF</th><th>Valor Total</th><th>Valor Glosa</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for remessa in remessas %}
+      <tr>
+        <td>{{ remessa.numero_remessa }}</td>
+        <td>{{ remessa.competencia }}</td>
+        <td>{{ remessa.numero_nf }}</td>
+        <td>R$ {{ remessa.valor_total }}</td>
+        <td>R$ {{ remessa.valor_glosa }}</td>
+        <td><span class="status">{{ remessa.status }}</span></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">Nenhuma remessa cadastrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
