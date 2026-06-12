@@ -104,7 +104,15 @@
     {% endif %}
   </div>
 
-  {% if request.GET %}
+  {% if consulta_indisponivel %}
+  <div class="service-unavailable">
+    <div class="service-unavailable-icon" aria-hidden="true">!</div>
+    <div>
+      <strong>Consulta temporariamente indisponível</strong>
+      <p>Não foi possível consultar as contas no momento. Informe à TI para verificar a disponibilidade do banco de dados da API.</p>
+    </div>
+  </div>
+  {% elif request.GET %}
   <div class="results-list">
     {% for grupo in grupos %}
     <div class="pac-card" x-data="{ open: false }" @expand-all-results.window="open = true" @collapse-all-results.window="open = false">

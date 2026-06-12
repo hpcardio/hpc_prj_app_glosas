@@ -864,6 +864,46 @@ body {
   background: transparent;
 }
 
+.service-unavailable {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 8px 0 0;
+  padding: 18px;
+  border: 1px solid #f0d7ad;
+  border-left: 5px solid var(--accent);
+  border-radius: 8px;
+  background: #fff8ed;
+  color: #55340b;
+}
+
+.service-unavailable-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #d98c2b;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.service-unavailable strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #3f2608;
+  font-size: 15px;
+}
+
+.service-unavailable p {
+  margin: 0;
+  color: #694a1c;
+  font-size: 13px;
+}
+
 .pac-card {
   background: var(--panel);
   border: 1px solid #cfdde4;

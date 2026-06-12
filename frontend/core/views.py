@@ -47,6 +47,12 @@ def format_api_error(exc: ApiError, endpoint_name: str) -> str:
     return f"{endpoint_name}: {exc}"
 
 
+def is_service_unavailable_error(exc: ApiError) -> bool:
+    text = str(exc).lower()
+    unavailable_terms = ("timeout", "timed out", "ora-", "oracle", "banco", "database", "connection")
+    return exc.status_code is None or exc.status_code >= 500 or any(term in text for term in unavailable_terms)
+
+
 def _group_contas(contas):
     """Group a flat list of contas by nm_paciente, cd_remessa and cd_atendimento."""
     by_paciente = {}
@@ -180,11 +186,15 @@ def conta_atendimento(request):
     filtros.pop("offset", None)
     page = as_positive_int(filtros.pop("page", None), 1)
     api_filtros = {k: v for k, v in filtros.items() if v}
+    consulta_indisponivel = False
     try:
         contas = as_list(api_get(settings.API_CONTA_ATENDIMENTO_PATH, api_filtros)) if request.GET else []
     except ApiError as exc:
         contas = []
-        messages.error(request, format_api_error(exc, "Consulta de conta/atendimento"))
+        if is_service_unavailable_error(exc):
+            consulta_indisponivel = True
+        else:
+            messages.error(request, format_api_error(exc, "Consulta de conta/atendimento"))
     for conta in contas:
         if isinstance(conta, dict):
             conta["dt_lancamento_formatada"] = format_api_date(conta.get("dt_lancamento"))
@@ -218,7 +228,13 @@ def conta_atendimento(request):
     return render(
         request,
         "conta_atendimento.html",
-        {"grupos": grupos_pagina, "filtros": filtros, "resumo": resumo, "pagination": pagination},
+        {
+            "grupos": grupos_pagina,
+            "filtros": filtros,
+            "resumo": resumo,
+            "pagination": pagination,
+            "consulta_indisponivel": consulta_indisponivel,
+        },
     )
 
 
