@@ -59,6 +59,14 @@ def api_post(path: str, data: dict):
         raise ApiError("API retornou uma resposta invalida para JSON.") from exc
 
 
+def api_put(path: str, data: dict):
+    response = api_request("PUT", path, json=data)
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc
+
+
 def api_patch(path: str, data: dict):
     response = api_request("PATCH", path, json=data)
     try:

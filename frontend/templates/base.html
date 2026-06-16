@@ -68,13 +68,273 @@
       </div>
     </header>
     {% if messages %}
-      <div class="messages">
+      <div class="message-dialog-layer" role="presentation">
         {% for message in messages %}
-          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+          <div class="message-dialog message-dialog--{{ message.tags }}" role="alertdialog" aria-modal="true" aria-labelledby="message-dialog-title-{{ forloop.counter }}">
+            <div class="message-dialog-icon" aria-hidden="true"></div>
+            <div class="message-dialog-body">
+              <strong id="message-dialog-title-{{ forloop.counter }}">
+                {% if "error" in message.tags %}Atenção{% elif "warning" in message.tags %}Atualização realizada{% else %}Registro realizado{% endif %}
+              </strong>
+              <p>{{ message }}</p>
+            </div>
+            <button type="button" class="message-dialog-ok" onclick="this.closest('.message-dialog').remove(); if (!document.querySelector('.message-dialog')) document.querySelector('.message-dialog-layer')?.remove();">OK</button>
+          </div>
         {% endfor %}
       </div>
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <div class="confirm-dialog-layer" x-data="{ open: false, message: '', form: null, submitter: null }" x-show="open" x-cloak role="presentation">
+    <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+      <div class="confirm-dialog-icon" aria-hidden="true"></div>
+      <div class="confirm-dialog-body">
+        <strong id="confirm-dialog-title">Confirmar ação</strong>
+        <p x-text="message"></p>
+      </div>
+      <div class="confirm-dialog-actions">
+        <button type="button" class="confirm-dialog-cancel" @click="open = false; form = null; submitter = null">Cancelar</button>
+        <button
+          type="button"
+          class="confirm-dialog-ok"
+          @click="
+            const currentForm = form;
+            const currentSubmitter = submitter;
+            open = false;
+            form = null;
+            submitter = null;
+            window.submitGlosaForm(currentForm, currentSubmitter);
+          "
+        >Confirmar</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.delete('_modal_action')) {
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+    })();
+
+    window.addEventListener('keydown', (event) => {
+      const isReloadShortcut = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r');
+      if (isReloadShortcut && window.location.search) {
+        event.preventDefault();
+        window.location.assign(window.location.pathname);
+      }
+    });
+
+    window.handleGlosaSubmit = function (form, event) {
+      const submitter = event.submitter;
+      const action = submitter ? submitter.value : '';
+      if (form.dataset.submitting === 'true') {
+        return false;
+      }
+      if (action === 'desfazer' || (action !== 'desfazer' && form.dataset.hasRegistro === 'true')) {
+        const dialog = document.querySelector('.confirm-dialog-layer');
+        if (dialog && dialog._x_dataStack) {
+          const state = dialog._x_dataStack[0];
+          state.message = action === 'desfazer'
+            ? 'Tem certeza que deseja desfazer este registro?'
+            : 'Tem certeza que deseja alterar este registro?';
+          state.form = form;
+          state.submitter = submitter;
+          state.open = true;
+          return false;
+        }
+      }
+      window.submitGlosaForm(form, submitter);
+      return false;
+    };
+
+    window.submitGlosaForm = function (form, submitter) {
+      if (!form || form.dataset.submitting === 'true') {
+        return;
+      }
+      form.dataset.submitting = 'true';
+      form.classList.add('is-submitting');
+      form.querySelectorAll('input[data-submit-proxy="true"]').forEach((input) => {
+        input.remove();
+      });
+      if (submitter) {
+        submitter.classList.add('is-loading');
+        if (submitter.name) {
+          const hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = submitter.name;
+          hidden.value = submitter.value;
+          hidden.dataset.submitProxy = 'true';
+          form.appendChild(hidden);
+        }
+      }
+      form.querySelectorAll('button').forEach((button) => {
+        if (button !== submitter) {
+          button.disabled = true;
+        }
+      });
+      fetch(form.action || window.location.href, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({
+            ok: false,
+            tag: 'error',
+            message: 'A resposta da operação não pôde ser interpretada.'
+          }));
+          if (!response.ok) {
+            data.ok = false;
+          }
+          window.showOperationMessage(data, form);
+        })
+        .catch((error) => {
+          window.showOperationMessage({
+            ok: false,
+            tag: 'error',
+            message: `Falha ao executar a operação: ${error}`
+          }, form);
+        })
+        .finally(() => {
+          form.dataset.submitting = 'false';
+          form.classList.remove('is-submitting');
+          form.querySelectorAll('button').forEach((button) => {
+            button.disabled = false;
+            button.classList.remove('is-loading');
+          });
+        });
+    };
+
+    window.showOperationMessage = function (data, form) {
+      const layer = document.createElement('div');
+      layer.className = 'message-dialog-layer';
+      layer.setAttribute('role', 'presentation');
+
+      const dialog = document.createElement('div');
+      dialog.className = `message-dialog message-dialog--${data.tag || 'success'}`;
+      dialog.setAttribute('role', 'alertdialog');
+      dialog.setAttribute('aria-modal', 'true');
+
+      const title = data.tag === 'error'
+        ? 'Atenção'
+        : data.tag === 'warning'
+          ? 'Atualização realizada'
+          : 'Registro realizado';
+
+      const icon = document.createElement('div');
+      icon.className = 'message-dialog-icon';
+      icon.setAttribute('aria-hidden', 'true');
+
+      const body = document.createElement('div');
+      body.className = 'message-dialog-body';
+      const strong = document.createElement('strong');
+      strong.textContent = title;
+      const paragraph = document.createElement('p');
+      paragraph.textContent = data.message || '';
+      body.append(strong, paragraph);
+
+      const okButton = document.createElement('button');
+      okButton.type = 'button';
+      okButton.className = 'message-dialog-ok';
+      okButton.textContent = 'OK';
+      dialog.append(icon, body, okButton);
+
+      okButton.addEventListener('click', () => {
+        layer.remove();
+        if (data.ok) {
+          window.applyOperationState(form, data);
+          form.closest('.glosa-modal')?.querySelector('.glosa-modal-close')?.click();
+        }
+      });
+
+      layer.appendChild(dialog);
+      document.body.appendChild(layer);
+    };
+
+    window.getRegistroLabels = function (modalForm) {
+      const isAcato = modalForm.querySelector('input[name="sn_glosado"]')?.value === 'not';
+      return {
+        name: isAcato ? 'acato' : 'glosa'
+      };
+    };
+
+    window.updateRegistroFormActions = function (modalForm, hasRegistro, registroId) {
+      modalForm.dataset.hasRegistro = hasRegistro ? 'true' : 'false';
+
+      let idInput = modalForm.querySelector('input[name="registro_glosa_id"]');
+      if (hasRegistro) {
+        if (!idInput) {
+          idInput = document.createElement('input');
+          idInput.type = 'hidden';
+          idInput.name = 'registro_glosa_id';
+          modalForm.appendChild(idInput);
+        }
+        idInput.value = registroId;
+      } else {
+        idInput?.remove();
+      }
+
+      const actions = modalForm.querySelector('.glosa-modal-actions');
+      let desfazerButton = modalForm.querySelector('button[name="form_action"][value="desfazer"]');
+      if (hasRegistro && actions && !desfazerButton) {
+        desfazerButton = document.createElement('button');
+        desfazerButton.className = 'btn btn-outline-danger';
+        desfazerButton.name = 'form_action';
+        desfazerButton.value = 'desfazer';
+        desfazerButton.formNoValidate = true;
+        desfazerButton.innerHTML = '<span class="submit-label">Desfazer</span><span class="loading-label">Desfazendo...</span>';
+        actions.prepend(desfazerButton);
+      } else if (!hasRegistro) {
+        desfazerButton?.remove();
+      }
+
+      const labels = window.getRegistroLabels(modalForm);
+      const saveButton = modalForm.querySelector('button[name="form_action"][value="salvar"]');
+      const submitLabel = saveButton?.querySelector('.submit-label');
+      const loadingLabel = saveButton?.querySelector('.loading-label');
+      if (submitLabel) {
+        submitLabel.textContent = hasRegistro
+          ? `Atualizar ${labels.name}`
+          : `Registrar ${labels.name}`;
+      }
+      if (loadingLabel) {
+        loadingLabel.textContent = hasRegistro ? 'Atualizando...' : 'Registrando...';
+      }
+    };
+
+    window.applyOperationState = function (form, data) {
+      const row = form.closest('tbody');
+      if (!row) {
+        return;
+      }
+
+      const payload = data.payload || {};
+      const glosarButton = row.querySelector('.btn-glosar');
+      const acatarButton = row.querySelector('.btn-acatar');
+      const forms = row.querySelectorAll('.glosa-modal-form');
+
+      if (payload.id) {
+        forms.forEach((modalForm) => {
+          window.updateRegistroFormActions(modalForm, true, payload.id);
+        });
+        if (payload.sn_glosado === 'not') {
+          acatarButton?.classList.add('btn-acatar--filled');
+          glosarButton?.classList.remove('btn-glosar--filled');
+        } else {
+          glosarButton?.classList.add('btn-glosar--filled');
+          acatarButton?.classList.remove('btn-acatar--filled');
+        }
+      } else {
+        forms.forEach((modalForm) => {
+          window.updateRegistroFormActions(modalForm, false, '');
+        });
+        glosarButton?.classList.remove('btn-glosar--filled');
+        acatarButton?.classList.remove('btn-acatar--filled');
+      }
+    };
+  </script>
 </body>
 </html>

@@ -226,8 +226,8 @@
                           x-data="{
                             glosar: false,
                             acatar: false,
-                            valorGlosado: '',
-                            valorAcatado: '',
+                            valorGlosado: '{{ conta.registro_glosa.valor_glosado_input|default:""|escapejs }}',
+                            valorAcatado: '{{ conta.registro_glosa.valor_glosado_input|default:""|escapejs }}',
                             formatValorGlosado() {
                               const digits = this.valorGlosado.replace(/\D/g, '');
                               const cents = Number(digits || 0);
@@ -259,21 +259,30 @@
                         <td class="col-valor cell-valor">R$ {{ conta.vl_total_conta|br_currency }}</td>
                         <td class="account-action-cell">
                           <div class="account-action-buttons">
-                          <button type="button" class="btn-glosar" @click="acatar = false; glosar = true" :class="{ 'btn-glosar--active': glosar }">
+                          <button type="button" class="btn-glosar {% if conta.registro_glosa_status == 'true' %}btn-glosar--filled{% endif %}" @click="acatar = false; glosar = true" :class="{ 'btn-glosar--active': glosar }">
                             + Glosar
                           </button>
-                          <button type="button" class="btn-acatar" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
+                          <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar
                           </button>
                           </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
                             <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                              <form method="post" class="glosa-modal-form">
+                              <form
+                                method="post"
+                                class="glosa-modal-form"
+                                data-has-registro="{% if conta.registro_glosa_id %}true{% else %}false{% endif %}"
+                                onsubmit="return window.handleGlosaSubmit(this, event);"
+                              >
                                 {% csrf_token %}
                                 {% for key, value in conta.items %}
                                   <input type="hidden" name="{{ key }}" value="{{ value }}">
                                 {% endfor %}
+                                {% if conta.registro_glosa_id %}
+                                  <input type="hidden" name="registro_glosa_id" value="{{ conta.registro_glosa_id }}">
+                                {% endif %}
+                                <input type="hidden" name="sn_glosado" value="true">
                                 <div class="glosa-modal-header">
                                   <div>
                                     <span class="glosa-modal-eyebrow">Registro de glosa</span>
@@ -293,19 +302,19 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo / N Controle / N Fatura / N GAB (Processo Original)</label>
-                                        <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convenio">
+                                        <input name="processo_controle_fatura_gab" class="form-control" value="{{ conta.registro_glosa.processo_controle_fatura_gab|default:'' }}" placeholder="Informe o identificador usado pelo convenio">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Data da glosa</label>
-                                        <input type="date" name="data_glosa" class="form-control">
+                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_glosa.data_glosa_input|default:'' }}">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt pagamento</label>
-                                        <input type="date" name="dt_pagamento" class="form-control">
+                                        <input type="date" name="dt_pagamento" class="form-control" value="{{ conta.registro_glosa.dt_pagamento_input|default:'' }}">
                                       </div>
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Motivo da glosa</label>
-                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" placeholder="Digite codigo ou termo TISS">
+                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" value="{{ conta.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite codigo ou termo TISS">
                                       </div>
                                     </div>
                                   </section>
@@ -314,15 +323,15 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
-                                        <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
+                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso</label>
-                                        <input type="date" name="dt_recurso" class="form-control">
+                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_glosa.dt_recurso_input|default:'' }}">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Qtd glosada</label>
-                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_glosa.qtd_glosada_input|default:'' }}" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Valor glosado</label>
@@ -330,14 +339,23 @@
                                       </div>
                                       <div class="glosa-field glosa-field--full">
                                         <label>Descricao</label>
-                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes da glosa"></textarea>
+                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes da glosa">{{ conta.registro_glosa.descricao_glosa|default:'' }}</textarea>
                                       </div>
                                     </div>
                                   </section>
                                 </div>
                                 <div class="glosa-modal-actions">
+                                  {% if conta.registro_glosa_id %}
+                                  <button class="btn btn-outline-danger" name="form_action" value="desfazer" formnovalidate>
+                                    <span class="submit-label">Desfazer</span>
+                                    <span class="loading-label">Desfazendo...</span>
+                                  </button>
+                                  {% endif %}
                                   <button type="button" class="btn btn-outline-secondary" @click="glosar = false">Cancelar</button>
-                                  <button class="btn-danger-outline">Registrar glosa</button>
+                                  <button class="btn-danger-outline" name="form_action" value="salvar">
+                                    <span class="submit-label">{% if conta.registro_glosa_id %}Atualizar glosa{% else %}Registrar glosa{% endif %}</span>
+                                    <span class="loading-label">{% if conta.registro_glosa_id %}Atualizando...{% else %}Registrando...{% endif %}</span>
+                                  </button>
                                 </div>
                               </form>
                             </div>
@@ -345,11 +363,19 @@
                           <div class="glosa-modal" x-show="acatar" x-cloak @keydown.escape.window="acatar = false">
                             <div class="glosa-modal-backdrop" @click="acatar = false"></div>
                             <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                              <form method="post" class="glosa-modal-form">
+                              <form
+                                method="post"
+                                class="glosa-modal-form"
+                                data-has-registro="{% if conta.registro_glosa_id %}true{% else %}false{% endif %}"
+                                onsubmit="return window.handleGlosaSubmit(this, event);"
+                              >
                                 {% csrf_token %}
                                 {% for key, value in conta.items %}
                                   <input type="hidden" name="{{ key }}" value="{{ value }}">
                                 {% endfor %}
+                                {% if conta.registro_glosa_id %}
+                                  <input type="hidden" name="registro_glosa_id" value="{{ conta.registro_glosa_id }}">
+                                {% endif %}
                                 <input type="hidden" name="sn_glosado" value="not">
                                 <div class="glosa-modal-header">
                                   <div>
@@ -370,19 +396,19 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo / N Controle / N Fatura / N GAB (Processo Original)</label>
-                                        <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convenio">
+                                        <input name="processo_controle_fatura_gab" class="form-control" value="{{ conta.registro_glosa.processo_controle_fatura_gab|default:'' }}" placeholder="Informe o identificador usado pelo convenio">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Data da glosa</label>
-                                        <input type="date" name="data_glosa" class="form-control">
+                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_glosa.data_glosa_input|default:'' }}">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt pagamento</label>
-                                        <input type="date" name="dt_pagamento" class="form-control">
+                                        <input type="date" name="dt_pagamento" class="form-control" value="{{ conta.registro_glosa.dt_pagamento_input|default:'' }}">
                                       </div>
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Motivo da glosa</label>
-                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" placeholder="Digite codigo ou termo TISS">
+                                        <input name="motivo_glosa" list="tiss-motivos" class="form-control" value="{{ conta.registro_glosa.motivo_glosa|default:'' }}" placeholder="Digite codigo ou termo TISS">
                                       </div>
                                     </div>
                                   </section>
@@ -391,15 +417,15 @@
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
-                                        <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
+                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_glosa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso</label>
-                                        <input type="date" name="dt_recurso" class="form-control">
+                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_glosa.dt_recurso_input|default:'' }}">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Qtd glosada</label>
-                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                        <input type="number" step="1" min="0" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_glosa.qtd_glosada_input|default:'' }}" placeholder="0" @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Valor glosado</label>
@@ -407,14 +433,23 @@
                                       </div>
                                       <div class="glosa-field glosa-field--full">
                                         <label>Descricao</label>
-                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do acato"></textarea>
+                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do acato">{{ conta.registro_glosa.descricao_glosa|default:'' }}</textarea>
                                       </div>
                                     </div>
                                   </section>
                                 </div>
                                 <div class="glosa-modal-actions">
+                                  {% if conta.registro_glosa_id %}
+                                  <button class="btn btn-outline-danger" name="form_action" value="desfazer" formnovalidate>
+                                    <span class="submit-label">Desfazer</span>
+                                    <span class="loading-label">Desfazendo...</span>
+                                  </button>
+                                  {% endif %}
                                   <button type="button" class="btn btn-outline-secondary" @click="acatar = false">Cancelar</button>
-                                  <button class="btn-success-outline">Registrar acato</button>
+                                  <button class="btn-success-outline" name="form_action" value="salvar">
+                                    <span class="submit-label">{% if conta.registro_glosa_id %}Atualizar acato{% else %}Registrar acato{% endif %}</span>
+                                    <span class="loading-label">{% if conta.registro_glosa_id %}Atualizando...{% else %}Registrando...{% endif %}</span>
+                                  </button>
                                 </div>
                               </form>
                             </div>

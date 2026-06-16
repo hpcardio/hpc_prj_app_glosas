@@ -1,13 +1,14 @@
 from datetime import date, datetime
 from math import ceil
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
 from django.contrib import messages
 from django.conf import settings
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .services import ApiError, api_get, api_post
+from .services import ApiError, api_delete, api_get, api_post, api_put
 
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
@@ -38,6 +39,18 @@ def format_api_date(value):
             return text[:10]
 
     return text
+
+
+def format_api_date_input(value):
+    if not value:
+        return ""
+    if isinstance(value, datetime | date):
+        return value.strftime("%Y-%m-%d")
+
+    text = str(value).strip()
+    if len(text) >= 10 and text[4:5] == "-" and text[7:8] == "-":
+        return text[:10]
+    return ""
 
 
 def format_api_datetime(value):
@@ -92,6 +105,54 @@ def is_service_unavailable_error(exc: ApiError) -> bool:
         "connection",
     )
     return exc.status_code is None or exc.status_code >= 500 or any(term in text for term in unavailable_terms)
+
+
+def is_browser_reload(request):
+    if request.GET.get("_modal_action") == "1":
+        return False
+
+    cache_control = request.headers.get("Cache-Control", "").lower()
+    pragma = request.headers.get("Pragma", "").lower()
+    return (
+        "max-age=0" in cache_control
+        or "no-cache" in cache_control
+        or pragma == "no-cache"
+    )
+
+
+def with_modal_action_marker(full_path):
+    parts = urlsplit(full_path)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["_modal_action"] = "1"
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(query),
+            parts.fragment,
+        )
+    )
+
+
+def is_ajax_request(request):
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"
+
+
+def modal_action_response(request, message, tag, status=200, api_payload=None):
+    if is_ajax_request(request):
+        return JsonResponse(
+            {
+                "ok": status < 400,
+                "message": message,
+                "tag": tag,
+                "payload": api_payload,
+            },
+            status=status,
+        )
+
+    getattr(messages, "error" if tag == "error" else tag)(request, message)
+    return redirect(with_modal_action_marker(request.get_full_path()))
 
 
 def _group_itens_by_grupo_faturamento(itens):
@@ -263,6 +324,74 @@ def as_float_or_none(value):
         return None
 
 
+def format_brl_input(value):
+    if value in (None, ""):
+        return ""
+
+    try:
+        amount = float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return ""
+
+    formatted = f"{amount:,.2f}"
+    return f"R$ {formatted}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _glosa_match_key(item):
+    return (
+        str(as_int_or_zero(item.get("cd_remessa"))),
+        str(as_int_or_zero(item.get("cd_atendimento"))),
+        str(as_int_or_zero(item.get("cd_reg") or item.get("conta"))),
+        str(item.get("cd_pro_fat") or item.get("procedimento") or ""),
+        str(item.get("nr_guia") or item.get("cd_guia") or item.get("guia") or ""),
+    )
+
+
+def _prepare_registro_glosa(registro):
+    prepared = dict(registro)
+    qtd_glosada = registro.get("qtd_glosada")
+    prepared["data_glosa_input"] = format_api_date_input(registro.get("data_glosa"))
+    prepared["dt_recurso_input"] = format_api_date_input(registro.get("dt_recurso"))
+    prepared["dt_pagamento_input"] = format_api_date_input(registro.get("dt_pagamento"))
+    prepared["valor_glosado_input"] = format_brl_input(registro.get("valor_glosado"))
+    try:
+        prepared["qtd_glosada_input"] = int(float(str(qtd_glosada).replace(",", ".")))
+    except (TypeError, ValueError):
+        prepared["qtd_glosada_input"] = ""
+    return prepared
+
+
+def attach_registros_glosa(contas, filtros):
+    if not contas:
+        return
+
+    params = {
+        key: value
+        for key, value in filtros.items()
+        if key in {"cd_remessa", "cd_atendimento", "cd_reg", "tp_atendimento"} and value
+    }
+    params["limit"] = 5000
+    payload = api_get(settings.API_REGISTRO_GLOSA_PATH, params)
+    registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+
+    registros_por_linha = {}
+    for registro in registros:
+        if not isinstance(registro, dict):
+            continue
+        key = _glosa_match_key(registro)
+        if key not in registros_por_linha:
+            registros_por_linha[key] = _prepare_registro_glosa(registro)
+
+    for conta in contas:
+        if not isinstance(conta, dict):
+            continue
+        registro = registros_por_linha.get(_glosa_match_key(conta))
+        if registro:
+            conta["registro_glosa"] = registro
+            conta["registro_glosa_id"] = registro.get("id")
+            conta["registro_glosa_status"] = registro.get("sn_glosado")
+
+
 def build_registro_glosa_payload(data):
     return {
         "codigo_paciente": as_int_or_zero(data.get("cd_paciente")),
@@ -307,22 +436,65 @@ def dashboard(request):
 @require_http_methods(["GET", "POST"])
 def conta_atendimento(request):
     if request.method == "POST":
-        payload = build_registro_glosa_payload(request.POST)
-        is_acatar = payload.get("sn_glosado") == "not"
+        registro_id = request.POST.get("registro_glosa_id")
+        form_action = request.POST.get("form_action") or "salvar"
         try:
-            api_post(settings.API_REGISTRO_GLOSA_PATH, payload)
-            success_message = (
-                "Acato registrado a partir da conta selecionada."
-                if is_acatar
-                else "Glosa registrada a partir da conta selecionada."
-            )
-            messages.success(request, success_message)
-            return redirect(request.get_full_path())
+            if form_action == "desfazer" and registro_id:
+                api_delete(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}")
+                return modal_action_response(
+                    request,
+                    "Registro desfeito a partir da conta selecionada.",
+                    "error",
+                )
+
+            payload = build_registro_glosa_payload(request.POST)
+            is_acatar = payload.get("sn_glosado") == "not"
+            if registro_id:
+                api_payload = api_put(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}", payload)
+                success_message = (
+                    "Acato atualizado a partir da conta selecionada."
+                    if is_acatar
+                    else "Glosa atualizada a partir da conta selecionada."
+                )
+                return modal_action_response(
+                    request,
+                    success_message,
+                    "warning",
+                    api_payload=api_payload,
+                )
+            else:
+                api_payload = api_post(settings.API_REGISTRO_GLOSA_PATH, payload)
+                success_message = (
+                    "Acato registrado a partir da conta selecionada."
+                    if is_acatar
+                    else "Glosa registrada a partir da conta selecionada."
+                )
+                return modal_action_response(
+                    request,
+                    success_message,
+                    "success",
+                    api_payload=api_payload,
+                )
         except ApiError as exc:
+            payload = build_registro_glosa_payload(request.POST)
+            is_acatar = payload.get("sn_glosado") == "not"
             action_name = "acato" if is_acatar else "glosa"
-            messages.error(request, f"Falha ao registrar {action_name}: {exc}")
+            if form_action == "desfazer":
+                error_message = f"Falha ao desfazer registro: {exc}"
+            else:
+                error_message = f"Falha ao salvar {action_name}: {exc}"
+            return modal_action_response(
+                request,
+                error_message,
+                "error",
+                status=400,
+            )
+
+    if request.method == "GET" and request.GET and is_browser_reload(request):
+        return redirect(request.path)
 
     filtros = request.GET.dict()
+    filtros.pop("_modal_action", None)
     filtros.pop("limit", None)
     filtros.pop("offset", None)
     page = as_positive_int(filtros.pop("page", None), 1)
@@ -351,6 +523,13 @@ def conta_atendimento(request):
                 offset = as_int_or_zero(payload.get("offset"))
             else:
                 total_pacientes = len(_group_contas(contas))
+            try:
+                attach_registros_glosa(contas, api_filtros)
+            except ApiError as exc:
+                messages.error(
+                    request,
+                    format_api_error(exc, "Consulta de glosas registradas"),
+                )
         else:
             contas = []
     except ApiError as exc:
