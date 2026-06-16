@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load core_extras %}
+{% block breadcrumb_label %}Glosas MV &gt; Análise de Contas{% endblock %}
 {% block page_title %}Triagem{% endblock %}
 {% block content %}
 
@@ -71,8 +72,16 @@
       </div>
       {% if request.GET %}
       <div class="collapse-actions">
-        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('expand-all-results'))">Expandir todos</button>
-        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('collapse-all-results'))">Colapsar todos</button>
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.triagemExpandLevel = Math.min((window.triagemExpandLevel || 0) + 1, 3); window.dispatchEvent(new CustomEvent('expand-results-level-' + window.triagemExpandLevel))"
+        >Expandir</button>
+        <button
+          type="button"
+          class="collapse-action"
+          onclick="window.triagemExpandLevel = 0; window.dispatchEvent(new CustomEvent('collapse-all-results'))"
+        >Colapsar todos</button>
       </div>
       {% endif %}
     </div>
@@ -134,7 +143,7 @@
   {% elif request.GET %}
   <div class="results-list">
     {% for grupo in grupos %}
-    <div class="pac-card" x-data="{ open: false }" @expand-all-results.window="open = true" @collapse-all-results.window="open = false">
+    <div class="pac-card" x-data="{ open: false }" @expand-results-level-1.window="open = true" @collapse-all-results.window="open = false">
       <button class="pac-header" @click="open = !open" :aria-expanded="open">
         <div class="pac-header-left">
           <span class="pac-chevron" :class="{ 'pac-chevron--open': open }">&#9654;</span>
@@ -153,7 +162,7 @@
 
       <div class="pac-body" x-show="open">
         {% for rem in grupo.remessas %}
-        <div class="rem-block" x-data="{ remOpen: {% if grupo.num_remessas > 1 %}false{% else %}true{% endif %} }" @expand-all-results.window="remOpen = true" @collapse-all-results.window="remOpen = false">
+        <div class="rem-block" x-data="{ remOpen: {% if grupo.num_remessas > 1 %}false{% else %}true{% endif %} }" @expand-results-level-2.window="remOpen = true" @collapse-all-results.window="remOpen = false">
           <button class="rem-header" @click="remOpen = !remOpen" :aria-expanded="remOpen">
             <span class="rem-chevron" :class="{ 'rem-chevron--open': remOpen }">&#9654;</span>
             <span class="rem-title">Remessa <strong>#{{ rem.cd_remessa }}</strong></span>
@@ -166,7 +175,7 @@
 
           <div class="rem-body" x-show="remOpen">
             {% for atd in rem.atendimentos %}
-            <div class="atd-block" x-data="{ atdOpen: false }" @expand-all-results.window="atdOpen = true" @collapse-all-results.window="atdOpen = false">
+            <div class="atd-block" x-data="{ atdOpen: false }" @expand-results-level-3.window="atdOpen = true" @collapse-all-results.window="atdOpen = false">
               <button class="atd-header" @click="atdOpen = !atdOpen" :aria-expanded="atdOpen">
                 <span class="atd-chevron" :class="{ 'atd-chevron--open': atdOpen }">&#9654;</span>
                 <span class="atd-title">Atendimento <strong>#{{ atd.cd_atendimento }}</strong></span>
@@ -209,7 +218,7 @@
                             <th>Tipo Atendimento</th>
                             <th class="account-col-label-qtd">Qtd Lanç.</th>
                             <th class="col-valor">Valor</th>
-                            <th class="account-action-col"></th>
+                            <th class="account-action-col">Ação</th>
                           </tr>
                         </thead>
                         {% for conta in grupo_fat.itens %}

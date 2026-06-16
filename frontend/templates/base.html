@@ -63,10 +63,9 @@
   <main class="content">
     <header class="topbar">
       <div>
-        <span class="breadcrumb-label">Faturamento hospitalar</span>
+        <span class="breadcrumb-label">{% block breadcrumb_label %}Faturamento hospitalar{% endblock %}</span>
         <h1>{% block page_title %}Dashboard{% endblock %}</h1>
       </div>
-      <div class="profile">Leitura</div>
     </header>
     {% if messages %}
       <div class="messages">

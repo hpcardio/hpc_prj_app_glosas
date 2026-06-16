@@ -766,7 +766,7 @@ body {
 
 /* ── Account table ────────────────────────────────────── */
 .account-table {
-  width: auto;
+  width: 100%;
   min-width: 1248px;
   table-layout: fixed;
   border-collapse: separate;
