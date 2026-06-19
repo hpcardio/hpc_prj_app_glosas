@@ -1,9 +1,11 @@
 from datetime import date, datetime
 from math import ceil
+from hashlib import sha256
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
 from django.contrib import messages
 from django.conf import settings
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
@@ -13,6 +15,10 @@ from .services import ApiError, api_delete, api_get, api_patch, api_post, api_pu
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
 PRAZOS_RECURSO_CONVENIO_PATH = "/app_glosas/prazos-recurso-convenio"
+DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
+DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
+ACOMPANHAMENTO_GLOSAS_CACHE_KEY = "acompanhamento:registros-glosa"
+CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 
 
 def format_api_date(value):
@@ -439,6 +445,7 @@ def build_acompanhamento_rows(registros):
         row["dt_recebimento_formatada"] = format_api_date(
             row.get("dt_recebimento")
         )
+        row["data_glosa_formatada"] = format_api_date(row.get("data_glosa"))
         rows.append(row)
     return rows
 
@@ -472,7 +479,11 @@ def build_acompanhamento_cards(rows):
         all_received = all(item.get("dt_recebimento") for item in itens)
         oldest_item = min(itens, key=bucket_reference_date)
         bucket_key = "recebidas" if all_received else age_bucket(oldest_item)
-        total = sum(item["valor_recurso"] for item in itens)
+        total_recurso = sum(item["valor_recurso"] for item in itens)
+        total_recebido = sum(
+            as_float_or_zero(item.get("valor_recebido")) for item in itens
+        )
+        total = total_recebido if bucket_key == "recebidas" else total_recurso
         qtd = sum(item["qtd_recurso"] for item in itens)
         reference_date = bucket_reference_date(oldest_item)
         cards.append(
@@ -487,10 +498,16 @@ def build_acompanhamento_cards(rows):
                 "processo_recurso": unique_join(
                     item.get("processo_recurso") for item in itens
                 ),
+                "remessas": unique_join(item.get("cd_remessa") for item in itens),
+                "datas_glosa": unique_join(
+                    item.get("data_glosa_formatada") for item in itens
+                ),
                 "pacientes": unique_join(item.get("paciente_label") for item in itens),
                 "convenios": unique_join(item.get("convenio") for item in itens),
                 "qtd_total": qtd,
                 "valor_total": total,
+                "valor_recurso_total": total_recurso,
+                "valor_recebido_total": total_recebido,
                 "valor_total_formatado": format_brl_input(total),
                 "itens": itens,
                 "has_mini_table": len(itens) > 1,
@@ -550,7 +567,11 @@ def attach_registros_glosa(contas, filtros):
         if key in {"cd_remessa", "cd_atendimento", "cd_reg", "tp_atendimento"} and value
     }
     params["limit"] = 5000
-    payload = api_get(settings.API_REGISTRO_GLOSA_PATH, params)
+    payload = get_cached_api_payload(
+        "conta-atendimento:registros-glosa",
+        settings.API_REGISTRO_GLOSA_PATH,
+        params,
+    )
     registros = payload.get("glosas", []) if isinstance(payload, dict) else []
 
     registros_por_linha = {}
@@ -639,6 +660,12 @@ def percent_value(part, total):
     return round((part / total) * 100, 1)
 
 
+def percent_int(part, total):
+    if not total:
+        return 0
+    return max(min(round((part / total) * 100), 100), 0)
+
+
 def aging_days(registro):
     reference = (
         parse_api_date(registro.get("data_glosa"))
@@ -649,10 +676,12 @@ def aging_days(registro):
 
 
 def aging_bucket_key(days):
-    if days <= 7:
-        return "0_7"
+    if days <= 5:
+        return "0_5"
+    if days <= 10:
+        return "6_10"
     if days <= 15:
-        return "8_15"
+        return "11_15"
     if days <= 30:
         return "16_30"
     if days <= 60:
@@ -661,8 +690,9 @@ def aging_bucket_key(days):
 
 
 AGING_BUCKETS = {
-    "0_7": "0 a 7 dias",
-    "8_15": "8 a 15 dias",
+    "0_5": "0 a 5 dias",
+    "6_10": "6 a 10 dias",
+    "11_15": "11 a 15 dias",
     "16_30": "16 a 30 dias",
     "31_60": "31 a 60 dias",
     "mais_60": "Acima de 60 dias",
@@ -725,6 +755,182 @@ def top_count_groups(rows, key_name, limit=6):
     return ordered
 
 
+def normalize_motivo_label(value):
+    text = " ".join(str(value or "").strip().split())
+    if not text:
+        return "Não informado"
+
+    parts = text.split(maxsplit=1)
+    if len(parts) == 2:
+        raw_code = parts[0].strip(":-–—")
+        if any(char.isdigit() for char in raw_code) and len(raw_code) <= 12:
+            return parts[1].strip(":-–— ") or text
+    return text
+
+
+def build_motivos_indicators(rows, pareto_limit=8, series_limit=5):
+    motivo_groups = {}
+    for registro in rows:
+        label = normalize_motivo_label(registro.get("motivo_glosa"))
+        current = motivo_groups.setdefault(label, {"label": label, "count": 0, "value": 0})
+        current["count"] += 1
+        current["value"] += registro_valor_glosado(registro)
+
+    pareto_items = sorted(
+        motivo_groups.values(),
+        key=lambda item: (item["value"], item["count"]),
+        reverse=True,
+    )[:pareto_limit]
+    total_value = sum(item["value"] for item in motivo_groups.values())
+    max_value = max((item["value"] for item in pareto_items), default=0)
+    accumulated = 0
+    pareto = []
+    pareto_cut_index = None
+    for index, item in enumerate(pareto_items, start=1):
+        accumulated += item["value"]
+        accumulated_pct = percent_value(accumulated, total_value)
+        if pareto_cut_index is None and accumulated_pct >= 80:
+            pareto_cut_index = index
+        pareto.append(
+            {
+                "label": item["label"],
+                "count": item["count"],
+                "value": item["value"],
+                "value_formatado": format_brl_input(item["value"]),
+                "bar_width": percent_value(item["value"], max_value),
+                "bar_height": percent_int(item["value"], max_value),
+                "share_pct": percent_value(item["value"], total_value),
+                "accumulated_pct": accumulated_pct,
+                "marker_left": percent_int(accumulated_pct, 100),
+                "is_cut": pareto_cut_index == index,
+            }
+        )
+    point_count = max(len(pareto) - 1, 1)
+    pareto_line_points = " ".join(
+        f"{round((index / point_count) * 100, 2)},{round(92 - (item['accumulated_pct'] * 0.84), 2)}"
+        for index, item in enumerate(pareto)
+    )
+    pareto_cut_left = (
+        round(((pareto_cut_index - 1) / point_count) * 100, 2)
+        if pareto_cut_index
+        else None
+    )
+    pareto_cut_left_css = (
+        f"{pareto_cut_left:.2f}"
+        if pareto_cut_left is not None
+        else ""
+    )
+    line_points = [
+        (
+            round((index / point_count) * 100, 2),
+            round(92 - (item["accumulated_pct"] * 0.84), 2),
+        )
+        for index, item in enumerate(pareto)
+    ]
+    pareto_accumulated_labels = []
+    for index, item in enumerate(pareto):
+        left = round(((index + 1) / max(len(pareto), 1)) * 100, 2)
+        top = line_points[-1][1] if line_points else 0
+        for point_index, (x1, y1) in enumerate(line_points[:-1]):
+            x2, y2 = line_points[point_index + 1]
+            if x1 <= left <= x2:
+                ratio = (left - x1) / max(x2 - x1, 1)
+                top = round(y1 + ((y2 - y1) * ratio), 2)
+                break
+        pareto_accumulated_labels.append(
+            {
+                "left": left,
+                "top": top,
+                "left_css": f"{left:.2f}",
+                "top_css": f"{top:.2f}",
+                "value": item["accumulated_pct"],
+            }
+        )
+
+    top_series_labels = [
+        item["label"]
+        for item in sorted(
+            motivo_groups.values(),
+            key=lambda item: (item["count"], item["value"]),
+            reverse=True,
+        )[:series_limit]
+    ]
+
+    today = date.today()
+    twelve_months_start = (
+        date(today.year - 1, today.month + 1, 1)
+        if today.month < 12
+        else date(today.year, 1, 1)
+    )
+    month_keys = month_keys_between(twelve_months_start, date(today.year, today.month, 1))
+    monthly = {
+        label: {key: 0 for key in month_keys}
+        for label in top_series_labels
+    }
+    for registro in rows:
+        label = normalize_motivo_label(registro.get("motivo_glosa"))
+        if label not in monthly:
+            continue
+        key = month_key(registro.get("data_glosa"))
+        if key in monthly[label]:
+            monthly[label][key] += 1
+
+    max_count = max(
+        (count for counts in monthly.values() for count in counts.values()),
+        default=0,
+    )
+    colors = ["#1f6f86", "#d58a22", "#2f8a5f", "#8069a8", "#c56d86"]
+    divisor = max(max_count, 1)
+    y_ticks = [
+        max_count,
+        round(max_count * 0.75),
+        round(max_count * 0.5),
+        round(max_count * 0.25),
+        0,
+    ]
+    series = []
+    point_count = max(len(month_keys) - 1, 1)
+    for index, label in enumerate(top_series_labels):
+        points = []
+        values = []
+        for month_index, key in enumerate(month_keys):
+            count = monthly[label][key]
+            x = round(4 + ((month_index / point_count) * 92), 2)
+            y = round(92 - ((count / divisor) * 76), 2)
+            points.append(f"{x},{y}")
+            values.append(
+                {
+                    "label": month_label(key),
+                    "count": count,
+                    "x": f"{x:.2f}",
+                    "y": f"{y:.2f}",
+                }
+            )
+        series.append(
+            {
+                "label": label,
+                "color": colors[index % len(colors)],
+                "points": " ".join(points),
+                "values": values,
+                "total": sum(item["count"] for item in values),
+            }
+        )
+
+    return {
+        "pareto": pareto,
+        "pareto_line_points": pareto_line_points,
+        "pareto_cut_left": pareto_cut_left,
+        "pareto_cut_left_css": pareto_cut_left_css,
+        "pareto_accumulated_labels": pareto_accumulated_labels,
+        "pareto_total_formatado": format_brl_input(total_value),
+        "pareto_cut_index": pareto_cut_index or 0,
+        "months": [month_label(key) for key in month_keys],
+        "series": series,
+        "max_count": max_count,
+        "y_ticks": y_ticks,
+    }
+
+
 def normalize_lookup_text(value):
     return " ".join(str(value or "").strip().upper().split())
 
@@ -771,9 +977,263 @@ def registro_tem_prazo_parametrizado(registro, prazos_lookup):
     return bool(nome and f"nome:{nome}" in prazos_lookup)
 
 
+def tipo_tratativa_registro(registro):
+    if is_recurso_registro(registro):
+        return "Recurso"
+    if is_acato_registro(registro):
+        return "Acato"
+    return "Não classificado"
+
+
+def prazo_convenio_registro(registro, prazos_lookup):
+    cd_convenio = registro.get("cd_convenio")
+    if cd_convenio not in (None, ""):
+        prazo = prazos_lookup.get(f"cd:{cd_convenio}")
+        if prazo is not None:
+            return prazo
+
+    nome = normalize_lookup_text(registro.get("convenio"))
+    if nome:
+        return prazos_lookup.get(f"nome:{nome}")
+    return None
+
+
+def month_keys_between(start_date, end_date):
+    keys = []
+    current = date(start_date.year, start_date.month, 1)
+    end = date(end_date.year, end_date.month, 1)
+    while current <= end:
+        keys.append(current.strftime("%Y-%m"))
+        if current.month == 12:
+            current = date(current.year + 1, 1, 1)
+        else:
+            current = date(current.year, current.month + 1, 1)
+    return keys
+
+
+def build_vw_indicadores_aging_glosas(rows, prazos_lookup):
+    today = date.today()
+    view_rows = []
+    for registro in rows:
+        data_glosa = parse_api_date(registro.get("data_glosa"))
+        if data_glosa is None:
+            continue
+
+        dt_recurso = parse_api_date(registro.get("dt_recurso"))
+        data_final = dt_recurso or today
+        aging_dias = max((data_final - data_glosa).days, 0)
+        dias_para_recurso = prazo_convenio_registro(registro, prazos_lookup)
+        flag_dentro_prazo = (
+            dias_para_recurso is not None and aging_dias <= dias_para_recurso
+        )
+        flag_fora_prazo = (
+            dias_para_recurso is not None and aging_dias > dias_para_recurso
+        )
+
+        view_rows.append(
+            {
+                "id": registro.get("id"),
+                "cd_remessa": registro.get("cd_remessa"),
+                "cd_atendimento": registro.get("cd_atendimento"),
+                "conta": registro.get("conta"),
+                "cd_convenio": registro.get("cd_convenio"),
+                "convenio": registro.get("convenio") or "Não informado",
+                "data_glosa": data_glosa,
+                "dt_pagamento": parse_api_date(registro.get("dt_pagamento")),
+                "dt_recurso": dt_recurso,
+                "sn_glosado": registro.get("sn_glosado"),
+                "tipo_tratativa": tipo_tratativa_registro(registro),
+                "status_tratativa": "Tratado" if dt_recurso else "Em aberto",
+                "valor": as_float_or_zero(registro.get("valor")),
+                "valor_glosado": registro_valor_glosado(registro),
+                "valor_recebido": as_float_or_zero(registro.get("valor_recebido")),
+                "aging_dias": aging_dias,
+                "bucket_aging": aging_bucket_key(aging_dias),
+                "ano_mes_glosa": data_glosa.strftime("%Y-%m"),
+                "ano_mes_tratativa": data_final.strftime("%Y-%m"),
+                "dias_para_recurso": dias_para_recurso,
+                "flag_dentro_prazo": flag_dentro_prazo,
+                "flag_fora_prazo": flag_fora_prazo,
+                "sem_prazo_configurado": dias_para_recurso is None,
+            }
+        )
+    return view_rows
+
+
+def build_aging_indicators(vw_rows):
+    today = date.today()
+    twelve_months_start = date(today.year - 1, today.month + 1, 1) if today.month < 12 else date(today.year, 1, 1)
+    month_keys = month_keys_between(twelve_months_start, date(today.year, today.month, 1))
+
+    heatmap_lookup = {}
+    for key in month_keys:
+        for bucket_key in AGING_BUCKETS:
+            heatmap_lookup[(bucket_key, key)] = {
+                "count": 0,
+                "value": 0,
+                "aging_total": 0,
+                "dentro": 0,
+                "fora": 0,
+            }
+
+    for row in vw_rows:
+        key = row["ano_mes_tratativa"]
+        if key not in month_keys:
+            continue
+        cell = heatmap_lookup[(row["bucket_aging"], key)]
+        cell["count"] += 1
+        cell["value"] += row["valor_glosado"]
+        cell["aging_total"] += row["aging_dias"]
+        if row["flag_dentro_prazo"]:
+            cell["dentro"] += 1
+        if row["flag_fora_prazo"]:
+            cell["fora"] += 1
+
+    max_heatmap_count = max(
+        (cell["count"] for cell in heatmap_lookup.values()),
+        default=0,
+    )
+    heatmap_rows = []
+    for bucket_key, bucket_label in AGING_BUCKETS.items():
+        cells = []
+        for key in month_keys:
+            cell = heatmap_lookup[(bucket_key, key)]
+            count = cell["count"]
+            intensity = percent_value(count, max_heatmap_count)
+            intensity_level = 0
+            if count:
+                intensity_level = max(1, min(5, ceil(intensity / 20)))
+            cells.append(
+                {
+                    "label": month_label(key),
+                    "count": count,
+                    "intensity": intensity,
+                    "intensity_level": intensity_level,
+                    "value_formatado": format_brl_input(cell["value"]),
+                    "aging_medio": round(cell["aging_total"] / count, 1)
+                    if count
+                    else 0,
+                    "dentro": cell["dentro"],
+                    "fora": cell["fora"],
+                }
+            )
+        heatmap_rows.append({"label": bucket_label, "cells": cells})
+
+    treated_rows = [row for row in vw_rows if row["dt_recurso"] is not None]
+    monthly_lookup = {
+        key: {
+            "label": month_label(key),
+            "count": 0,
+            "value": 0,
+            "aging_total": 0,
+            "dentro": 0,
+            "fora": 0,
+        }
+        for key in month_keys
+    }
+    for row in treated_rows:
+        key = row["ano_mes_tratativa"]
+        if key not in monthly_lookup:
+            continue
+        current = monthly_lookup[key]
+        current["count"] += 1
+        current["value"] += row["valor_glosado"]
+        current["aging_total"] += row["aging_dias"]
+        if row["flag_dentro_prazo"]:
+            current["dentro"] += 1
+        if row["flag_fora_prazo"]:
+            current["fora"] += 1
+
+    max_monthly_count = max(
+        (item["count"] for item in monthly_lookup.values()),
+        default=0,
+    )
+    volume_tratativas_12m = []
+    for key in month_keys:
+        item = monthly_lookup[key]
+        item["bar_width"] = percent_int(item["count"], max_monthly_count)
+        item["bar_height"] = 4 + round((item["bar_width"] / 100) * 108)
+        item["value_formatado"] = format_brl_input(item["value"])
+        item["aging_medio"] = (
+            round(item["aging_total"] / item["count"], 1)
+            if item["count"]
+            else 0
+        )
+        item["dentro_pct"] = percent_value(item["dentro"], item["dentro"] + item["fora"])
+        item["fora_pct"] = percent_value(item["fora"], item["dentro"] + item["fora"])
+        volume_tratativas_12m.append(item)
+
+    convenio_groups = {}
+    for row in treated_rows:
+        name = row["convenio"] or "Não informado"
+        current = convenio_groups.setdefault(
+            name,
+            {
+                "label": name,
+                "count": 0,
+                "value": 0,
+                "aging_total": 0,
+                "dias_para_recurso": None,
+            },
+        )
+        current["count"] += 1
+        current["value"] += row["valor_glosado"]
+        current["aging_total"] += row["aging_dias"]
+        if current["dias_para_recurso"] is None and row["dias_para_recurso"] is not None:
+            current["dias_para_recurso"] = row["dias_para_recurso"]
+
+    convenio_barras = sorted(
+        convenio_groups.values(),
+        key=lambda item: (item["count"], item["value"]),
+        reverse=True,
+    )[:8]
+    max_convenio_count = max((item["count"] for item in convenio_barras), default=0)
+    max_convenio_value = max((item["value"] for item in convenio_barras), default=0)
+    for item in convenio_barras:
+        item["value_formatado"] = format_brl_input(item["value"])
+        item["aging_medio"] = (
+            round(item["aging_total"] / item["count"], 1)
+            if item["count"]
+            else 0
+        )
+
+    max_convenio_days = max(
+        max(item["aging_medio"], item["dias_para_recurso"] or 0)
+        for item in convenio_barras
+    ) if convenio_barras else 0
+    for item in convenio_barras:
+        item["count_width"] = percent_value(item["count"], max_convenio_count)
+        item["value_width"] = percent_value(item["value"], max_convenio_value)
+        item["aging_width"] = percent_int(item["aging_medio"], max_convenio_days)
+        item["prazo_marker_width"] = percent_int(
+            item["dias_para_recurso"] or 0,
+            max_convenio_days,
+        )
+
+    dentro = sum(1 for row in vw_rows if row["flag_dentro_prazo"])
+    fora = sum(1 for row in vw_rows if row["flag_fora_prazo"])
+    sem_prazo = sum(1 for row in vw_rows if row["sem_prazo_configurado"])
+    em_aberto = sum(1 for row in vw_rows if row["status_tratativa"] == "Em aberto")
+
+    return {
+        "total": len(vw_rows),
+        "tratados": len(treated_rows),
+        "em_aberto": em_aberto,
+        "dentro": dentro,
+        "fora": fora,
+        "sem_prazo": sem_prazo,
+        "heatmap_months": [month_label(key) for key in month_keys],
+        "heatmap": heatmap_rows,
+        "volume_tratativas_12m": volume_tratativas_12m,
+        "convenio_barras": convenio_barras,
+    }
+
+
 def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
     prazos_lookup = build_prazos_convenio_lookup(prazos_convenio or [])
     rows = [registro for registro in registros if is_active_registro(registro)]
+    aging_view = build_vw_indicadores_aging_glosas(rows, prazos_lookup)
+    aging_indicators = build_aging_indicators(aging_view)
     recursos = [registro for registro in rows if is_recurso_registro(registro)]
     acatos = [registro for registro in rows if is_acato_registro(registro)]
     total_glosado = sum(registro_valor_glosado(registro) for registro in rows)
@@ -806,9 +1266,9 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
     aging = []
     for key, label in AGING_BUCKETS.items():
         bucket_rows = [
-            registro for registro in rows if aging_bucket_key(aging_days(registro)) == key
+            registro for registro in aging_view if registro["bucket_aging"] == key
         ]
-        value = sum(registro_valor_glosado(registro) for registro in bucket_rows)
+        value = sum(registro["valor_glosado"] for registro in bucket_rows)
         aging.append(
             {
                 "key": key,
@@ -824,26 +1284,14 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
 
     sla_dentro = 0
     sla_fora = 0
-    sla_sem_atendimento = 0
     sla_sem_parametro = 0
-    for registro in recursos:
-        data_atendimento = parse_api_date(registro.get("data_atendimento"))
-        if data_atendimento is None:
-            sla_sem_atendimento += 1
-        data_inicio = (
-            data_atendimento
-            or parse_api_date(registro.get("data_glosa"))
-            or parse_api_date(registro.get("data_criacao"))
-            or date.today()
-        )
-        data_tratativa = parse_api_date(registro.get("dt_recurso")) or date.today()
-        prazo_registro = prazo_recurso_registro(registro, prazos_lookup, prazo_sla)
-        if not registro_tem_prazo_parametrizado(registro, prazos_lookup):
+    for registro in aging_view:
+        if registro["dias_para_recurso"] is None:
             sla_sem_parametro += 1
-        dias_tratativa = max((data_tratativa - data_inicio).days, 0)
-        if dias_tratativa <= prazo_registro:
+            continue
+        if registro["flag_dentro_prazo"]:
             sla_dentro += 1
-        else:
+        elif registro["flag_fora_prazo"]:
             sla_fora += 1
 
     mensal = {}
@@ -889,6 +1337,7 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         "valor_recebido",
     )
     motivo_top = top_groups(rows, "motivo_glosa", "valor_glosado")
+    motivos = build_motivos_indicators(rows)
     aberto_top = sorted(
         glosas_sem_processo,
         key=lambda registro: aging_days(registro),
@@ -943,44 +1392,245 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         "sla": {
             "dentro": sla_dentro,
             "fora": sla_fora,
-            "total": len(recursos),
-            "dentro_pct": percent_value(sla_dentro, len(recursos)),
-            "fora_pct": percent_value(sla_fora, len(recursos)),
-            "sem_atendimento": sla_sem_atendimento,
+            "total": sla_dentro + sla_fora,
+            "dentro_pct": percent_value(sla_dentro, sla_dentro + sla_fora),
+            "fora_pct": percent_value(sla_fora, sla_dentro + sla_fora),
             "sem_parametro": sla_sem_parametro,
         },
         "aging": aging,
+        "aging_glosas": aging_indicators,
         "volume_mensal": volume_mensal,
         "volume_convenio": top_count_groups(rows, "convenio"),
         "volume_prestador": top_count_groups(rows, "prestador"),
         "volume_tipo_atendimento": top_count_groups(rows, "tp_atendimento"),
         "recuperado_convenio": recuperado_convenio,
         "motivo_top": motivo_top,
+        "motivos": motivos,
         "aberto_top": aberto_top,
     }
 
 
+def clean_dashboard_filter_value(value):
+    return str(value or "").strip()
+
+
+def get_dashboard_filters(request):
+    tratativa = clean_dashboard_filter_value(request.GET.get("tratativa")).lower()
+    if tratativa == "glosa":
+        tratativa = "acato"
+    if tratativa not in {"recurso", "acato"}:
+        tratativa = ""
+
+    return {
+        "periodo_inicio": format_api_date_input(request.GET.get("periodo_inicio")),
+        "periodo_fim": format_api_date_input(request.GET.get("periodo_fim")),
+        "tratativa": tratativa,
+        "convenio": clean_dashboard_filter_value(request.GET.get("convenio")),
+        "tipo_atendimento": clean_dashboard_filter_value(
+            request.GET.get("tipo_atendimento")
+        ),
+    }
+
+
+def unique_filter_options(rows, key_name):
+    values = {
+        clean_dashboard_filter_value(row.get(key_name))
+        for row in rows
+        if clean_dashboard_filter_value(row.get(key_name))
+    }
+    return sorted(values, key=lambda item: normalize_lookup_text(item))
+
+
+def build_dashboard_filter_options(registros):
+    rows = [registro for registro in registros if is_active_registro(registro)]
+    return {
+        "convenios": unique_filter_options(rows, "convenio"),
+        "tipos_atendimento": unique_filter_options(rows, "tp_atendimento"),
+    }
+
+
+def apply_dashboard_filters(registros, filters):
+    periodo_inicio = parse_api_date(filters.get("periodo_inicio"))
+    periodo_fim = parse_api_date(filters.get("periodo_fim"))
+    convenio = normalize_lookup_text(filters.get("convenio"))
+    tipo_atendimento = normalize_lookup_text(filters.get("tipo_atendimento"))
+    tratativa = filters.get("tratativa")
+
+    filtered = []
+    for registro in registros:
+        data_atendimento = parse_api_date(registro.get("data_atendimento"))
+        if periodo_inicio and (not data_atendimento or data_atendimento < periodo_inicio):
+            continue
+        if periodo_fim and (not data_atendimento or data_atendimento > periodo_fim):
+            continue
+        if convenio and normalize_lookup_text(registro.get("convenio")) != convenio:
+            continue
+        if (
+            tipo_atendimento
+            and normalize_lookup_text(registro.get("tp_atendimento")) != tipo_atendimento
+        ):
+            continue
+        if tratativa == "recurso" and not is_recurso_registro(registro):
+            continue
+        if tratativa == "acato" and not is_acato_registro(registro):
+            continue
+        filtered.append(registro)
+
+    return filtered
+
+
+def normalized_contains(value, needle):
+    query = normalize_lookup_text(needle)
+    if not query:
+        return True
+    return query in normalize_lookup_text(value)
+
+
+def same_numeric_text(value, expected):
+    expected_text = clean_dashboard_filter_value(expected)
+    if not expected_text:
+        return True
+    return str(value or "").strip() == expected_text
+
+
+def apply_acompanhamento_filters(registros, filters):
+    filtered = []
+    for registro in registros:
+        if not same_numeric_text(registro.get("cd_remessa"), filters.get("cd_remessa")):
+            continue
+        if not same_numeric_text(
+            registro.get("cd_atendimento"),
+            filters.get("cd_atendimento"),
+        ):
+            continue
+        if not same_numeric_text(registro.get("conta"), filters.get("cd_reg")):
+            continue
+        if not normalized_contains(registro.get("convenio"), filters.get("nm_convenio")):
+            continue
+        if not normalized_contains(
+            registro.get("processo_controle_fatura_gab"),
+            filters.get("processo_original"),
+        ):
+            continue
+        if not normalized_contains(
+            registro.get("processo_recurso"),
+            filters.get("processo_recurso"),
+        ):
+            continue
+        if not normalized_contains(registro.get("nm_paciente"), filters.get("nm_paciente")):
+            continue
+        if (
+            filters.get("tp_atendimento")
+            and normalize_lookup_text(registro.get("tp_atendimento"))
+            != normalize_lookup_text(filters.get("tp_atendimento"))
+        ):
+            continue
+        filtered.append(registro)
+    return filtered
+
+
+def get_cached_dashboard_payload(cache_key, path, params=None, force_refresh=False):
+    if force_refresh:
+        cache.delete(cache_key)
+
+    payload = cache.get(cache_key)
+    if payload is None:
+        payload = api_get(path, params)
+        cache.set(
+            cache_key,
+            payload,
+            getattr(settings, "DASHBOARD_CACHE_SECONDS", 45),
+        )
+    return payload
+
+
+def build_api_cache_key(namespace, path, params=None):
+    query = urlencode(
+        sorted((key, value) for key, value in (params or {}).items() if value),
+        doseq=True,
+    )
+    digest = sha256(f"{path}?{query}".encode("utf-8")).hexdigest()
+    return f"api:{namespace}:{digest}"
+
+
+def get_cached_api_payload(namespace, path, params=None, force_refresh=False):
+    cache_key = build_api_cache_key(namespace, path, params)
+    if force_refresh:
+        cache.delete(cache_key)
+
+    payload = cache.get(cache_key)
+    if payload is None:
+        payload = api_get(path, params)
+        cache.set(
+            cache_key,
+            payload,
+            getattr(settings, "APP_FILTER_CACHE_SECONDS", 45),
+        )
+    return payload
+
+
+def clear_dashboard_cache():
+    cache.delete_many([DASHBOARD_GLOSAS_CACHE_KEY, DASHBOARD_PRAZOS_CACHE_KEY])
+
+
+def clear_filter_caches():
+    cache.clear()
+
+
 def dashboard(request):
     prazo_sla = as_positive_int(request.GET.get("sla"), 10)
+    filtros = get_dashboard_filters(request)
+    force_refresh = request.GET.get("refresh") == "1"
+    opcoes_filtro = {"convenios": [], "tipos_atendimento": []}
     prazos_convenio = []
+    dashboard_errors = []
     try:
-        prazos_payload = api_get(PRAZOS_RECURSO_CONVENIO_PATH)
+        prazos_payload = get_cached_dashboard_payload(
+            DASHBOARD_PRAZOS_CACHE_KEY,
+            PRAZOS_RECURSO_CONVENIO_PATH,
+            force_refresh=force_refresh,
+        )
         prazos_convenio = prazos_payload.get("convenios", [])
     except ApiError as exc:
-        messages.warning(request, format_api_error(exc, "Prazos por convênio"))
+        dashboard_errors.append(("Prazos por convênio", exc))
 
     try:
-        payload = api_get(settings.API_REGISTRO_GLOSA_PATH, {"limit": 5000})
+        payload = get_cached_dashboard_payload(
+            DASHBOARD_GLOSAS_CACHE_KEY,
+            settings.API_REGISTRO_GLOSA_PATH,
+            {"limit": 5000},
+            force_refresh=force_refresh,
+        )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+        opcoes_filtro = build_dashboard_filter_options(registros)
+        registros_filtrados = apply_dashboard_filters(registros, filtros)
         indicadores = build_dashboard_indicadores(
-            registros,
+            registros_filtrados,
             prazo_sla,
             prazos_convenio,
         )
     except ApiError as exc:
         indicadores = build_dashboard_indicadores([], prazo_sla, prazos_convenio)
-        messages.error(request, format_api_error(exc, "Indicadores"))
-    return render(request, "dashboard.html", {"indicadores": indicadores})
+        dashboard_errors.append(("Indicadores", exc))
+
+    auth_errors = [exc for _, exc in dashboard_errors if exc.status_code == 401]
+    if auth_errors and len(auth_errors) == len(dashboard_errors):
+        messages.error(
+            request,
+            "API exige autenticacao. Configure API_BEARER_TOKEN no ambiente do frontend.",
+        )
+    else:
+        for endpoint_name, exc in dashboard_errors:
+            messages.error(request, format_api_error(exc, endpoint_name))
+    return render(
+        request,
+        "dashboard.html",
+        {
+            "indicadores": indicadores,
+            "filtros": filtros,
+            "opcoes_filtro": opcoes_filtro,
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -1013,9 +1663,12 @@ def prazos_recurso_convenio(request):
                 "Informe uma quantidade de dias válida para: "
                 + ", ".join(errors),
             )
+        elif not payload:
+            messages.warning(request, "Nenhum prazo foi informado para atualização.")
         else:
             try:
                 api_put(PRAZOS_RECURSO_CONVENIO_PATH, payload)
+                clear_filter_caches()
                 messages.success(request, "Prazos por convênio atualizados.")
                 return redirect("prazos_recurso_convenio")
             except ApiError as exc:
@@ -1052,6 +1705,7 @@ def conta_atendimento(request):
         try:
             if form_action == "desfazer" and registro_id:
                 api_delete(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}")
+                clear_filter_caches()
                 return modal_action_response(
                     request,
                     "Registro desfeito a partir da conta selecionada.",
@@ -1062,6 +1716,7 @@ def conta_atendimento(request):
             is_acatar = payload.get("sn_glosado") == "not"
             if registro_id:
                 api_payload = api_put(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}", payload)
+                clear_filter_caches()
                 success_message = (
                     "Acato atualizado a partir da conta selecionada."
                     if is_acatar
@@ -1075,6 +1730,7 @@ def conta_atendimento(request):
                 )
             else:
                 api_payload = api_post(settings.API_REGISTRO_GLOSA_PATH, payload)
+                clear_filter_caches()
                 success_message = (
                     "Acato registrado a partir da conta selecionada."
                     if is_acatar
@@ -1118,7 +1774,11 @@ def conta_atendimento(request):
     total_pacientes = 0
     tiss_motivos = []
     try:
-        payload_tiss = api_get(settings.API_TISS_PATH, {"limit": 600})
+        payload_tiss = get_cached_api_payload(
+            CONTA_TISS_CACHE_KEY,
+            settings.API_TISS_PATH,
+            {"limit": 600},
+        )
         if isinstance(payload_tiss, dict):
             tiss_motivos = payload_tiss.get("itens", [])
     except ApiError as exc:
@@ -1126,7 +1786,11 @@ def conta_atendimento(request):
 
     try:
         if request.GET:
-            payload = api_get(settings.API_CONTA_ATENDIMENTO_PATH, api_filtros)
+            payload = get_cached_api_payload(
+                "conta-atendimento:contas",
+                settings.API_CONTA_ATENDIMENTO_PATH,
+                api_filtros,
+            )
             contas = as_list(payload)
             if isinstance(payload, dict):
                 total_pacientes = as_int_or_zero(payload.get("total"))
@@ -1245,6 +1909,7 @@ def acompanhamento(request):
                     f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}/recebimento",
                     payload,
                 )
+            clear_filter_caches()
             messages.success(
                 request,
                 "Recebimento registrado para o processo selecionado.",
@@ -1269,16 +1934,21 @@ def acompanhamento(request):
             "cd_atendimento",
             "cd_reg",
             "nm_convenio",
+            "processo_original",
+            "processo_recurso",
             "nm_paciente",
             "tp_atendimento",
         }
         and value
     }
-    api_filtros["limit"] = 5000
-
     try:
-        payload = api_get(settings.API_REGISTRO_GLOSA_PATH, api_filtros)
+        payload = get_cached_dashboard_payload(
+            ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
+            settings.API_REGISTRO_GLOSA_PATH,
+            {"limit": 5000},
+        )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+        registros = apply_acompanhamento_filters(registros, api_filtros)
     except ApiError as exc:
         registros = []
         messages.error(request, format_api_error(exc, "Acompanhamento"))
@@ -1325,7 +1995,7 @@ def acompanhamento(request):
 
 def glosas(request):
     try:
-        registros = api_get("/glosas", request.GET.dict())
+        registros = get_cached_api_payload("glosas", "/glosas", request.GET.dict())
     except ApiError as exc:
         registros = []
         messages.error(request, format_api_error(exc, "Glosas"))
@@ -1337,12 +2007,13 @@ def remessas(request):
     if request.method == "POST":
         try:
             api_post("/remessas", request.POST.dict())
+            clear_filter_caches()
             messages.success(request, "Remessa enviada para cadastro.")
             return redirect("remessas")
         except ApiError as exc:
             messages.error(request, format_api_error(exc, "Cadastro de remessa"))
     try:
-        registros = api_get("/remessas")
+        registros = get_cached_api_payload("remessas", "/remessas")
     except ApiError as exc:
         registros = []
         messages.error(request, format_api_error(exc, "Remessas"))
@@ -1354,12 +2025,13 @@ def recursos(request):
     if request.method == "POST":
         try:
             api_post("/recursos", request.POST.dict())
+            clear_filter_caches()
             messages.success(request, "Recurso enviado para cadastro.")
             return redirect("recursos")
         except ApiError as exc:
             messages.error(request, format_api_error(exc, "Cadastro de recurso"))
     try:
-        registros = api_get("/recursos")
+        registros = get_cached_api_payload("recursos", "/recursos")
     except ApiError as exc:
         registros = []
         messages.error(request, format_api_error(exc, "Recursos"))
@@ -1371,12 +2043,13 @@ def recebimentos(request):
     if request.method == "POST":
         try:
             api_post("/recebimentos", request.POST.dict())
+            clear_filter_caches()
             messages.success(request, "Recebimento enviado para cadastro.")
             return redirect("recebimentos")
         except ApiError as exc:
             messages.error(request, format_api_error(exc, "Cadastro de recebimento"))
     try:
-        registros = api_get("/recebimentos")
+        registros = get_cached_api_payload("recebimentos", "/recebimentos")
     except ApiError as exc:
         registros = []
         messages.error(request, format_api_error(exc, "Recebimentos"))
@@ -1388,12 +2061,16 @@ def conciliacao(request):
     if request.method == "POST":
         try:
             divergencias = api_post("/conciliacao/executar", {})
+            clear_filter_caches()
             messages.success(request, "Conciliacao executada.")
             return render(request, "conciliacao.html", {"divergencias": divergencias})
         except ApiError as exc:
             messages.error(request, format_api_error(exc, "Execucao da conciliacao"))
     try:
-        divergencias = api_get("/conciliacao/divergencias")
+        divergencias = get_cached_api_payload(
+            "conciliacao",
+            "/conciliacao/divergencias",
+        )
     except ApiError as exc:
         divergencias = []
         messages.error(request, format_api_error(exc, "Conciliacao"))

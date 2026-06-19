@@ -51,6 +51,14 @@
         <label>Convênio</label>
         <input class="form-control" name="nm_convenio" value="{{ filtros.nm_convenio|default:'' }}" placeholder="Ex: CASSI">
       </div>
+      <div class="filter-group">
+        <label>Proc. original</label>
+        <input class="form-control" name="processo_original" value="{{ filtros.processo_original|default:'' }}" placeholder="Código do processo">
+      </div>
+      <div class="filter-group">
+        <label>Proc. recurso</label>
+        <input class="form-control" name="processo_recurso" value="{{ filtros.processo_recurso|default:'' }}" placeholder="Código do recurso">
+      </div>
       <div class="filter-group filter-group--sm">
         <label>Atendimento</label>
         <input class="form-control" name="cd_atendimento" value="{{ filtros.cd_atendimento|default:'' }}" inputmode="numeric">
@@ -174,8 +182,6 @@
           <header>
             <div class="kanban-column-title">
               <strong>{{ column.label }}</strong>
-              <span>{{ column.cards|length }} cards</span>
-              <b>{{ column.valor_total_formatado }}</b>
             </div>
             <button
               type="button"
@@ -186,6 +192,10 @@
               <span class="sort-opposite-arrows" aria-hidden="true"></span>
             </button>
           </header>
+          <div class="kanban-column-summary">
+            <span>{{ column.cards|length }} cards</span>
+            <b>{{ column.valor_total_formatado }}</b>
+          </div>
           <div class="kanban-card-list" x-ref="kanbanList{{ column.key }}">
             {% for card in column.cards %}
               <article
@@ -199,6 +209,8 @@
                   <strong><b>Proc. Recurso</b> {{ card.processo_recurso }}</strong>
                 </div>
                 <dl class="kanban-card-facts">
+                  <div><dt>Remessa</dt><dd>{{ card.remessas }}</dd></div>
+                  <div><dt>Data da glosa</dt><dd>{{ card.datas_glosa }}</dd></div>
                   <div><dt>Paciente</dt><dd>{{ card.pacientes }}</dd></div>
                   <div><dt>Convênio</dt><dd>{{ card.convenios }}</dd></div>
                   <div><dt>Qtd.</dt><dd>{{ card.qtd_total|floatformat:0 }}</dd></div>

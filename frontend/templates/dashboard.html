@@ -6,12 +6,89 @@
   <div class="indicator-toolbar">
     <div>
       <strong>Gestão operacional de glosas</strong>
-      <span>SLA calculado a partir da data de atendimento e prazo cadastrado por convênio</span>
+      <span>SLA calculado de data da glosa até a tratativa interna registrada em dt_recurso</span>
     </div>
     <a class="indicator-config-link" href="{% url 'prazos_recurso_convenio' %}">
       {{ indicadores.prazos.configurados }} convênios parametrizados
     </a>
   </div>
+
+  <form class="indicator-filter-panel" method="get">
+    <div class="indicator-filter-field indicator-filter-field--period">
+      <span>Período</span>
+      <div>
+        <input
+          type="date"
+          name="periodo_inicio"
+          value="{{ filtros.periodo_inicio }}"
+          aria-label="Data inicial de atendimento"
+        >
+        <input
+          type="date"
+          name="periodo_fim"
+          value="{{ filtros.periodo_fim }}"
+          aria-label="Data final de atendimento"
+        >
+      </div>
+    </div>
+
+    <div class="indicator-filter-field">
+      <span>Tipo</span>
+      <div class="indicator-filter-toggle" role="group" aria-label="Tipo de registro">
+        <label class="{% if not filtros.tratativa %}is-active{% endif %}">
+          <input type="radio" name="tratativa" value="" onchange="this.form.submit()" {% if not filtros.tratativa %}checked{% endif %}>
+          Todos
+        </label>
+        <label class="{% if filtros.tratativa == 'recurso' %}is-active{% endif %}">
+          <input type="radio" name="tratativa" value="recurso" onchange="this.form.submit()" {% if filtros.tratativa == 'recurso' %}checked{% endif %}>
+          Recurso
+        </label>
+        <label class="{% if filtros.tratativa == 'acato' %}is-active{% endif %}">
+          <input type="radio" name="tratativa" value="acato" onchange="this.form.submit()" {% if filtros.tratativa == 'acato' %}checked{% endif %}>
+          Acato
+        </label>
+      </div>
+    </div>
+
+    <label class="indicator-filter-field">
+      <span>Convênio</span>
+      <input
+        type="search"
+        name="convenio"
+        list="dashboard-convenios"
+        value="{{ filtros.convenio }}"
+        placeholder="Todos"
+        autocomplete="off"
+      >
+      <datalist id="dashboard-convenios">
+        {% for convenio in opcoes_filtro.convenios %}
+          <option value="{{ convenio }}"></option>
+        {% endfor %}
+      </datalist>
+    </label>
+
+    <label class="indicator-filter-field">
+      <span>Tipo de atendimento</span>
+      <input
+        type="search"
+        name="tipo_atendimento"
+        list="dashboard-tipos-atendimento"
+        value="{{ filtros.tipo_atendimento }}"
+        placeholder="Todos"
+        autocomplete="off"
+      >
+      <datalist id="dashboard-tipos-atendimento">
+        {% for tipo_atendimento in opcoes_filtro.tipos_atendimento %}
+          <option value="{{ tipo_atendimento }}"></option>
+        {% endfor %}
+      </datalist>
+    </label>
+
+    <div class="indicator-filter-actions">
+      <button type="submit">Filtrar</button>
+      <a href="{% url 'dashboard' %}">Limpar</a>
+    </div>
+  </form>
 
   <section class="indicator-kpi-grid">
     <article class="indicator-kpi indicator-kpi--primary">
@@ -46,76 +123,228 @@
     </article>
   </section>
 
-  <section class="indicator-ratio-grid">
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Taxa de recurso</strong>
-        <span>{{ indicadores.kpis.taxa_recurso }}%</span>
+  <section class="aging-section">
+    <div class="aging-visual-container">
+      <div class="aging-section-head">
+        <div>
+          <strong>Aging de Glosas</strong>
+          <span>Tempo entre a sinalização da glosa pelo convênio e a tratativa interna do hospital</span>
+        </div>
+        <div class="aging-summary">
+          <span>{{ indicadores.aging_glosas.tratados }} tratados</span>
+          <span>{{ indicadores.aging_glosas.em_aberto }} em aberto</span>
+          <span>{{ indicadores.aging_glosas.sem_prazo }} sem prazo configurado</span>
+        </div>
       </div>
-      <div class="progress-track">
-        <div style="width: {{ indicadores.kpis.taxa_recurso }}%"></div>
-      </div>
-      <p>{{ indicadores.kpis.total_recursos }} recursos sobre {{ indicadores.kpis.total_registros }} registros ativos.</p>
-    </article>
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Sucesso em quantidade</strong>
-        <span>{{ indicadores.kpis.taxa_sucesso_qtd }}%</span>
-      </div>
-      <div class="progress-track progress-track--success">
-        <div style="width: {{ indicadores.kpis.taxa_sucesso_qtd }}%"></div>
-      </div>
-      <p>Recursos com recuperação financeira registrada.</p>
-    </article>
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>SLA de tratativas</strong>
-        <span>{{ indicadores.sla.dentro_pct }}%</span>
-      </div>
-      <div class="sla-split">
-        <span style="width: {{ indicadores.sla.dentro_pct }}%">Dentro: {{ indicadores.sla.dentro }}</span>
-        <b style="width: {{ indicadores.sla.fora_pct }}%">Fora: {{ indicadores.sla.fora }}</b>
-      </div>
-      <p>Fallback sem cadastro: {{ indicadores.prazos.fallback }} dias. Sem parâmetro: {{ indicadores.sla.sem_parametro }}. Sem data de atendimento: {{ indicadores.sla.sem_atendimento }}.</p>
-    </article>
+
+      <article class="indicator-panel indicator-panel--wide">
+        <div class="indicator-panel-head">
+          <strong>
+            Heatmap de Aging
+            <span
+              class="help-tip"
+              tabindex="0"
+              aria-label="Ajuda sobre o cálculo do heatmap"
+              data-tooltip="Mostra a concentração de glosas por faixa de tempo de tratativa. O prazo começa na data em que a glosa foi sinalizada pelo convênio e termina na data em que o hospital registrou o recurso ou o acato. Quando ainda não há tratativa registrada, o cálculo considera a data de hoje. A data de pagamento é usada apenas como referência operacional."
+            >?</span>
+          </strong>
+          <span>Quantidade por mês da tratativa</span>
+        </div>
+        <div class="aging-heatmap">
+          <div class="aging-heatmap-months">
+            <span></span>
+            {% for month in indicadores.aging_glosas.heatmap_months %}
+              <b>{{ month }}</b>
+            {% endfor %}
+          </div>
+          {% for row in indicadores.aging_glosas.heatmap %}
+            <div class="aging-heatmap-row">
+              <span>{{ row.label }}</span>
+              {% for cell in row.cells %}
+                <b
+                class="heatmap-cell heatmap-cell--{{ cell.intensity_level }}"
+                title="{{ cell.label }} | Quantidade: {{ cell.count }} | Valor glosado: {{ cell.value_formatado }} | Aging médio: {{ cell.aging_medio }} dias | Dentro: {{ cell.dentro }} | Fora: {{ cell.fora }}"
+              >{{ cell.count }}</b>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <section class="indicator-grid">
+        <article class="indicator-panel">
+          <div class="indicator-panel-head">
+            <strong>
+              Volume de tratativas internas
+              <span
+                class="help-tip"
+                tabindex="0"
+                aria-label="Ajuda sobre o cálculo do volume de tratativas"
+                data-tooltip="Mostra a quantidade mensal de glosas que já tiveram uma ação interna concluída, seja recurso ou acato. Entram apenas registros ativos com data de tratativa preenchida. O mês exibido corresponde ao mês em que a tratativa foi registrada pelo hospital."
+              >?</span>
+            </strong>
+            <span>Últimos 12 meses</span>
+          </div>
+          <div class="aging-line-chart">
+            {% for item in indicadores.aging_glosas.volume_tratativas_12m %}
+              <div
+                class="aging-line-point"
+                style="--height: {{ item.bar_height }}px;"
+                title="{{ item.label }} | Quantidade: {{ item.count }} | Valor glosado tratado: {{ item.value_formatado }} | Aging médio: {{ item.aging_medio }} dias | Dentro: {{ item.dentro_pct }}% | Fora: {{ item.fora_pct }}%"
+              >
+                <div class="aging-line-bar">
+                  <b>{{ item.count }}</b>
+                  <i></i>
+                </div>
+                <span>{{ item.label }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </article>
+
+        <article class="indicator-panel">
+          <div class="indicator-panel-head">
+            <strong>
+              Convênios por tratativas
+              <span
+                class="help-tip"
+                tabindex="0"
+                aria-label="Ajuda sobre o cálculo por convênio"
+                data-tooltip="A barra mostra o tempo médio, em dias, que o hospital levou para tratar as glosas de cada convênio. O cálculo compara a data de sinalização da glosa com a data em que o recurso ou acato foi registrado. A marca vertical vermelha indica o prazo limite cadastrado para aquele convênio."
+              >?</span>
+            </strong>
+            <span>Aging médio x prazo limite</span>
+          </div>
+          <div class="rank-list rank-list--toggle">
+            {% for item in indicadores.aging_glosas.convenio_barras %}
+              <div class="rank-item rank-item--inline">
+                <span>{{ item.label }}</span>
+                <div class="rank-inline-track">
+                  <i style="width: {{ item.aging_width }}%"></i>
+                  {% if item.dias_para_recurso %}
+                    <em
+                      style="left: {{ item.prazo_marker_width }}%;"
+                      title="Prazo para recurso: {{ item.dias_para_recurso }} dias"
+                    >{{ item.dias_para_recurso }}</em>
+                  {% else %}
+                    <small>Sem prazo</small>
+                  {% endif %}
+                </div>
+                <strong>{{ item.aging_medio }} dias</strong>
+              </div>
+            {% empty %}
+              <p class="empty-state">Nenhum convênio com tratativa concluída.</p>
+            {% endfor %}
+          </div>
+        </article>
+      </section>
+    </div>
   </section>
 
-  <section class="indicator-grid">
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Aging de glosas/acatos</strong>
-        <span>Data da glosa</span>
+  <section class="motivos-section">
+    <div class="motivos-section-head">
+      <div>
+        <strong>Motivos</strong>
+        <span>Motivos que concentram perdas e sua evolução mensal</span>
       </div>
-      <div class="indicator-bars">
-        {% for item in indicadores.aging %}
-          <div class="indicator-bar-row">
-            <span>{{ item.label }}</span>
-            <div><i style="width: {{ item.bar_width }}%"></i></div>
-            <b>{{ item.count }}</b>
-            <em>{{ item.value_formatado }}</em>
+    </div>
+    <section class="motivos-grid">
+      <article class="indicator-panel">
+        <div class="indicator-panel-head">
+          <strong>
+            Pareto de Motivos
+            <span
+              class="help-tip"
+              tabindex="0"
+              aria-label="Ajuda sobre o gráfico Pareto de motivos"
+              data-tooltip="Mostra quais motivos concentram o maior valor glosado. As barras representam o valor financeiro de cada motivo. A linha vermelha mostra quanto das perdas já foi acumulado ao somar os motivos da esquerda para a direita. Quando a linha passa de 80%, os motivos até aquele ponto indicam a maior prioridade para planos de ação. Abaixo de cada motivo aparecem o valor glosado e a quantidade de glosas."
+            >?</span>
+          </strong>
+          <span>Barras: valor glosado · Linha: % acumulado</span>
+        </div>
+        <div class="pareto-combo">
+          <div class="pareto-combo-plot">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <line x1="0" y1="24.8" x2="100" y2="24.8"></line>
+              <polyline points="{{ indicadores.motivos.pareto_line_points }}"></polyline>
+            </svg>
+            <span class="pareto-threshold-label">80% acumulado</span>
+            <div class="pareto-label-layer">
+              {% for point in indicadores.motivos.pareto_accumulated_labels %}
+                <span
+                  class="pareto-accumulated-label {% if forloop.last %}is-edge-end{% endif %}"
+                  style="left: {{ point.left_css }}%; top: {{ point.top_css }}%;"
+                  title="% acumulado: {{ point.value }}%"
+                ><i></i><b>{{ point.value }}%</b></span>
+              {% endfor %}
+            </div>
+            {% for item in indicadores.motivos.pareto %}
+              <div class="pareto-combo-column {% if item.is_cut %}is-cut{% endif %}">
+                <b>{{ item.share_pct }}%</b>
+                <i style="height: {{ item.bar_height }}%"></i>
+              </div>
+            {% endfor %}
           </div>
-        {% endfor %}
-      </div>
-    </article>
+          <div class="pareto-combo-axis">
+            {% for item in indicadores.motivos.pareto %}
+              <span title="{{ item.label }}">
+                <em>{{ item.label }}</em>
+                <strong>{{ item.value_formatado }}</strong>
+                <b>{{ item.count }} glosa{% if item.count != 1 %}s{% endif %}</b>
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+      </article>
 
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Volume mensal</strong>
-        <span>Quantidade e valor</span>
-      </div>
-      <div class="indicator-bars indicator-bars--monthly">
-        {% for item in indicadores.volume_mensal %}
-          <div class="indicator-bar-row">
-            <span>{{ item.label }}</span>
-            <div><i style="width: {{ item.bar_width }}%"></i></div>
-            <b>{{ item.count }}</b>
-            <em>{{ item.value_formatado }}</em>
+      <article class="indicator-panel">
+        <div class="indicator-panel-head">
+          <strong>
+            Evolução Mensal dos Motivos
+            <span
+              class="help-tip"
+              tabindex="0"
+              aria-label="Ajuda sobre o gráfico de evolução mensal dos motivos"
+              data-tooltip="Mostra, mês a mês, a quantidade de glosas dos cinco motivos mais frequentes. Cada linha representa um motivo de glosa. Use este gráfico para perceber tendências, como motivos que estão aumentando, diminuindo ou concentrados em um período específico."
+            >?</span>
+          </strong>
+          <span>Top 5 por quantidade de glosas · pico {{ indicadores.motivos.max_count }}</span>
+        </div>
+        <div class="motivos-line-chart">
+          <div class="motivos-line-plot">
+            <div class="motivos-line-y-axis" aria-hidden="true">
+              {% for tick in indicadores.motivos.y_ticks %}
+                <span>{{ tick }}</span>
+              {% endfor %}
+            </div>
+            <div class="motivos-line-canvas">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Evolução mensal dos cinco principais motivos de glosa por quantidade">
+                {% for serie in indicadores.motivos.series %}
+                  <polyline points="{{ serie.points }}" style="--line-color: {{ serie.color }}">
+                    <title>{{ serie.label }}</title>
+                  </polyline>
+                {% endfor %}
+              </svg>
+            </div>
           </div>
-        {% empty %}
-          <p class="empty-state">Sem volume mensal para exibir.</p>
-        {% endfor %}
-      </div>
-    </article>
+          <div class="motivos-line-axis" aria-hidden="true">
+            <span></span>
+            <div>
+              {% for month in indicadores.motivos.months %}
+                <span>{{ month }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="motivos-line-legend">
+          {% for serie in indicadores.motivos.series %}
+            <span style="--line-color: {{ serie.color }}"><i></i>{{ serie.label }}</span>
+          {% empty %}
+            <p class="empty-state">Nenhuma série mensal encontrada.</p>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
   </section>
 
   <section class="indicator-grid indicator-grid--three">

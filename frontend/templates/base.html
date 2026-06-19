@@ -7,11 +7,15 @@
   <title>Gestao de Glosas</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20260617-admin-table" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20260618-motivos-line-tooltip" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body x-data="{ sidebarOpen: true }" :class="{ 'sidebar-collapsed': !sidebarOpen }">
+<body
+  x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false' }"
+  x-init="$watch('sidebarOpen', value => localStorage.setItem('sidebarOpen', value ? 'true' : 'false'))"
+  :class="{ 'sidebar-collapsed': !sidebarOpen }"
+>
   <aside class="sidebar">
     <div class="sidebar-head">
       <div class="brand">
@@ -40,7 +44,13 @@
     <nav>
       <a class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}" title="Indicadores"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></span><span class="nav-label">Indicadores</span></a>
       <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('{% url 'conta_atendimento' %}') || '{{ request.path }}'.startsWith('{% url 'acompanhamento' %}')">
-        <button type="button" class="nav-group-toggle {% if request.resolver_match.url_name == 'conta_atendimento' or request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}" @click="open = !open" :aria-expanded="open" title="Análise de Contas">
+        <button
+          type="button"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'conta_atendimento' or request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}"
+          @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
+          :aria-expanded="sidebarOpen && open"
+          title="Análise de Contas"
+        >
           <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h6l4 4v14H6V3h2z"></path><path d="M14 3v5h5"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg></span>
           <span class="nav-label">Análise de Contas</span>
         </button>
@@ -77,7 +87,7 @@
             <div class="message-dialog-icon" aria-hidden="true"></div>
             <div class="message-dialog-body">
               <strong id="message-dialog-title-{{ forloop.counter }}">
-                {% if "error" in message.tags %}Atenção{% elif "warning" in message.tags %}Atualização realizada{% else %}Registro realizado{% endif %}
+                {% if "error" in message.tags or "warning" in message.tags %}Atenção{% else %}Registro realizado{% endif %}
               </strong>
               <p>{{ message }}</p>
             </div>
@@ -118,6 +128,32 @@
       if (url.searchParams.delete('_modal_action')) {
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
       }
+    })();
+
+    (() => {
+      const prefetched = new Set();
+      const prefetchPage = (href) => {
+        if (!href || prefetched.has(href)) {
+          return;
+        }
+        const url = new URL(href, window.location.href);
+        if (url.origin !== window.location.origin || url.pathname === window.location.pathname) {
+          return;
+        }
+        prefetched.add(href);
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'document';
+        link.href = url.href;
+        document.head.appendChild(link);
+      };
+
+      document.querySelectorAll('.sidebar a[href]').forEach((link) => {
+        const run = () => prefetchPage(link.href);
+        link.addEventListener('pointerenter', run, { once: true });
+        link.addEventListener('focus', run, { once: true });
+        link.addEventListener('touchstart', run, { once: true, passive: true });
+      });
     })();
 
     window.addEventListener('keydown', (event) => {
@@ -224,7 +260,7 @@
       const title = data.tag === 'error'
         ? 'Atenção'
         : data.tag === 'warning'
-          ? 'Atualização realizada'
+          ? 'Atenção'
           : 'Registro realizado';
 
       const icon = document.createElement('div');
