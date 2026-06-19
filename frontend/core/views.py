@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from math import ceil
+from math import ceil, log10
 from hashlib import sha256
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
@@ -346,6 +346,17 @@ def format_brl_input(value):
 
     formatted = f"{amount:,.2f}"
     return f"R$ {formatted}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def format_brl_compact(value):
+    amount = as_float_or_zero(value)
+    if amount >= 1_000_000:
+        text = f"{amount / 1_000_000:.1f} mi"
+    elif amount >= 1_000:
+        text = f"{amount / 1_000:.1f} mil"
+    else:
+        text = f"{amount:.0f}"
+    return f"R$ {text}".replace(".", ",")
 
 
 def parse_api_date(value):
@@ -715,46 +726,6 @@ def month_label(key):
         return key
 
 
-def top_groups(rows, key_name, value_name, limit=6):
-    groups = {}
-    for row in rows:
-        name = row.get(key_name) or "Não informado"
-        current = groups.setdefault(name, {"label": name, "count": 0, "value": 0})
-        current["count"] += 1
-        current["value"] += as_float_or_zero(row.get(value_name))
-
-    ordered = sorted(
-        groups.values(),
-        key=lambda item: (item["value"], item["count"]),
-        reverse=True,
-    )[:limit]
-    max_value = max((item["value"] for item in ordered), default=0)
-    for item in ordered:
-        item["value_formatado"] = format_brl_input(item["value"])
-        item["bar_width"] = percent_value(item["value"], max_value)
-    return ordered
-
-
-def top_count_groups(rows, key_name, limit=6):
-    groups = {}
-    for row in rows:
-        name = row.get(key_name) or "Não informado"
-        current = groups.setdefault(name, {"label": name, "count": 0, "value": 0})
-        current["count"] += 1
-        current["value"] += registro_valor_glosado(row)
-
-    ordered = sorted(
-        groups.values(),
-        key=lambda item: (item["count"], item["value"]),
-        reverse=True,
-    )[:limit]
-    max_count = max((item["count"] for item in ordered), default=0)
-    for item in ordered:
-        item["value_formatado"] = format_brl_input(item["value"])
-        item["bar_width"] = percent_value(item["count"], max_count)
-    return ordered
-
-
 def normalize_motivo_label(value):
     text = " ".join(str(value or "").strip().split())
     if not text:
@@ -928,6 +899,252 @@ def build_motivos_indicators(rows, pareto_limit=8, series_limit=5):
         "series": series,
         "max_count": max_count,
         "y_ticks": y_ticks,
+    }
+
+
+def recovery_tooltip_lines(item, group_label):
+    return "\n".join(
+        [
+            f"{group_label}: {item['label']}",
+            f"Valor glosado: {item['valor_glosado_total_formatado']}",
+            f"Valor recuperado: {item['valor_recuperado_formatado']}",
+            f"Taxa de recuperação: {item['taxa_recuperacao']}%",
+            f"Quantidade de glosas: {item['qtd_glosas']}",
+            f"Quantidade de recursos: {item['qtd_recursos']}",
+            f"Quantidade de acatos: {item['qtd_acatos']}",
+        ]
+    )
+
+
+def build_recovery_group(rows, key_name, label_normalizer=None):
+    groups = {}
+    for registro in rows:
+        raw_label = registro.get(key_name)
+        label = (
+            label_normalizer(raw_label)
+            if label_normalizer
+            else (raw_label or "Não informado")
+        )
+        current = groups.setdefault(
+            label,
+            {
+                "label": label,
+                "qtd_glosas": 0,
+                "valor_glosado_total": 0,
+                "valor_recuperado": 0,
+                "qtd_recursos": 0,
+                "qtd_acatos": 0,
+            },
+        )
+        current["qtd_glosas"] += 1
+        current["valor_glosado_total"] += registro_valor_glosado(registro)
+        current["valor_recuperado"] += as_float_or_zero(registro.get("valor_recebido"))
+        if is_recurso_registro(registro):
+            current["qtd_recursos"] += 1
+        elif is_acato_registro(registro):
+            current["qtd_acatos"] += 1
+
+    for item in groups.values():
+        item["taxa_recuperacao"] = percent_value(
+            item["valor_recuperado"],
+            item["valor_glosado_total"],
+        )
+        item["valor_glosado_total_formatado"] = format_brl_input(
+            item["valor_glosado_total"]
+        )
+        item["valor_recuperado_formatado"] = format_brl_input(
+            item["valor_recuperado"]
+        )
+    return list(groups.values())
+
+
+def classify_recovery_quadrant(item, media_valor_glosado, media_taxa_recuperacao):
+    high_value = item["valor_glosado_total"] > media_valor_glosado
+    high_recovery = item["taxa_recuperacao"] > media_taxa_recuperacao
+    if high_value and high_recovery:
+        return {
+            "key": "excelente",
+            "label": "Excelente",
+            "description": "alto valor glosado e alta recuperação",
+        }
+    if high_value and not high_recovery:
+        return {
+            "key": "prioridade",
+            "label": "Prioridade Máxima",
+            "description": "alto valor glosado e baixa recuperação",
+        }
+    if not high_value and high_recovery:
+        return {
+            "key": "baixa",
+            "label": "Baixa Prioridade",
+            "description": "boa recuperação com menor impacto financeiro",
+        }
+    return {
+        "key": "pouco",
+        "label": "Pouco Relevante",
+        "description": "menor valor glosado e baixa recuperação",
+    }
+
+
+def recovery_plot_position(value, total, start=8, end=92):
+    return start + ((percent_value(value, total) / 100) * (end - start))
+
+
+def recovery_log_position(value, max_value, start=10, end=90):
+    if value <= 0 or max_value <= 0:
+        return start
+    return start + ((log10(value + 1) / log10(max_value + 1)) * (end - start))
+
+
+def format_css_number(value):
+    return f"{value:.2f}"
+
+
+def build_recuperacao_indicators(rows, scatter_limit=12, convenio_limit=10):
+    recovery_rows = [
+        registro
+        for registro in rows
+        if is_active_registro(registro) and registro_valor_glosado(registro) > 0
+    ]
+
+    motivo_groups = build_recovery_group(
+        recovery_rows,
+        "motivo_glosa",
+        normalize_motivo_label,
+    )
+    media_valor_glosado = (
+        sum(item["valor_glosado_total"] for item in motivo_groups) / len(motivo_groups)
+        if motivo_groups
+        else 0
+    )
+    media_taxa_recuperacao = (
+        sum(item["taxa_recuperacao"] for item in motivo_groups) / len(motivo_groups)
+        if motivo_groups
+        else 0
+    )
+    max_valor_glosado = max(
+        (item["valor_glosado_total"] for item in motivo_groups),
+        default=0,
+    )
+    max_valor_recuperado = max(
+        (item["valor_recuperado"] for item in motivo_groups),
+        default=0,
+    )
+    max_taxa_recuperacao = 100
+
+    scatter = sorted(
+        motivo_groups,
+        key=lambda item: (item["valor_glosado_total"], item["valor_recuperado"]),
+        reverse=True,
+    )[:scatter_limit]
+    jitter_steps = (-3, -1.5, 0, 1.5, 3)
+    for index, item in enumerate(scatter):
+        quadrant = classify_recovery_quadrant(
+            item,
+            media_valor_glosado,
+            media_taxa_recuperacao,
+        )
+        item["quadrant_key"] = quadrant["key"]
+        item["quadrant_label"] = quadrant["label"]
+        item["quadrant_description"] = quadrant["description"]
+        x_pct = recovery_log_position(
+            item["valor_glosado_total"],
+            max_valor_glosado,
+            12,
+            88,
+        )
+        y_pct = 100 - recovery_plot_position(
+            min(item["taxa_recuperacao"], 100),
+            max_taxa_recuperacao,
+            16,
+            84,
+        )
+        item["x_pct"] = min(max(x_pct + jitter_steps[index % len(jitter_steps)], 10), 90)
+        item["y_pct"] = min(
+            max(y_pct + jitter_steps[(index // len(jitter_steps)) % len(jitter_steps)], 14),
+            86,
+        )
+        item["x_pct_css"] = format_css_number(item["x_pct"])
+        item["y_pct_css"] = format_css_number(item["y_pct"])
+        item["bubble_size"] = 18 + round(
+            percent_value(item["valor_recuperado"], max_valor_recuperado) * 0.22
+        )
+        item["valor_glosado_compacto"] = format_brl_compact(
+            item["valor_glosado_total"]
+        )
+        item["short_label"] = item["label"]
+        item["label_side"] = "left" if item["x_pct"] >= 74 else "right"
+        item["label_flow"] = "down" if item["y_pct"] <= 24 else "up"
+        item["tooltip"] = recovery_tooltip_lines(item, "Motivo da glosa")
+
+    convenio_groups = build_recovery_group(recovery_rows, "convenio")
+    convenio_valor = sorted(
+        convenio_groups,
+        key=lambda item: (item["valor_recuperado"], item["valor_glosado_total"]),
+        reverse=True,
+    )[:convenio_limit]
+    convenio_taxa = sorted(
+        convenio_groups,
+        key=lambda item: (item["taxa_recuperacao"], item["valor_recuperado"]),
+        reverse=True,
+    )[:convenio_limit]
+    max_convenio_valor = max(
+        (item["valor_recuperado"] for item in convenio_valor),
+        default=0,
+    )
+    max_convenio_taxa = max(
+        (item["taxa_recuperacao"] for item in convenio_taxa),
+        default=0,
+    )
+    for item in convenio_valor:
+        item["bar_width"] = percent_int(item["valor_recuperado"], max_convenio_valor)
+        item["tooltip"] = recovery_tooltip_lines(item, "Convênio")
+    for item in convenio_taxa:
+        item["bar_width"] = percent_int(item["taxa_recuperacao"], max_convenio_taxa)
+        item["tooltip"] = recovery_tooltip_lines(item, "Convênio")
+
+    media_valor_glosado_pct = recovery_log_position(
+        media_valor_glosado,
+        max_valor_glosado,
+        12,
+        88,
+    )
+    media_taxa_recuperacao_y_pct = 100 - recovery_plot_position(
+        min(media_taxa_recuperacao, 100),
+        max_taxa_recuperacao,
+        16,
+        84,
+    )
+
+    return {
+        "scatter": scatter,
+        "convenio_valor": convenio_valor,
+        "convenio_taxa": convenio_taxa,
+        "media_valor_glosado": media_valor_glosado,
+        "media_valor_glosado_formatado": format_brl_input(media_valor_glosado),
+        "media_taxa_recuperacao": round(media_taxa_recuperacao, 1),
+        "media_valor_glosado_pct": format_css_number(media_valor_glosado_pct),
+        "media_taxa_recuperacao_y_pct": format_css_number(
+            media_taxa_recuperacao_y_pct
+        ),
+        "x_ticks": [
+            {
+                "label": format_brl_compact(
+                    ((max_valor_glosado + 1) ** fraction) - 1
+                ),
+                "left": format_css_number(12 + (fraction * 76)),
+            }
+            for fraction in (0, 0.2, 0.4, 0.6, 0.8, 1)
+        ],
+        "y_ticks": [
+            {"label": "100%", "top": 16},
+            {"label": "75%", "top": 33},
+            {"label": "50%", "top": 50},
+            {"label": "25%", "top": 67},
+            {"label": "0%", "top": 84},
+        ],
+        "total_motivos": len(motivo_groups),
+        "total_convenios": len(convenio_groups),
     }
 
 
@@ -1326,33 +1543,8 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         item["value_formatado"] = format_brl_input(item["value"])
         item["bar_width"] = percent_value(item["value"], max_volume)
 
-    recuperado_convenio = top_groups(
-        [
-            registro
-            for registro in rows
-            if registro.get("dt_recebimento")
-            and as_float_or_zero(registro.get("valor_recebido")) > 0
-        ],
-        "convenio",
-        "valor_recebido",
-    )
-    motivo_top = top_groups(rows, "motivo_glosa", "valor_glosado")
     motivos = build_motivos_indicators(rows)
-    aberto_top = sorted(
-        glosas_sem_processo,
-        key=lambda registro: aging_days(registro),
-        reverse=True,
-    )[:6]
-    aberto_top = [
-        {
-            "processo": registro.get("processo_controle_fatura_gab") or "-",
-            "convenio": registro.get("convenio") or "-",
-            "motivo": registro.get("motivo_glosa") or "-",
-            "aging": aging_days(registro),
-            "valor": format_brl_input(registro_valor_glosado(registro)),
-        }
-        for registro in aberto_top
-    ]
+    recuperacao = build_recuperacao_indicators(rows)
 
     return {
         "kpis": {
@@ -1400,13 +1592,8 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         "aging": aging,
         "aging_glosas": aging_indicators,
         "volume_mensal": volume_mensal,
-        "volume_convenio": top_count_groups(rows, "convenio"),
-        "volume_prestador": top_count_groups(rows, "prestador"),
-        "volume_tipo_atendimento": top_count_groups(rows, "tp_atendimento"),
-        "recuperado_convenio": recuperado_convenio,
-        "motivo_top": motivo_top,
         "motivos": motivos,
-        "aberto_top": aberto_top,
+        "recuperacao": recuperacao,
     }
 
 
@@ -1426,9 +1613,11 @@ def get_dashboard_filters(request):
         "periodo_fim": format_api_date_input(request.GET.get("periodo_fim")),
         "tratativa": tratativa,
         "convenio": clean_dashboard_filter_value(request.GET.get("convenio")),
+        "prestador": clean_dashboard_filter_value(request.GET.get("prestador")),
         "tipo_atendimento": clean_dashboard_filter_value(
             request.GET.get("tipo_atendimento")
         ),
+        "motivo_glosa": clean_dashboard_filter_value(request.GET.get("motivo_glosa")),
     }
 
 
@@ -1445,7 +1634,9 @@ def build_dashboard_filter_options(registros):
     rows = [registro for registro in registros if is_active_registro(registro)]
     return {
         "convenios": unique_filter_options(rows, "convenio"),
+        "prestadores": unique_filter_options(rows, "prestador"),
         "tipos_atendimento": unique_filter_options(rows, "tp_atendimento"),
+        "motivos_glosa": unique_filter_options(rows, "motivo_glosa"),
     }
 
 
@@ -1453,7 +1644,9 @@ def apply_dashboard_filters(registros, filters):
     periodo_inicio = parse_api_date(filters.get("periodo_inicio"))
     periodo_fim = parse_api_date(filters.get("periodo_fim"))
     convenio = normalize_lookup_text(filters.get("convenio"))
+    prestador = normalize_lookup_text(filters.get("prestador"))
     tipo_atendimento = normalize_lookup_text(filters.get("tipo_atendimento"))
+    motivo_glosa = normalize_lookup_text(filters.get("motivo_glosa"))
     tratativa = filters.get("tratativa")
 
     filtered = []
@@ -1465,9 +1658,16 @@ def apply_dashboard_filters(registros, filters):
             continue
         if convenio and normalize_lookup_text(registro.get("convenio")) != convenio:
             continue
+        if prestador and normalize_lookup_text(registro.get("prestador")) != prestador:
+            continue
         if (
             tipo_atendimento
             and normalize_lookup_text(registro.get("tp_atendimento")) != tipo_atendimento
+        ):
+            continue
+        if (
+            motivo_glosa
+            and normalize_lookup_text(registro.get("motivo_glosa")) != motivo_glosa
         ):
             continue
         if tratativa == "recurso" and not is_recurso_registro(registro):
@@ -1581,7 +1781,12 @@ def dashboard(request):
     prazo_sla = as_positive_int(request.GET.get("sla"), 10)
     filtros = get_dashboard_filters(request)
     force_refresh = request.GET.get("refresh") == "1"
-    opcoes_filtro = {"convenios": [], "tipos_atendimento": []}
+    opcoes_filtro = {
+        "convenios": [],
+        "prestadores": [],
+        "tipos_atendimento": [],
+        "motivos_glosa": [],
+    }
     prazos_convenio = []
     dashboard_errors = []
     try:

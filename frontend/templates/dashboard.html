@@ -76,6 +76,23 @@
     </label>
 
     <label class="indicator-filter-field">
+      <span>Prestador</span>
+      <input
+        type="search"
+        name="prestador"
+        list="dashboard-prestadores"
+        value="{{ filtros.prestador }}"
+        placeholder="Todos"
+        autocomplete="off"
+      >
+      <datalist id="dashboard-prestadores">
+        {% for prestador in opcoes_filtro.prestadores %}
+          <option value="{{ prestador }}"></option>
+        {% endfor %}
+      </datalist>
+    </label>
+
+    <label class="indicator-filter-field">
       <span>Tipo de atendimento</span>
       <input
         type="search"
@@ -88,6 +105,23 @@
       <datalist id="dashboard-tipos-atendimento">
         {% for tipo_atendimento in opcoes_filtro.tipos_atendimento %}
           <option value="{{ tipo_atendimento }}"></option>
+        {% endfor %}
+      </datalist>
+    </label>
+
+    <label class="indicator-filter-field">
+      <span>Motivo da glosa</span>
+      <input
+        type="search"
+        name="motivo_glosa"
+        list="dashboard-motivos-glosa"
+        value="{{ filtros.motivo_glosa }}"
+        placeholder="Todos"
+        autocomplete="off"
+      >
+      <datalist id="dashboard-motivos-glosa">
+        {% for motivo in opcoes_filtro.motivos_glosa %}
+          <option value="{{ motivo }}"></option>
         {% endfor %}
       </datalist>
     </label>
@@ -131,6 +165,119 @@
     </article>
   </section>
 
+  <section class="recovery-section">
+    <div class="recovery-section-head">
+      <div>
+        <strong>Recuperação de Glosas</strong>
+        <span>Eficiência dos recursos e convênios com melhor retorno</span>
+      </div>
+      <div class="aging-summary">
+        <span>{{ indicadores.recuperacao.total_motivos }} motivos</span>
+        <span>{{ indicadores.recuperacao.total_convenios }} convênios</span>
+      </div>
+    </div>
+
+    <section class="recovery-grid">
+      <article class="indicator-panel indicator-panel--wide">
+        <div class="indicator-panel-head">
+          <strong>
+            Eficiência dos Recursos por Motivo
+            <span
+              class="help-tip"
+              tabindex="0"
+              aria-label="Ajuda sobre o scatter de eficiência"
+              data-tooltip="Cada bolha representa um motivo de glosa. O eixo horizontal mostra o valor glosado, o eixo vertical mostra a taxa de recuperação e o tamanho indica o valor recuperado."
+            >?</span>
+          </strong>
+          <span>Média: {{ indicadores.recuperacao.media_valor_glosado_formatado }} · {{ indicadores.recuperacao.media_taxa_recuperacao }}%</span>
+        </div>
+        <div class="recovery-scatter">
+          <div class="recovery-zone recovery-zone--baixa" style="right: calc(100% - {{ indicadores.recuperacao.media_valor_glosado_pct }}%); bottom: calc(100% - {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%);">
+            <strong>Baixa Prioridade</strong>
+            <span class="help-tip recovery-zone-help" tabindex="0" aria-label="Ajuda sobre Baixa Prioridade" data-tooltip="Motivos com menor valor glosado e taxa de recuperação acima da média. Estão sob controle e têm menor impacto financeiro.">?</span>
+          </div>
+          <div class="recovery-zone recovery-zone--excelente" style="left: {{ indicadores.recuperacao.media_valor_glosado_pct }}%; bottom: calc(100% - {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%);">
+            <strong>Excelente</strong>
+            <span class="help-tip recovery-zone-help" tabindex="0" aria-label="Ajuda sobre Excelente" data-tooltip="Motivos com valor glosado e taxa de recuperação acima da média. Representam as recuperações de maior retorno financeiro.">?</span>
+          </div>
+          <div class="recovery-zone recovery-zone--pouco" style="right: calc(100% - {{ indicadores.recuperacao.media_valor_glosado_pct }}%); top: {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%;">
+            <strong>Pouco Relevante</strong>
+            <span class="help-tip recovery-zone-help" tabindex="0" aria-label="Ajuda sobre Pouco Relevante" data-tooltip="Motivos com valor glosado e taxa de recuperação abaixo da média. Têm baixo retorno, mas também menor impacto financeiro.">?</span>
+          </div>
+          <div class="recovery-zone recovery-zone--prioridade" style="left: {{ indicadores.recuperacao.media_valor_glosado_pct }}%; top: {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%;">
+            <strong>Prioridade Máxima</strong>
+            <span class="help-tip recovery-zone-help" tabindex="0" aria-label="Ajuda sobre Prioridade Máxima" data-tooltip="Motivos com alto valor glosado e taxa de recuperação abaixo da média. Devem ser priorizados pelo potencial financeiro ainda não recuperado.">?</span>
+          </div>
+          <span class="recovery-axis-label recovery-axis-label--y">Taxa de recuperação</span>
+          <span class="recovery-axis-label recovery-axis-label--x">Valor glosado</span>
+          <i class="recovery-axis-arrow recovery-axis-arrow--y" aria-hidden="true"></i>
+          <i class="recovery-axis-arrow recovery-axis-arrow--x" aria-hidden="true"></i>
+          {% for tick in indicadores.recuperacao.y_ticks %}
+            <span class="recovery-y-tick" style="top: {{ tick.top }}%;">{{ tick.label }}</span>
+          {% endfor %}
+          {% for tick in indicadores.recuperacao.x_ticks %}
+            <span class="recovery-x-tick" style="left: {{ tick.left }}%;">{{ tick.label }}</span>
+          {% endfor %}
+          <i class="recovery-reference recovery-reference--x" style="left: {{ indicadores.recuperacao.media_valor_glosado_pct }}%;"></i>
+          <i class="recovery-reference recovery-reference--y" style="top: {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%;"></i>
+          {% for item in indicadores.recuperacao.scatter %}
+            <button
+              type="button"
+              class="recovery-bubble recovery-bubble--{{ item.quadrant_key }}"
+              style="left: {{ item.x_pct_css }}%; top: {{ item.y_pct_css }}%; --bubble-size: {{ item.bubble_size }}px;"
+              title="{{ item.tooltip }}"
+              aria-label="{{ item.tooltip }}"
+            >
+              <span class="recovery-point-label recovery-point-label--{{ item.label_side }} recovery-point-label--{{ item.label_flow }}">
+                {{ item.short_label }}
+              </span>
+            </button>
+          {% empty %}
+            <p class="empty-state">Nenhum motivo com valor glosado encontrado.</p>
+          {% endfor %}
+        </div>
+        <div class="recovery-legend">
+          <span><i class="recovery-dot--excelente"></i>Excelente</span>
+          <span><i class="recovery-dot--prioridade"></i>Prioridade Máxima</span>
+          <span><i class="recovery-dot--baixa"></i>Baixa Prioridade</span>
+          <span><i class="recovery-dot--pouco"></i>Pouco Relevante</span>
+        </div>
+      </article>
+
+      <article class="indicator-panel" data-recovery-bars>
+        <div class="indicator-panel-head">
+          <strong data-recovery-title>Valor Recuperado por Convênio</strong>
+          <div class="metric-toggle" role="group" aria-label="Alternar visão de recuperação por convênio">
+            <button type="button" class="is-active" data-recovery-mode-button="valor">Valor Recuperado</button>
+            <button type="button" data-recovery-mode-button="taxa">Taxa de Recuperação</button>
+          </div>
+        </div>
+        <div class="recovery-bars is-active" data-recovery-mode="valor">
+          {% for item in indicadores.recuperacao.convenio_valor %}
+            <div class="recovery-bar-row" title="{{ item.tooltip }}">
+              <span>{{ item.label }}</span>
+              <div><i style="width: {{ item.bar_width }}%"></i></div>
+              <strong>{{ item.valor_recuperado_formatado }}</strong>
+            </div>
+          {% empty %}
+            <p class="empty-state">Nenhum convênio com recuperação registrado.</p>
+          {% endfor %}
+        </div>
+        <div class="recovery-bars" data-recovery-mode="taxa">
+          {% for item in indicadores.recuperacao.convenio_taxa %}
+            <div class="recovery-bar-row" title="{{ item.tooltip }}">
+              <span>{{ item.label }}</span>
+              <div><i style="width: {{ item.bar_width }}%"></i></div>
+              <strong>{{ item.taxa_recuperacao }}%</strong>
+            </div>
+          {% empty %}
+            <p class="empty-state">Nenhum convênio com recuperação registrado.</p>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
+  </section>
+
   <section class="aging-section">
     <div class="aging-visual-container">
       <div class="aging-section-head">
@@ -171,7 +318,12 @@
               {% for cell in row.cells %}
                 <b
                 class="heatmap-cell heatmap-cell--{{ cell.intensity_level }}"
-                title="{{ cell.label }} | Quantidade: {{ cell.count }} | Valor glosado: {{ cell.value_formatado }} | Aging médio: {{ cell.aging_medio }} dias | Dentro: {{ cell.dentro }} | Fora: {{ cell.fora }}"
+                title="Competência: {{ cell.label }}
+Quantidade: {{ cell.count }}
+Valor glosado: {{ cell.value_formatado }}
+Aging médio: {{ cell.aging_medio }} dias
+Dentro do prazo: {{ cell.dentro }}
+Fora do prazo: {{ cell.fora }}"
               >{{ cell.count }}</b>
               {% endfor %}
             </div>
@@ -198,7 +350,12 @@
               <div
                 class="aging-line-point"
                 style="--height: {{ item.bar_height }}px;"
-                title="{{ item.label }} | Quantidade: {{ item.count }} | Valor glosado tratado: {{ item.value_formatado }} | Aging médio: {{ item.aging_medio }} dias | Dentro: {{ item.dentro_pct }}% | Fora: {{ item.fora_pct }}%"
+                title="Faixa: {{ item.label }}
+Quantidade: {{ item.count }}
+Valor glosado tratado: {{ item.value_formatado }}
+Aging médio: {{ item.aging_medio }} dias
+Dentro do prazo: {{ item.dentro_pct }}%
+Fora do prazo: {{ item.fora_pct }}%"
               >
                 <div class="aging-line-bar">
                   <b>{{ item.count }}</b>
@@ -355,116 +512,160 @@
     </section>
   </section>
 
-  <section class="indicator-grid indicator-grid--three">
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Volume por convênio</strong>
-        <span>Top 6</span>
-      </div>
-      <div class="rank-list">
-        {% for item in indicadores.volume_convenio %}
-          <div class="rank-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.count }} · {{ item.value_formatado }}</strong>
-            <i style="width: {{ item.bar_width }}%"></i>
-          </div>
-        {% empty %}
-          <p class="empty-state">Nenhum convênio encontrado.</p>
-        {% endfor %}
-      </div>
-    </article>
-
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Volume por prestador</strong>
-        <span>Top 6</span>
-      </div>
-      <div class="rank-list">
-        {% for item in indicadores.volume_prestador %}
-          <div class="rank-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.count }} · {{ item.value_formatado }}</strong>
-            <i style="width: {{ item.bar_width }}%"></i>
-          </div>
-        {% empty %}
-          <p class="empty-state">Nenhum prestador encontrado.</p>
-        {% endfor %}
-      </div>
-    </article>
-
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Tipo de atendimento</strong>
-        <span>Quantidade e valor</span>
-      </div>
-      <div class="rank-list">
-        {% for item in indicadores.volume_tipo_atendimento %}
-          <div class="rank-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.count }} · {{ item.value_formatado }}</strong>
-            <i style="width: {{ item.bar_width }}%"></i>
-          </div>
-        {% empty %}
-          <p class="empty-state">Nenhum tipo encontrado.</p>
-        {% endfor %}
-      </div>
-    </article>
-  </section>
-
-  <section class="indicator-grid indicator-grid--three">
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Recuperado por convênio</strong>
-        <span>Top 6</span>
-      </div>
-      <div class="rank-list">
-        {% for item in indicadores.recuperado_convenio %}
-          <div class="rank-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value_formatado }}</strong>
-            <i style="width: {{ item.bar_width }}%"></i>
-          </div>
-        {% empty %}
-          <p class="empty-state">Nenhum recebimento registrado.</p>
-        {% endfor %}
-      </div>
-    </article>
-
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Motivos por valor</strong>
-        <span>Top 6</span>
-      </div>
-      <div class="rank-list">
-        {% for item in indicadores.motivo_top %}
-          <div class="rank-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value_formatado }}</strong>
-            <i style="width: {{ item.bar_width }}%"></i>
-          </div>
-        {% empty %}
-          <p class="empty-state">Nenhum motivo encontrado.</p>
-        {% endfor %}
-      </div>
-    </article>
-
-    <article class="indicator-panel">
-      <div class="indicator-panel-head">
-        <strong>Glosas em aberto sem processo</strong>
-        <span>Maior aging</span>
-      </div>
-      <div class="attention-list">
-        {% for item in indicadores.aberto_top %}
-          <div>
-            <strong>{{ item.processo }}</strong>
-            <span>{{ item.convenio }} · {{ item.aging }} dias · {{ item.valor }}</span>
-            <small>{{ item.motivo }}</small>
-          </div>
-        {% empty %}
-          <p class="empty-state">Nenhuma glosa aberta sem processo.</p>
-        {% endfor %}
-      </div>
-    </article>
-  </section>
 </section>
+<script>
+  (() => {
+    const rectRelativeTo = (element, containerRect) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left - containerRect.left,
+        top: rect.top - containerRect.top,
+        right: rect.right - containerRect.left,
+        bottom: rect.bottom - containerRect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+    };
+
+    const intersects = (first, second, padding = 4) => !(
+      first.right + padding <= second.left
+      || first.left >= second.right + padding
+      || first.bottom + padding <= second.top
+      || first.top >= second.bottom + padding
+    );
+
+    const intersectionArea = (first, second, padding = 4) => {
+      const width = Math.max(
+        0,
+        Math.min(first.right + padding, second.right) - Math.max(first.left, second.left - padding),
+      );
+      const height = Math.max(
+        0,
+        Math.min(first.bottom + padding, second.bottom) - Math.max(first.top, second.top - padding),
+      );
+      return width * height;
+    };
+
+    const layoutRecoveryLabels = () => {
+      document.querySelectorAll('.recovery-scatter').forEach((scatter) => {
+        const scatterRect = scatter.getBoundingClientRect();
+        const bubbles = [...scatter.querySelectorAll('.recovery-bubble')];
+        const occupied = [...scatter.querySelectorAll(
+          '.recovery-zone strong, .recovery-zone-help, .recovery-x-tick, .recovery-y-tick, .recovery-axis-label',
+        )]
+          .map((element) => rectRelativeTo(element, scatterRect));
+        const bubbleRects = bubbles.map((bubble) => rectRelativeTo(bubble, scatterRect));
+        const bounds = {
+          left: 38,
+          top: 18,
+          right: scatterRect.width - 18,
+          bottom: scatterRect.height - 62,
+        };
+
+        bubbles.forEach((bubble, bubbleIndex) => {
+          const label = bubble.querySelector('.recovery-point-label');
+          if (!label) return;
+
+          label.style.left = '50%';
+          label.style.right = 'auto';
+          label.style.top = '50%';
+          label.style.transform = 'translate(-50%, -50%)';
+
+          const labelRect = label.getBoundingClientRect();
+          const bubbleRect = bubbleRects[bubbleIndex];
+          const centerX = bubbleRect.left + (bubbleRect.width / 2);
+          const centerY = bubbleRect.top + (bubbleRect.height / 2);
+          const radius = Math.max(bubbleRect.width, bubbleRect.height) / 2;
+          const gap = 9;
+          const horizontal = radius + gap + (labelRect.width / 2);
+          const vertical = radius + gap + (labelRect.height / 2);
+          const preferLeft = centerX > scatterRect.width * 0.62;
+          const preferTop = centerY > scatterRect.height * 0.56;
+          const horizontalDirection = preferLeft ? -1 : 1;
+          const verticalDirection = preferTop ? -1 : 1;
+          const candidates = [1, 1.55, 2.1].flatMap((distance) => [
+            [horizontalDirection * horizontal * distance, 0],
+            [0, verticalDirection * vertical * distance],
+            [horizontalDirection * horizontal * distance, verticalDirection * vertical * distance * 0.72],
+            [-horizontalDirection * horizontal * distance, 0],
+            [0, -verticalDirection * vertical * distance],
+            [-horizontalDirection * horizontal * distance, verticalDirection * vertical * distance * 0.72],
+            [horizontalDirection * horizontal * distance, -verticalDirection * vertical * distance * 0.72],
+            [-horizontalDirection * horizontal * distance, -verticalDirection * vertical * distance * 0.72],
+          ]);
+
+          const placements = candidates.map(([offsetX, offsetY]) => {
+            label.style.transform = `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`;
+            const placement = {
+              ...rectRelativeTo(label, scatterRect),
+              offsetX,
+              offsetY,
+            };
+            const outside = Math.max(0, bounds.left - placement.left)
+              + Math.max(0, placement.right - bounds.right)
+              + Math.max(0, bounds.top - placement.top)
+              + Math.max(0, placement.bottom - bounds.bottom);
+            const labelOverlap = occupied.reduce(
+              (total, item) => total + intersectionArea(placement, item),
+              0,
+            );
+            const bubbleOverlap = bubbleRects.reduce(
+              (total, item, index) => index === bubbleIndex
+                ? total
+                : total + intersectionArea(placement, item, 7),
+              0,
+            );
+            placement.score = (outside * 1000) + (labelOverlap * 12) + (bubbleOverlap * 20);
+            placement.isFree = outside === 0
+              && !occupied.some((item) => intersects(placement, item))
+              && !bubbleRects.some(
+                (item, index) => index !== bubbleIndex && intersects(placement, item, 7),
+              );
+            return placement;
+          });
+          const placement = placements.find((item) => item.isFree)
+            || placements.sort((first, second) => first.score - second.score)[0];
+
+          label.style.transform = `translate(-50%, -50%) translate(${placement.offsetX}px, ${placement.offsetY}px)`;
+          occupied.push(rectRelativeTo(label, scatterRect));
+        });
+      });
+    };
+
+    let layoutFrame;
+    const scheduleRecoveryLayout = () => {
+      window.cancelAnimationFrame(layoutFrame);
+      layoutFrame = window.requestAnimationFrame(layoutRecoveryLabels);
+    };
+
+    scheduleRecoveryLayout();
+    window.addEventListener('resize', scheduleRecoveryLayout);
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(scheduleRecoveryLayout);
+    }
+
+    document.querySelectorAll('[data-recovery-bars]').forEach((panel) => {
+      const title = panel.querySelector('[data-recovery-title]');
+      const buttons = panel.querySelectorAll('[data-recovery-mode-button]');
+      const views = panel.querySelectorAll('[data-recovery-mode]');
+      const titles = {
+        valor: 'Valor Recuperado por Convênio',
+        taxa: 'Taxa de Recuperação por Convênio',
+      };
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const mode = button.dataset.recoveryModeButton;
+          buttons.forEach((item) => item.classList.toggle('is-active', item === button));
+          views.forEach((view) => {
+            view.classList.toggle('is-active', view.dataset.recoveryMode === mode);
+          });
+          if (title) {
+            title.textContent = titles[mode] || titles.valor;
+          }
+        });
+      });
+    });
+  })();
+</script>
 {% endblock %}
