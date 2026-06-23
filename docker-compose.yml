@@ -1,18 +1,63 @@
 services:
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+    image: prj-glosas-frontend:prod
+    restart: unless-stopped
+    init: true
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-change-me}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8000}
+      DJANGO_SETTINGS_MODULE: glosas_frontend.settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Defina DJANGO_SECRET_KEY no .env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-0}
+      DJANGO_SECURE_PROXY_SSL_HEADER: ${DJANGO_SECURE_PROXY_SSL_HEADER:-1}
+      DJANGO_USE_X_FORWARDED_HOST: ${DJANGO_USE_X_FORWARDED_HOST:-1}
+      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-0}
+      DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-0}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-1}
+      SESSION_COOKIE_AGE: ${SESSION_COOKIE_AGE:-28800}
+      SQLITE_PATH: ${SQLITE_PATH:-/data/frontend.sqlite3}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-1}
+      API_BASE_URL: ${API_BASE_URL:?Defina API_BASE_URL no .env}
       API_BEARER_TOKEN: ${API_BEARER_TOKEN:-}
       API_CONTA_ATENDIMENTO_PATH: ${API_CONTA_ATENDIMENTO_PATH:-/app_glosas/}
-      SMTP_HOST: ${SMTP_HOST:-smtp.hostinger.com}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER:-tihpc@hospitalprontocardio.com.br}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-senha_do_email}
-      SMTP_FROM: "${SMTP_FROM:-TI Hospital Prontocardio <tihpc@hospitalprontocardio.com.br>}"
-      SMTP_USE_SSL: ${SMTP_USE_SSL:-true}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      API_REGISTRO_GLOSA_PATH: ${API_REGISTRO_GLOSA_PATH:-/app_glosas/glosas}
+      API_TISS_PATH: ${API_TISS_PATH:-/app_glosas/tiss}
+      API_TIMEOUT: ${API_TIMEOUT:-60}
+      DASHBOARD_CACHE_SECONDS: ${DASHBOARD_CACHE_SECONDS:-45}
+      APP_FILTER_CACHE_SECONDS: ${APP_FILTER_CACHE_SECONDS:-45}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-webmaster@localhost}
+      SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
     ports:
-      - "8080:8000"
+      - "${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-8080}:8000"
+    volumes:
+      - frontend_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  frontend_data:

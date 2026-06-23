@@ -15,12 +15,12 @@ Oracle MV
 
 A origem do processo nao e a glosa. A origem e a conta hospitalar faturada. Toda glosa nasce de uma remessa, conta, atendimento ou item faturado retornado pela consulta Oracle.
 
-## Como executar
+## Como executar em producao
 
 Configure `API_BASE_URL` apontando para a API unica.
 
-- Rodando Django direto no WSL: `API_BASE_URL=http://localhost:8000`
-- Rodando o frontend em Docker: `API_BASE_URL=http://host.docker.internal:8000`
+- API no mesmo host, fora do Docker: `API_BASE_URL=http://host.docker.internal:8000`
+- API publicada em rede/HTTPS: `API_BASE_URL=https://api.seudominio.com.br`
 
 Se a API exigir autenticacao, informe um token Bearer:
 
@@ -36,13 +36,17 @@ API_CONTA_ATENDIMENTO_PATH=/app_glosas/
 
 ```bash
 cp .env.example .env
-docker compose up --build
+# edite DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS, DJANGO_CSRF_TRUSTED_ORIGINS e API_BASE_URL
+docker compose up --build -d
+docker compose logs -f frontend
 ```
 
 Servicos:
 
-- API unica: http://localhost:8000/docs
-- Frontend Django: http://localhost:8080
+- Frontend Django: http://localhost:8080 por padrao, ou no proxy reverso configurado.
+- Banco SQLite de sessao/autenticacao: volume Docker `frontend_data`.
+
+Para uso local sem HTTPS, ajuste temporariamente `SESSION_COOKIE_SECURE=0` e `CSRF_COOKIE_SECURE=0` no `.env`. Em producao com proxy HTTPS, mantenha ambos como `1`.
 
 ## Modulos incluidos
 
