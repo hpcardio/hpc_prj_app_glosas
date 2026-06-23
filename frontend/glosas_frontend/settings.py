@@ -19,6 +19,13 @@ def load_dotenv_file(path):
             os.environ.setdefault(key, value)
 
 
+def env_bool(name, default=False):
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 load_dotenv_file(PROJECT_DIR / ".env")
 load_dotenv_file(BASE_DIR / ".env")
 
@@ -81,6 +88,17 @@ API_TISS_PATH = os.getenv("API_TISS_PATH", "/app_glosas/tiss")
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "60"))
 DASHBOARD_CACHE_SECONDS = int(os.getenv("DASHBOARD_CACHE_SECONDS", "45"))
 APP_FILTER_CACHE_SECONDS = int(os.getenv("APP_FILTER_CACHE_SECONDS", str(DASHBOARD_CACHE_SECONDS)))
+
+EMAIL_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("SMTP_USER") or os.getenv("SMTP_USERNAME", "")
+EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "SMTP_FROM",
+    os.getenv("SMTP_FROM_EMAIL", EMAIL_HOST_USER or "webmaster@localhost"),
+)
+EMAIL_USE_SSL = env_bool("SMTP_USE_SSL", EMAIL_PORT == 465)
+EMAIL_USE_TLS = False if EMAIL_USE_SSL else env_bool("SMTP_USE_TLS", True)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

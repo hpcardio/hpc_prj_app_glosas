@@ -7,5 +7,12 @@ services:
       API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8000}
       API_BEARER_TOKEN: ${API_BEARER_TOKEN:-}
       API_CONTA_ATENDIMENTO_PATH: ${API_CONTA_ATENDIMENTO_PATH:-/app_glosas/}
+      SMTP_HOST: ${SMTP_HOST:-smtp.hostinger.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-tihpc@hospitalprontocardio.com.br}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-senha_do_email}
+      SMTP_FROM: "${SMTP_FROM:-TI Hospital Prontocardio <tihpc@hospitalprontocardio.com.br>}"
+      SMTP_USE_SSL: ${SMTP_USE_SSL:-true}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
     ports:
       - "8080:8000"
