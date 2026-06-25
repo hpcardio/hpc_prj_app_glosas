@@ -40,12 +40,14 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+      PORT: ${PORT:-8000}
     ports:
-      - "${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-8080}:8000"
+      - "${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-8080}:${PORT:-8000}"
     volumes:
       - frontend_data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "apihpc.hospitalprontocardio.com.br:192.168.4.38"
     read_only: true
     tmpfs:
       - /tmp
