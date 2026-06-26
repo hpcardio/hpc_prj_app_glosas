@@ -1524,12 +1524,21 @@ def build_recuperacao_indicators(rows, scatter_limit=12):
         "sucesso_points": " ".join(sucesso_points),
         "extrema": recovery_extrema,
         "value_ticks": [
-            format_brl_compact(
-                ((max_monthly_value + 1) ** fraction) - 1
-            )
+            {
+                "label": format_brl_compact(
+                    ((max_monthly_value + 1) ** fraction) - 1
+                ),
+                "y": format_css_number(92 - (fraction * 76)),
+            }
             for fraction in (1, 0.75, 0.5, 0.25, 0)
         ],
-        "rate_ticks": ["100%", "75%", "50%", "25%", "0%"],
+        "rate_ticks": [
+            {
+                "label": f"{rate}%",
+                "y": format_css_number(92 - ((rate / 100) * 76)),
+            }
+            for rate in (100, 75, 50, 25, 0)
+        ],
         "total_recursado_formatado": format_brl_input(total_monthly_recursado),
         "total_recuperado_formatado": format_brl_input(total_monthly_recuperado),
         "taxa_sucesso": percent_value(
@@ -1922,6 +1931,7 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         for registro in rows
         if registro.get("dt_recebimento")
     )
+    recuperados = [registro for registro in rows if registro.get("dt_recebimento")]
 
     recursos_com_sucesso = [
         registro
@@ -1933,11 +1943,17 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         for registro in recursos
         if not registro.get("processo_recurso") or not registro.get("dt_recurso")
     ]
+    total_glosas_sem_processo_valor = sum(
+        registro_valor_glosado(registro) for registro in glosas_sem_processo
+    )
     sem_recuperacao = [
         registro
         for registro in recursos
         if as_float_or_zero(registro.get("valor_recebido")) <= 0
     ]
+    total_sem_recuperacao_valor = sum(
+        registro_valor_glosado(registro) for registro in sem_recuperacao
+    )
 
     aging = []
     for key, label in AGING_BUCKETS.items():
@@ -2020,8 +2036,19 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
             "total_acatos_valor_formatado": format_brl_input(total_acatos_valor),
             "total_recebido": total_recebido,
             "total_recebido_formatado": format_brl_input(total_recebido),
+            "total_recuperado": len(recuperados),
             "glosas_sem_processo": len(glosas_sem_processo),
+            "total_glosas_sem_processo": len(glosas_sem_processo),
+            "total_glosas_sem_processo_valor": total_glosas_sem_processo_valor,
+            "total_glosas_sem_processo_valor_formatado": format_brl_input(
+                total_glosas_sem_processo_valor
+            ),
             "sem_recuperacao": len(sem_recuperacao),
+            "total_sem_recuperacao": len(sem_recuperacao),
+            "total_sem_recuperacao_valor": total_sem_recuperacao_valor,
+            "total_sem_recuperacao_valor_formatado": format_brl_input(
+                total_sem_recuperacao_valor
+            ),
             "taxa_recurso": percent_value(len(recursos), len(rows)),
             "taxa_sucesso_qtd": percent_value(len(recursos_com_sucesso), len(recursos)),
             "taxa_sucesso_financeira": percent_value(

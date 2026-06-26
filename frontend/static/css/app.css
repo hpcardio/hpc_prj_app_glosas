@@ -1675,15 +1675,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .recovery-trend-y-axis {
-  display: grid;
-  grid-template-rows: repeat(5, 1fr);
+  position: relative;
   height: 280px;
   color: #6a8190;
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
   box-sizing: border-box;
-  padding: 2px 0 3px;
+  padding: 0;
   overflow: visible;
   white-space: nowrap;
 }
@@ -1692,18 +1691,21 @@ body:not(.sidebar-collapsed) .indicator-grid {
   text-align: right;
 }
 
+.recovery-trend-y-axis--value span {
+  right: 0;
+}
+
 .recovery-trend-y-axis--rate {
   text-align: left;
 }
 
-.recovery-trend-y-axis span {
-  align-self: start;
-  transform: none;
+.recovery-trend-y-axis--rate span {
+  left: 0;
 }
 
-.recovery-trend-y-axis span:last-child {
-  align-self: end;
-  transform: none;
+.recovery-trend-y-axis span {
+  position: absolute;
+  transform: translateY(-50%);
 }
 
 .recovery-trend-canvas {
@@ -2297,6 +2299,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: grid;
   gap: 8px;
   min-height: 118px;
+  min-width: 0;
   padding: 16px;
 }
 
@@ -2334,8 +2337,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .indicator-kpi strong {
   color: #092a3a;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .indicator-kpi small {

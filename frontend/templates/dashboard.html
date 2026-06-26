@@ -113,30 +113,30 @@
       <strong>{{ indicadores.kpis.total_glosado_formatado }}</strong>
       <small>{{ indicadores.kpis.total_registros }} registros ativos</small>
     </article>
-    <article class="indicator-kpi">
-      <span>Recursos de glosa</span>
-      <strong>{{ indicadores.kpis.total_recursos }}</strong>
-      <small>{{ indicadores.kpis.total_recursos_valor_formatado }}</small>
+    <article class="indicator-kpi indicator-kpi--warning">
+      <span>Total Glosas Não Tratadas</span>
+      <strong>{{ indicadores.kpis.total_glosas_sem_processo_valor_formatado }}</strong>
+      <small>{{ indicadores.kpis.total_glosas_sem_processo }} registros ativos</small>
     </article>
     <article class="indicator-kpi">
-      <span>Acatos de glosa</span>
-      <strong>{{ indicadores.kpis.total_acatos }}</strong>
-      <small>{{ indicadores.kpis.total_acatos_valor_formatado }}</small>
+      <span>Total Glosas Recursadas</span>
+      <strong>{{ indicadores.kpis.total_recursos_valor_formatado }}</strong>
+      <small>{{ indicadores.kpis.total_recursos }} registros ativos</small>
+    </article>
+    <article class="indicator-kpi">
+      <span>Total Glosas Acatadas</span>
+      <strong>{{ indicadores.kpis.total_acatos_valor_formatado }}</strong>
+      <small>{{ indicadores.kpis.total_acatos }} registros ativos</small>
     </article>
     <article class="indicator-kpi indicator-kpi--success">
-      <span>Recuperado</span>
+      <span>Total Glosas Recuperadas</span>
       <strong>{{ indicadores.kpis.total_recebido_formatado }}</strong>
-      <small>{{ indicadores.kpis.taxa_sucesso_financeira }}% sucesso financeiro</small>
-    </article>
-    <article class="indicator-kpi indicator-kpi--warning">
-      <span>Sem processo</span>
-      <strong>{{ indicadores.kpis.glosas_sem_processo }}</strong>
-      <small>Recursos sem processo ou data</small>
+      <small>{{ indicadores.kpis.total_recuperado }} registros ativos / {{ indicadores.kpis.taxa_sucesso_financeira }}% sucesso financeiro</small>
     </article>
     <article class="indicator-kpi indicator-kpi--danger">
-      <span>Sem recuperação</span>
-      <strong>{{ indicadores.kpis.sem_recuperacao }}</strong>
-      <small>Recursos sem valor recebido</small>
+      <span>Total Recursos de Glosa em Aberto</span>
+      <strong>{{ indicadores.kpis.total_sem_recuperacao_valor_formatado }}</strong>
+      <small>{{ indicadores.kpis.total_sem_recuperacao }} registros ativos</small>
     </article>
   </section>
 
@@ -272,7 +272,7 @@
         <div class="recovery-trend-chart">
           <div class="recovery-trend-y-axis recovery-trend-y-axis--value" aria-label="Escala de valores">
             {% for tick in indicadores.recuperacao.mensal.value_ticks %}
-              <span>{{ tick }}</span>
+              <span style="top: {{ tick.y }}%;">{{ tick.label }}</span>
             {% endfor %}
           </div>
           <div class="recovery-trend-canvas" data-recovery-trend-canvas>
@@ -317,7 +317,7 @@
           </div>
           <div class="recovery-trend-y-axis recovery-trend-y-axis--rate" aria-label="Escala percentual">
             {% for tick in indicadores.recuperacao.mensal.rate_ticks %}
-              <span>{{ tick }}</span>
+              <span style="top: {{ tick.y }}%;">{{ tick.label }}</span>
             {% endfor %}
           </div>
           <div class="recovery-trend-months" aria-hidden="true">
