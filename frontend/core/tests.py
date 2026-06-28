@@ -1,7 +1,177 @@
+from datetime import date
 from unittest.mock import patch
 
 from django.contrib.staticfiles import finders
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
+
+from core.views import (
+    apply_dashboard_filters,
+    build_recuperacao_indicators,
+    get_dashboard_filters,
+    subtract_months,
+)
+
+
+class DashboardIndicadoresTests(TestCase):
+    def test_dashboard_filters_aplica_periodo_padrao_de_doze_meses(self):
+        request = RequestFactory().get('/indicadores/')
+        today = date.today()
+
+        filtros = get_dashboard_filters(request)
+
+        self.assertEqual(
+            filtros['periodo_inicio'],
+            subtract_months(today, 11).strftime('%Y-%m-%d'),
+        )
+        self.assertEqual(filtros['periodo_fim'], today.strftime('%Y-%m-%d'))
+
+    def test_dashboard_filters_preserva_periodo_informado(self):
+        request = RequestFactory().get(
+            '/indicadores/',
+            {
+                'periodo_inicio': '2026-01-10',
+                'periodo_fim': '2026-03-20',
+            },
+        )
+
+        filtros = get_dashboard_filters(request)
+
+        self.assertEqual(filtros['periodo_inicio'], '2026-01-10')
+        self.assertEqual(filtros['periodo_fim'], '2026-03-20')
+
+    def test_dashboard_filters_aceita_multiplos_valores(self):
+        request = RequestFactory().get(
+            '/indicadores/',
+            {
+                'convenio': ['AMIL', 'BACEN'],
+                'prestador': ['Prestador A', 'Prestador B'],
+                'tipo_atendimento': ['Urgência', 'Internação'],
+                'motivo_glosa': ['Motivo A', 'Motivo B'],
+            },
+        )
+
+        filtros = get_dashboard_filters(request)
+
+        self.assertEqual(filtros['convenio'], ['AMIL', 'BACEN'])
+        self.assertEqual(filtros['prestador'], ['Prestador A', 'Prestador B'])
+        self.assertEqual(filtros['tipo_atendimento'], ['Urgência', 'Internação'])
+        self.assertEqual(filtros['motivo_glosa'], ['Motivo A', 'Motivo B'])
+
+    def test_dashboard_filters_aplica_multiplos_valores(self):
+        rows = [
+            {
+                'data_glosa': '2026-01-10',
+                'convenio': 'AMIL',
+                'prestador': 'Prestador A',
+                'tp_atendimento': 'Urgência',
+                'motivo_glosa': 'Motivo A',
+                'sn_glosado': 'true',
+            },
+            {
+                'data_glosa': '2026-01-10',
+                'convenio': 'BACEN',
+                'prestador': 'Prestador B',
+                'tp_atendimento': 'Internação',
+                'motivo_glosa': 'Motivo B',
+                'sn_glosado': 'true',
+            },
+            {
+                'data_glosa': '2026-01-10',
+                'convenio': 'BRADESCO',
+                'prestador': 'Prestador C',
+                'tp_atendimento': 'Externo',
+                'motivo_glosa': 'Motivo C',
+                'sn_glosado': 'true',
+            },
+        ]
+
+        filtered = apply_dashboard_filters(
+            rows,
+            {
+                'periodo_inicio': '2026-01-01',
+                'periodo_fim': '2026-01-31',
+                'convenio': ['AMIL', 'BACEN'],
+                'prestador': ['Prestador A', 'Prestador B'],
+                'tipo_atendimento': ['Urgência', 'Internação'],
+                'motivo_glosa': ['Motivo A', 'Motivo B'],
+                'tratativa': '',
+            },
+        )
+
+        self.assertEqual(len(filtered), 2)
+        self.assertEqual([row['convenio'] for row in filtered], ['AMIL', 'BACEN'])
+
+    def test_recuperacao_exibe_todos_motivos_com_valor(self):
+        rows = [
+            {
+                'sn_ativo': 'true',
+                'sn_glosado': 'true',
+                'processo_recurso': f'REC-{index}',
+                'dt_recurso': '2026-01-10',
+                'data_glosa': '2026-01-01',
+                'motivo_glosa': f'Motivo {index:02d}',
+                'convenio': 'Convenio A',
+                'valor_glosado': 1000 + index,
+                'valor_recebido': 500,
+            }
+            for index in range(13)
+        ]
+
+        indicadores = build_recuperacao_indicators(rows)
+
+        self.assertEqual(indicadores['total_motivos'], 13)
+        self.assertEqual(len(indicadores['scatter']), 13)
+
+    def test_recuperacao_mensal_usa_periodo_informado(self):
+        indicadores = build_recuperacao_indicators(
+            [
+                {
+                    'sn_ativo': 'true',
+                    'sn_glosado': 'true',
+                    'processo_recurso': 'REC-1',
+                    'dt_recurso': '2026-02-10',
+                    'data_glosa': '2026-02-01',
+                    'motivo_glosa': 'Motivo teste',
+                    'convenio': 'Convenio A',
+                    'valor_glosado': 1000,
+                    'valor_recebido': 500,
+                }
+            ],
+            '2026-01-10',
+            '2026-03-20',
+        )
+
+        self.assertEqual(
+            indicadores['mensal']['months'],
+            ['01/2026', '02/2026', '03/2026'],
+        )
+        self.assertEqual(indicadores['mensal']['month_count'], 3)
+        self.assertEqual(indicadores['mensal']['period_label'], '01/2026 a 03/2026')
+
+    def test_recuperacao_tooltip_usa_legenda_de_eficiencia_operacional(self):
+        indicadores = build_recuperacao_indicators(
+            [
+                {
+                    'sn_ativo': 'true',
+                    'sn_glosado': 'true',
+                    'processo_recurso': 'REC-1',
+                    'dt_recurso': '2026-01-10',
+                    'data_glosa': '2026-01-01',
+                    'motivo_glosa': 'Motivo teste',
+                    'convenio': 'Convenio A',
+                    'valor_glosado': 1000,
+                    'valor_recebido': 500,
+                }
+            ]
+        )
+
+        tooltip = indicadores['scatter'][0]['tooltip']
+
+        self.assertIn(
+            'Taxa Eficiência Op. (vl. recuperado / vl. recursado): 50.0%',
+            tooltip,
+        )
+        self.assertNotIn('Taxa de sucesso do recurso', tooltip)
 
 
 class LoginFlowTests(TestCase):

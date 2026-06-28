@@ -849,6 +849,102 @@ body.is-login-entry .app-light-reveal span {
   font-weight: 700;
 }
 
+.indicator-multi-select {
+  position: relative;
+  min-width: 0;
+}
+
+.indicator-multi-select summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #cbdbe3;
+  border-radius: 7px;
+  background: #fff;
+  color: #0b2f43;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.indicator-multi-select summary::-webkit-details-marker {
+  display: none;
+}
+
+.indicator-multi-select summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-left: 10px;
+  border-right: 2px solid #496777;
+  border-bottom: 2px solid #496777;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.indicator-multi-select[open] summary {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(31, 111, 134, 0.12);
+}
+
+.indicator-multi-select[open] summary::after {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.indicator-multi-select > div {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid #bdd8e2;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(15, 52, 69, 0.22);
+}
+
+.indicator-multi-select label {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 7px;
+  border-radius: 6px;
+  color: #123f53;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.indicator-multi-select label:hover,
+.indicator-multi-select label:focus-within {
+  background: #edf7fa;
+}
+
+.indicator-multi-select input {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.indicator-multi-select label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .indicator-filter-field--period > div {
   display: flex;
   gap: 8px;
@@ -1153,6 +1249,37 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-rows: auto minmax(430px, 1fr) auto;
 }
 
+.recovery-scatter-limit {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 160px) 30px;
+  align-items: center;
+  gap: 8px;
+  color: #496777;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.recovery-scatter-limit input {
+  width: 100%;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.recovery-scatter-limit output {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 2px 6px;
+  border: 1px solid #bdd8e2;
+  border-radius: 999px;
+  background: #f7fbfd;
+  color: #0f3445;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .recovery-scatter {
   position: relative;
   min-height: 430px;
@@ -1388,6 +1515,10 @@ body:not(.sidebar-collapsed) .indicator-grid {
   cursor: help;
   padding: 0;
   transform: translate(-50%, -50%);
+}
+
+.recovery-bubble[hidden] {
+  display: none;
 }
 
 .recovery-point-label {
@@ -1716,7 +1847,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-radius: 7px;
   background:
     linear-gradient(#e8f0f3 1px, transparent 1px) 0 0 / 100% 25%,
-    linear-gradient(90deg, rgba(232, 240, 243, 0.72) 1px, transparent 1px) 0 0 / 8.333% 100%,
+    linear-gradient(90deg, rgba(232, 240, 243, 0.72) 1px, transparent 1px) 0 0 / calc(100% / var(--month-count, 12)) 100%,
     #fff;
 }
 
@@ -1964,7 +2095,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .recovery-trend-months {
   grid-column: 2;
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--month-count, 12), minmax(0, 1fr));
   gap: 2px;
   padding-top: 7px;
   color: #496777;
@@ -2213,7 +2344,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-bottom: 1px solid #d8e5eb;
   background:
     linear-gradient(#eef4f7 1px, transparent 1px) 0 0 / 100% 25%,
-    linear-gradient(90deg, rgba(238, 244, 247, 0.72) 1px, transparent 1px) 0 0 / 8.333% 100%,
+    linear-gradient(90deg, rgba(238, 244, 247, 0.72) 1px, transparent 1px) 0 0 / calc(100% / var(--month-count, 12)) 100%,
     #fff;
 }
 
@@ -2241,6 +2372,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
   vector-effect: non-scaling-stroke;
 }
 
+.motivos-line-canvas .motivos-line-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 10;
+  cursor: pointer;
+  pointer-events: all;
+}
+
 .motivos-line-axis {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -2249,7 +2388,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .motivos-line-axis div {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--month-count, 12), minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -2297,6 +2436,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   position: relative;
   overflow: hidden;
   display: grid;
+  grid-template-rows: 44px auto auto;
+  align-content: start;
   gap: 8px;
   min-height: 118px;
   min-width: 0;
@@ -2328,10 +2469,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 
 .indicator-kpi span {
+  display: flex;
+  align-items: flex-start;
   color: #496777;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.05em;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
@@ -2531,7 +2675,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .aging-heatmap-months,
 .aging-heatmap-row {
   display: grid;
-  grid-template-columns: 108px repeat(12, minmax(0, 1fr));
+  grid-template-columns: 108px repeat(var(--month-count, 12), minmax(0, 1fr));
   gap: 5px;
   min-width: 0;
   align-items: center;
@@ -2585,7 +2729,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .aging-line-chart {
   display: grid;
-  grid-template-columns: repeat(12, minmax(36px, 1fr));
+  grid-template-columns: repeat(var(--month-count, 12), minmax(36px, 1fr));
   gap: 8px;
   align-items: end;
   min-height: 198px;
