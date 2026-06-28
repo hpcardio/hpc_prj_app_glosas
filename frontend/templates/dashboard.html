@@ -58,45 +58,65 @@
       </div>
     </div>
 
-    <label class="indicator-filter-field">
+    <div class="indicator-filter-field indicator-filter-field--multi">
       <span>Convênio</span>
-      <input type="search" name="convenio" list="dashboard-convenios" class="searchable-combobox" value="{{ filtros.convenio }}" placeholder="Todos" autocomplete="off">
-      <datalist id="dashboard-convenios">
-        {% for convenio in opcoes_filtro.convenios %}
-          <option value="{{ convenio }}"></option>
-        {% endfor %}
-      </datalist>
-    </label>
+      <details class="indicator-multi-select" data-multi-select>
+        <summary><span data-multi-select-label>{% if filtros.convenio %}{{ filtros.convenio|length }} selecionado(s){% else %}Todos{% endif %}</span></summary>
+        <div>
+          {% for convenio in opcoes_filtro.convenios %}
+            <label>
+              <input type="checkbox" name="convenio" value="{{ convenio }}" {% if convenio in filtros.convenio %}checked{% endif %}>
+              <span>{{ convenio }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
 
-    <label class="indicator-filter-field">
+    <div class="indicator-filter-field indicator-filter-field--multi">
       <span>Prestador</span>
-      <input type="search" name="prestador" list="dashboard-prestadores" class="searchable-combobox" value="{{ filtros.prestador }}" placeholder="Todos" autocomplete="off">
-      <datalist id="dashboard-prestadores">
-        {% for prestador in opcoes_filtro.prestadores %}
-          <option value="{{ prestador }}"></option>
-        {% endfor %}
-      </datalist>
-    </label>
+      <details class="indicator-multi-select" data-multi-select>
+        <summary><span data-multi-select-label>{% if filtros.prestador %}{{ filtros.prestador|length }} selecionado(s){% else %}Todos{% endif %}</span></summary>
+        <div>
+          {% for prestador in opcoes_filtro.prestadores %}
+            <label>
+              <input type="checkbox" name="prestador" value="{{ prestador }}" {% if prestador in filtros.prestador %}checked{% endif %}>
+              <span>{{ prestador }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
 
-    <label class="indicator-filter-field">
+    <div class="indicator-filter-field indicator-filter-field--multi">
       <span>Tipo de atendimento</span>
-      <input type="search" name="tipo_atendimento" list="dashboard-tipos-atendimento" class="searchable-combobox" value="{{ filtros.tipo_atendimento }}" placeholder="Todos" autocomplete="off">
-      <datalist id="dashboard-tipos-atendimento">
-        {% for tipo_atendimento in opcoes_filtro.tipos_atendimento %}
-          <option value="{{ tipo_atendimento }}"></option>
-        {% endfor %}
-      </datalist>
-    </label>
+      <details class="indicator-multi-select" data-multi-select>
+        <summary><span data-multi-select-label>{% if filtros.tipo_atendimento %}{{ filtros.tipo_atendimento|length }} selecionado(s){% else %}Todos{% endif %}</span></summary>
+        <div>
+          {% for tipo_atendimento in opcoes_filtro.tipos_atendimento %}
+            <label>
+              <input type="checkbox" name="tipo_atendimento" value="{{ tipo_atendimento }}" {% if tipo_atendimento in filtros.tipo_atendimento %}checked{% endif %}>
+              <span>{{ tipo_atendimento }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
 
-    <label class="indicator-filter-field">
+    <div class="indicator-filter-field indicator-filter-field--multi">
       <span>Motivo da glosa</span>
-      <input type="search" name="motivo_glosa" list="dashboard-motivos-glosa" class="searchable-combobox" value="{{ filtros.motivo_glosa }}" placeholder="Todos" autocomplete="off">
-      <datalist id="dashboard-motivos-glosa">
-        {% for motivo in opcoes_filtro.motivos_glosa %}
-          <option value="{{ motivo }}"></option>
-        {% endfor %}
-      </datalist>
-    </label>
+      <details class="indicator-multi-select" data-multi-select>
+        <summary><span data-multi-select-label>{% if filtros.motivo_glosa %}{{ filtros.motivo_glosa|length }} selecionado(s){% else %}Todos{% endif %}</span></summary>
+        <div>
+          {% for motivo in opcoes_filtro.motivos_glosa %}
+            <label>
+              <input type="checkbox" name="motivo_glosa" value="{{ motivo }}" {% if motivo in filtros.motivo_glosa %}checked{% endif %}>
+              <span>{{ motivo }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
 
     <div class="indicator-filter-actions">
       <button type="submit">Filtrar</button>
@@ -131,7 +151,7 @@
     <article class="indicator-kpi indicator-kpi--success">
       <span>Total Glosas Recuperadas</span>
       <strong>{{ indicadores.kpis.total_recebido_formatado }}</strong>
-      <small>{{ indicadores.kpis.total_recuperado }} registros ativos / {{ indicadores.kpis.taxa_sucesso_financeira }}% sucesso financeiro</small>
+      <small>{{ indicadores.kpis.total_recuperado }} registros ativos</small>
     </article>
     <article class="indicator-kpi indicator-kpi--danger">
       <span>Total Recursos de Glosa em Aberto</span>
@@ -143,8 +163,8 @@
   <section class="recovery-section">
     <div class="recovery-section-head">
       <div>
-        <strong>Recuperação de Glosas</strong>
-        <span>Eficiência dos recursos e convênios com melhor retorno</span>
+        <strong>Recursos Recuperados</strong>
+        <span>Eficiência operacional na recuperação de glosas</span>
       </div>
       <div class="aging-summary">
         <span>{{ indicadores.recuperacao.total_motivos }} motivos</span>
@@ -156,16 +176,30 @@
       <article class="indicator-panel indicator-panel--wide recovery-scatter-panel">
         <div class="indicator-panel-head">
           <strong>
-            Eficiência dos Recursos por Motivo
+            Eficiência Operacional - Recursos por Motivo
             <span
               class="help-tip"
               tabindex="0"
               aria-label="Ajuda sobre o scatter de eficiência"
-              data-tooltip="Cada bolha representa um motivo de glosa. O eixo horizontal mostra o valor glosado, o eixo vertical mostra a taxa de recuperação e o tamanho indica o valor recuperado."
+              data-tooltip="Cada bolha representa um motivo de glosa. O eixo horizontal mostra o valor glosado, o eixo vertical mostra a taxa operacional de recuperação e o tamanho indica o valor recuperado."
             >?</span>
           </strong>
+          {% if indicadores.recuperacao.scatter_max_limit > 0 %}
+            <label class="recovery-scatter-limit">
+              <span>Bolhas</span>
+              <input
+                type="range"
+                min="1"
+                max="{{ indicadores.recuperacao.scatter_max_limit }}"
+                value="{{ indicadores.recuperacao.scatter_default_limit }}"
+                data-recovery-scatter-range
+                aria-label="Quantidade de bolhas exibidas no gráfico"
+              >
+              <output data-recovery-scatter-output>{{ indicadores.recuperacao.scatter_default_limit }}</output>
+            </label>
+          {% endif %}
         </div>
-        <div class="recovery-scatter">
+        <div class="recovery-scatter" data-recovery-scatter data-default-visible="{{ indicadores.recuperacao.scatter_default_limit }}">
           <div class="recovery-zone recovery-zone--baixa" style="right: calc(100% - {{ indicadores.recuperacao.media_valor_glosado_pct }}%); bottom: calc(100% - {{ indicadores.recuperacao.media_taxa_recuperacao_y_pct }}%);">
             <strong>Baixa Prioridade</strong>
             <span class="help-tip recovery-zone-help" tabindex="0" aria-label="Ajuda sobre Baixa Prioridade" data-tooltip="Motivos com menor valor glosado e taxa de recuperação acima da média. Estão sob controle e têm menor impacto financeiro.">?</span>
@@ -199,6 +233,7 @@
               type="button"
               class="recovery-bubble recovery-bubble--{{ item.quadrant_key }}"
               style="left: {{ item.x_pct_css }}%; top: {{ item.y_pct_css }}%; --bubble-size: {{ item.bubble_size }}px;"
+              data-recovery-bubble-rank="{{ forloop.counter }}"
               data-chart-tooltip="{{ item.tooltip }}"
               aria-label="{{ item.tooltip }}"
             >
@@ -220,7 +255,7 @@
 
       <article class="indicator-panel">
         <div class="indicator-panel-head">
-          <strong>Valor Recursado por Convênio</strong>
+          <strong>Eficiência Operacional - Recursos por Convênio</strong>
         </div>
         <div class="recovery-bars">
           {% for item in indicadores.recuperacao.convenio_recursado %}
@@ -248,35 +283,35 @@
     <article class="indicator-panel recovery-trend-panel">
       <div class="indicator-panel-head recovery-trend-head">
         <strong>
-          Evolução Mensal da Recuperação
+          Eficiência Operacional - Evolução Mensal
           <span
             class="help-tip help-tip--below"
             tabindex="0"
             aria-label="Ajuda sobre a evolução mensal da recuperação"
-            data-tooltip="Compara mensalmente o valor recursado, o valor recuperado e a taxa de sucesso financeira. A competência corresponde à data da glosa; assim, o valor recuperado é associado ao mesmo grupo de recursos que originou o valor recursado. As séries financeiras usam escala logarítmica para preservar a leitura dos meses menores mesmo quando existe um pico muito alto."
+            data-tooltip="Compara mensalmente o valor recursado, o valor recuperado e o percentual operacional. A competência corresponde à data da glosa; assim, o valor recuperado é associado ao mesmo grupo de recursos que originou o valor recursado. As séries financeiras usam escala logarítmica para preservar a leitura dos meses menores mesmo quando existe um pico muito alto."
           >?</span>
         </strong>
         <div class="recovery-trend-summary">
           <span>Recursado <b>{{ indicadores.recuperacao.mensal.total_recursado_formatado }}</b></span>
           <span>Recuperado <b>{{ indicadores.recuperacao.mensal.total_recuperado_formatado }}</b></span>
-          <span>Sucesso <b>{{ indicadores.recuperacao.mensal.taxa_sucesso }}%</b></span>
+          <span>Eficiência Op. <b>{{ indicadores.recuperacao.mensal.taxa_sucesso }}%</b></span>
         </div>
       </div>
       <div class="recovery-trend-legend" aria-label="Legenda do gráfico">
         <span class="is-recursado"><i></i>Valor recursado</span>
         <span class="is-recuperado"><i></i>Valor recuperado</span>
-        <span class="is-sucesso"><i></i>Taxa de sucesso</span>
+        <span class="is-sucesso"><i></i>Eficiência Op.</span>
         <em>Valores em escala logarítmica</em>
       </div>
       <div class="recovery-trend-scroll">
-        <div class="recovery-trend-chart">
+        <div class="recovery-trend-chart" style="--month-count: {{ indicadores.recuperacao.mensal.month_count }};">
           <div class="recovery-trend-y-axis recovery-trend-y-axis--value" aria-label="Escala de valores">
             {% for tick in indicadores.recuperacao.mensal.value_ticks %}
               <span style="top: {{ tick.y }}%;">{{ tick.label }}</span>
             {% endfor %}
           </div>
           <div class="recovery-trend-canvas" data-recovery-trend-canvas>
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Evolução mensal dos valores recursado e recuperado e da taxa de sucesso">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Evolução mensal dos valores recursado e recuperado e da eficiência operacional">
               <polyline class="recovery-trend-line recovery-trend-line--recursado" points="{{ indicadores.recuperacao.mensal.recursado_points }}"></polyline>
               <polyline class="recovery-trend-line recovery-trend-line--recuperado" points="{{ indicadores.recuperacao.mensal.recuperado_points }}"></polyline>
               <polyline class="recovery-trend-line recovery-trend-line--sucesso" points="{{ indicadores.recuperacao.mensal.sucesso_points }}"></polyline>
@@ -353,9 +388,9 @@
               data-tooltip="Mostra a concentração das glosas com tratativa interna registrada (recurso ou acato), por faixa de tempo. Glosas em aberto não participam do cálculo. A competência (Mês/Ano) corresponde à data da glosa. O prazo começa na data da glosa e termina na data em que foi registrado o recurso/acato."
             >?</span>
           </strong>
-          <span>Últimos 12 meses</span>
+          <span>{{ indicadores.aging_glosas.period_label }}</span>
         </div>
-        <div class="aging-heatmap">
+        <div class="aging-heatmap" style="--month-count: {{ indicadores.aging_glosas.month_count }};">
           <div class="aging-heatmap-months">
             <span></span>
             {% for month in indicadores.aging_glosas.heatmap_months %}
@@ -393,9 +428,9 @@ Fora do prazo: {{ cell.fora }}"
                 data-tooltip="Quantidade mensal de glosas tratadas (recurso ou acato). A competência (Mês/Ano) corresponde à data da glosa."
               >?</span>
             </strong>
-            <span>Últimos 12 meses</span>
+            <span>{{ indicadores.aging_glosas.period_label }}</span>
           </div>
-          <div class="aging-line-chart">
+          <div class="aging-line-chart" style="--month-count: {{ indicadores.aging_glosas.month_count }};">
             {% for item in indicadores.aging_glosas.volume_tratativas_12m %}
               <div
                 class="aging-line-point"
@@ -529,7 +564,7 @@ Quantidade: {{ item.count }}">
           </strong>
           <!-- <span>Top 5 por quantidade de glosas</span> -->
         </div>
-        <div class="motivos-line-chart">
+        <div class="motivos-line-chart" style="--month-count: {{ indicadores.motivos.month_count }};">
           <div class="motivos-line-plot">
             <div class="motivos-line-y-axis" aria-hidden="true">
               {% for tick in indicadores.motivos.y_ticks %}
@@ -539,8 +574,20 @@ Quantidade: {{ item.count }}">
             <div class="motivos-line-canvas">
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Evolução mensal dos cinco principais motivos de glosa por quantidade">
                 {% for serie in indicadores.motivos.series %}
-                  <polyline points="{{ serie.points }}" style="--line-color: {{ serie.color }}" data-chart-tooltip="Motivo da glosa: {{ serie.label }}
-Quantidade total: {{ serie.total }}"></polyline>
+                  <polyline points="{{ serie.points }}" style="--line-color: {{ serie.color }}"></polyline>
+                  {% for point in serie.values %}
+                    <circle
+                      class="motivos-line-hit"
+                      cx="{{ point.x }}"
+                      cy="{{ point.y }}"
+                      r="4.5"
+                      style="--line-color: {{ serie.color }}"
+                      data-chart-tooltip-anchor="above"
+                      data-chart-tooltip="Motivo da glosa: {{ serie.label }}
+Competência: {{ point.label }}
+Quantidade: {{ point.count }}"
+                    ></circle>
+                  {% endfor %}
                 {% endfor %}
               </svg>
             </div>
@@ -606,7 +653,7 @@ Quantidade total: {{ serie.total }}"></polyline>
     const layoutRecoveryLabels = () => {
       document.querySelectorAll('.recovery-scatter').forEach((scatter) => {
         const scatterRect = scatter.getBoundingClientRect();
-        const bubbles = [...scatter.querySelectorAll('.recovery-bubble')];
+        const bubbles = [...scatter.querySelectorAll('.recovery-bubble:not([hidden])')];
         const occupied = [...scatter.querySelectorAll(
           '.recovery-zone strong, .recovery-zone-help, .recovery-x-tick, .recovery-y-tick, .recovery-axis-label',
         )]
@@ -685,6 +732,61 @@ Quantidade total: {{ serie.total }}"></polyline>
 
           label.style.transform = `translate(-50%, -50%) translate(${placement.offsetX}px, ${placement.offsetY}px)`;
           occupied.push(rectRelativeTo(label, scatterRect));
+        });
+      });
+    };
+
+    const setupRecoveryScatterLimit = () => {
+      document.querySelectorAll('[data-recovery-scatter-range]').forEach((range) => {
+        const panel = range.closest('.recovery-scatter-panel');
+        const scatter = panel?.querySelector('[data-recovery-scatter]');
+        const output = panel?.querySelector('[data-recovery-scatter-output]');
+        if (!scatter || !output) return;
+
+        const bubbles = [...scatter.querySelectorAll('[data-recovery-bubble-rank]')];
+        const applyLimit = () => {
+          const limit = Number(range.value) || Number(scatter.dataset.defaultVisible) || 12;
+          output.textContent = String(limit);
+          bubbles.forEach((bubble) => {
+            const rank = Number(bubble.dataset.recoveryBubbleRank);
+            bubble.hidden = rank > limit;
+          });
+          layoutRecoveryLabels();
+        };
+
+        range.addEventListener('input', applyLimit);
+        applyLimit();
+      });
+    };
+
+    const setupMultiSelectFilters = () => {
+      document.querySelectorAll('[data-multi-select]').forEach((details) => {
+        const label = details.querySelector('[data-multi-select-label]');
+        const checkboxes = [...details.querySelectorAll('input[type="checkbox"]')];
+        const updateLabel = () => {
+          const selected = checkboxes.filter((checkbox) => checkbox.checked);
+          label.textContent = selected.length ? `${selected.length} selecionado(s)` : 'Todos';
+        };
+
+        details.addEventListener('toggle', () => {
+          if (!details.open) return;
+          document.querySelectorAll('[data-multi-select][open]').forEach((other) => {
+            if (other !== details) {
+              other.open = false;
+            }
+          });
+        });
+        checkboxes.forEach((checkbox) => {
+          checkbox.addEventListener('change', updateLabel);
+        });
+        updateLabel();
+      });
+
+      document.addEventListener('click', (event) => {
+        document.querySelectorAll('[data-multi-select][open]').forEach((details) => {
+          if (!details.contains(event.target)) {
+            details.open = false;
+          }
         });
       });
     };
@@ -807,10 +909,25 @@ Quantidade total: {{ serie.total }}"></polyline>
       const title = tooltip.querySelector('[data-chart-tooltip-title]');
       const body = tooltip.querySelector('[data-chart-tooltip-body]');
 
-      const positionTooltip = (clientX, clientY) => {
+      const positionTooltip = (clientX, clientY, element = null) => {
         const margin = 10;
         const offset = 14;
         const rect = tooltip.getBoundingClientRect();
+
+        if (element?.dataset.chartTooltipAnchor === 'above') {
+          const anchorRect = element.getBoundingClientRect();
+          const anchorX = anchorRect.left + (anchorRect.width / 2);
+          const anchorY = anchorRect.top + (anchorRect.height / 2);
+          let left = anchorX - (rect.width / 2);
+          let top = anchorY - rect.height - offset;
+          if (top < margin) {
+            top = anchorY + offset;
+          }
+          tooltip.style.left = `${Math.min(Math.max(margin, left), window.innerWidth - rect.width - margin)}px`;
+          tooltip.style.top = `${Math.min(Math.max(margin, top), window.innerHeight - rect.height - margin)}px`;
+          return;
+        }
+
         let left = clientX + offset;
         let top = clientY + offset;
         if (left + rect.width > window.innerWidth - margin) {
@@ -846,12 +963,12 @@ Quantidade total: {{ serie.total }}"></polyline>
           body.appendChild(row);
         });
         tooltip.hidden = false;
-        positionTooltip(event.clientX, event.clientY);
+        positionTooltip(event.clientX, event.clientY, element);
       };
 
       document.querySelectorAll('[data-chart-tooltip]').forEach((element) => {
         element.addEventListener('mouseenter', (event) => showTooltip(element, event));
-        element.addEventListener('mousemove', (event) => positionTooltip(event.clientX, event.clientY));
+        element.addEventListener('mousemove', (event) => positionTooltip(event.clientX, event.clientY, element));
         element.addEventListener('mouseleave', () => {
           tooltip.hidden = true;
         });
@@ -869,6 +986,8 @@ Quantidade total: {{ serie.total }}"></polyline>
 
     setupRecoveryTrendHover();
     setupChartTooltips();
+    setupRecoveryScatterLimit();
+    setupMultiSelectFilters();
     scheduleRecoveryLayout();
     window.addEventListener('resize', scheduleRecoveryLayout);
     if (document.fonts?.ready) {

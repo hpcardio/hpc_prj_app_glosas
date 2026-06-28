@@ -192,7 +192,17 @@
     window.validateSearchCriteria = function (form, fieldNames) {
       const hasCriteria = fieldNames.some((fieldName) => {
         const field = form.elements[fieldName];
-        return field && String(field.value || '').trim();
+        if (!field) return false;
+        const fields = field instanceof Element ? [field] : Array.from(field);
+        return fields.some((item) => {
+          if (item.type === 'checkbox' || item.type === 'radio') {
+            return item.checked && String(item.value || '').trim();
+          }
+          if (item.tagName === 'SELECT' && item.multiple) {
+            return item.selectedOptions.length > 0;
+          }
+          return String(item.value || '').trim();
+        });
       });
       const message = form.querySelector('[data-search-validation]');
       if (message) {

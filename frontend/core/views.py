@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date, datetime
 from math import ceil, log10
 from hashlib import sha256
@@ -31,6 +32,7 @@ DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = "acompanhamento:registros-glosa"
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
+DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
 
 
 def _safe_login_redirect(request):
@@ -919,7 +921,26 @@ def normalize_motivo_label(value):
     return text
 
 
-def build_motivos_indicators(rows, series_limit=5):
+def period_month_keys(period_start=None, period_end=None):
+    end_date = parse_api_date(period_end) or date.today()
+    start_date = parse_api_date(period_start) or subtract_months(
+        end_date,
+        DEFAULT_DASHBOARD_PERIOD_MONTHS - 1,
+    )
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+    return month_keys_between(start_date, end_date)
+
+
+def period_label_from_month_keys(month_keys):
+    if not month_keys:
+        return "Sem período"
+    if len(month_keys) == 1:
+        return month_label(month_keys[0])
+    return f"{month_label(month_keys[0])} a {month_label(month_keys[-1])}"
+
+
+def build_motivos_indicators(rows, series_limit=5, period_start=None, period_end=None):
     motivo_groups = {}
     for registro in rows:
         label = normalize_motivo_label(registro.get("motivo_glosa"))
@@ -1037,13 +1058,7 @@ def build_motivos_indicators(rows, series_limit=5):
         )[:series_limit]
     ]
 
-    today = date.today()
-    twelve_months_start = (
-        date(today.year - 1, today.month + 1, 1)
-        if today.month < 12
-        else date(today.year, 1, 1)
-    )
-    month_keys = month_keys_between(twelve_months_start, date(today.year, today.month, 1))
+    month_keys = period_month_keys(period_start, period_end)
     monthly = {
         label: {key: 0 for key in month_keys}
         for label in top_series_labels
@@ -1107,6 +1122,8 @@ def build_motivos_indicators(rows, series_limit=5):
         "pareto_cut_index": pareto_cut_index or 0,
         "pareto_count": len(pareto),
         "months": [month_label(key) for key in month_keys],
+        "month_count": len(month_keys),
+        "period_label": period_label_from_month_keys(month_keys),
         "series": series,
         "max_count": max_count,
         "y_ticks": y_ticks,
@@ -1120,8 +1137,8 @@ def recovery_tooltip_lines(item, group_label):
             f"Valor recursado: {item['valor_recursado_formatado']}",
             f"Valor recuperado: {item['valor_recuperado_formatado']}",
             (
-                "Taxa de sucesso do recurso "
-                f"(valor recuperado / valor recursado): "
+                "Taxa Eficiência Op. "
+                f"(vl. recuperado / vl. recursado): "
                 f"{item['taxa_sucesso_recurso']}%"
             ),
             f"Quantidade recursada: {item['qtd_recursos']}",
@@ -1226,7 +1243,7 @@ def format_css_number(value):
     return f"{value:.2f}"
 
 
-def build_recuperacao_indicators(rows, scatter_limit=12):
+def build_recuperacao_indicators(rows, period_start=None, period_end=None):
     recovery_rows = [
         registro
         for registro in rows
@@ -1265,7 +1282,7 @@ def build_recuperacao_indicators(rows, scatter_limit=12):
         motivo_groups,
         key=lambda item: (item["valor_glosado_total"], item["valor_recuperado"]),
         reverse=True,
-    )[:scatter_limit]
+    )
     jitter_steps = (-3, -1.5, 0, 1.5, 3)
     for index, item in enumerate(scatter):
         quadrant = classify_recovery_quadrant(
@@ -1352,16 +1369,7 @@ def build_recuperacao_indicators(rows, scatter_limit=12):
         )
         item["tooltip"] = recovery_tooltip_lines(item, "Convênio")
 
-    today = date.today()
-    twelve_months_start = (
-        date(today.year - 1, today.month + 1, 1)
-        if today.month < 12
-        else date(today.year, 1, 1)
-    )
-    recovery_month_keys = month_keys_between(
-        twelve_months_start,
-        date(today.year, today.month, 1),
-    )
+    recovery_month_keys = period_month_keys(period_start, period_end)
     recovery_monthly = {
         key: {
             "label": month_label(key),
@@ -1518,6 +1526,8 @@ def build_recuperacao_indicators(rows, scatter_limit=12):
             )
     recovery_monthly_indicators = {
         "months": [month_label(key) for key in recovery_month_keys],
+        "month_count": len(recovery_month_keys),
+        "period_label": period_label_from_month_keys(recovery_month_keys),
         "points": recovery_monthly_points,
         "recursado_points": " ".join(recursado_points),
         "recuperado_points": " ".join(recuperado_points),
@@ -1589,7 +1599,9 @@ def build_recuperacao_indicators(rows, scatter_limit=12):
             {"label": "25%", "top": 67},
             {"label": "0%", "top": 84},
         ],
-        "total_motivos": len(motivo_groups),
+        "total_motivos": len(scatter),
+        "scatter_default_limit": min(len(scatter), 12),
+        "scatter_max_limit": len(scatter),
         "total_convenios": len(convenio_groups),
     }
 
@@ -1726,10 +1738,8 @@ def build_vw_indicadores_aging_glosas(rows, prazos_lookup):
     return view_rows
 
 
-def build_aging_indicators(vw_rows):
-    today = date.today()
-    twelve_months_start = date(today.year - 1, today.month + 1, 1) if today.month < 12 else date(today.year, 1, 1)
-    month_keys = month_keys_between(twelve_months_start, date(today.year, today.month, 1))
+def build_aging_indicators(vw_rows, period_start=None, period_end=None):
+    month_keys = period_month_keys(period_start, period_end)
     treated_rows = [
         row
         for row in vw_rows
@@ -1893,13 +1903,21 @@ def build_aging_indicators(vw_rows):
         "fora": fora,
         "sem_prazo": sem_prazo,
         "heatmap_months": [month_label(key) for key in month_keys],
+        "month_count": len(month_keys),
+        "period_label": period_label_from_month_keys(month_keys),
         "heatmap": heatmap_rows,
         "volume_tratativas_12m": volume_tratativas_12m,
         "convenio_barras": convenio_barras,
     }
 
 
-def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
+def build_dashboard_indicadores(
+    registros,
+    prazo_sla=10,
+    prazos_convenio=None,
+    period_start=None,
+    period_end=None,
+):
     prazos_convenio = prazos_convenio or []
     prazos_lookup = build_prazos_convenio_lookup(prazos_convenio)
     convenios_desabilitados = {
@@ -1918,7 +1936,7 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         )
     ]
     aging_view = build_vw_indicadores_aging_glosas(rows, prazos_lookup)
-    aging_indicators = build_aging_indicators(aging_view)
+    aging_indicators = build_aging_indicators(aging_view, period_start, period_end)
     recursos = [registro for registro in rows if is_recurso_registro(registro)]
     acatos = [registro for registro in rows if is_acato_registro(registro)]
     total_glosado = sum(registro_valor_glosado(registro) for registro in rows)
@@ -2018,8 +2036,12 @@ def build_dashboard_indicadores(registros, prazo_sla=10, prazos_convenio=None):
         item["value_formatado"] = format_brl_input(item["value"])
         item["bar_width"] = percent_value(item["value"], max_volume)
 
-    motivos = build_motivos_indicators(rows)
-    recuperacao = build_recuperacao_indicators(rows)
+    motivos = build_motivos_indicators(
+        rows,
+        period_start=period_start,
+        period_end=period_end,
+    )
+    recuperacao = build_recuperacao_indicators(rows, period_start, period_end)
 
     return {
         "kpis": {
@@ -2087,6 +2109,27 @@ def clean_dashboard_filter_value(value):
     return str(value or "").strip()
 
 
+def clean_dashboard_filter_values(values):
+    cleaned = []
+    seen = set()
+    for value in values or []:
+        item = clean_dashboard_filter_value(value)
+        key = normalize_lookup_text(item)
+        if not item or key in seen:
+            continue
+        cleaned.append(item)
+        seen.add(key)
+    return cleaned
+
+
+def subtract_months(value, months):
+    month_index = (value.year * 12 + value.month - 1) - months
+    year = month_index // 12
+    month = (month_index % 12) + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
 def get_dashboard_filters(request):
     tratativa = clean_dashboard_filter_value(request.GET.get("tratativa")).lower()
     if tratativa == "glosa":
@@ -2094,16 +2137,29 @@ def get_dashboard_filters(request):
     if tratativa not in {"recurso", "acato"}:
         tratativa = ""
 
+    periodo_fim = format_api_date_input(request.GET.get("periodo_fim"))
+    periodo_fim_date = parse_api_date(periodo_fim) or date.today()
+    periodo_inicio = format_api_date_input(request.GET.get("periodo_inicio"))
+    if not periodo_inicio:
+        periodo_inicio = format_api_date_input(
+            subtract_months(
+                periodo_fim_date,
+                DEFAULT_DASHBOARD_PERIOD_MONTHS - 1,
+            )
+        )
+    if not periodo_fim:
+        periodo_fim = format_api_date_input(periodo_fim_date)
+
     return {
-        "periodo_inicio": format_api_date_input(request.GET.get("periodo_inicio")),
-        "periodo_fim": format_api_date_input(request.GET.get("periodo_fim")),
+        "periodo_inicio": periodo_inicio,
+        "periodo_fim": periodo_fim,
         "tratativa": tratativa,
-        "convenio": clean_dashboard_filter_value(request.GET.get("convenio")),
-        "prestador": clean_dashboard_filter_value(request.GET.get("prestador")),
-        "tipo_atendimento": clean_dashboard_filter_value(
-            request.GET.get("tipo_atendimento")
+        "convenio": clean_dashboard_filter_values(request.GET.getlist("convenio")),
+        "prestador": clean_dashboard_filter_values(request.GET.getlist("prestador")),
+        "tipo_atendimento": clean_dashboard_filter_values(
+            request.GET.getlist("tipo_atendimento")
         ),
-        "motivo_glosa": clean_dashboard_filter_value(request.GET.get("motivo_glosa")),
+        "motivo_glosa": clean_dashboard_filter_values(request.GET.getlist("motivo_glosa")),
     }
 
 
@@ -2128,10 +2184,20 @@ def build_dashboard_filter_options(registros):
 def apply_dashboard_filters(registros, filters):
     periodo_inicio = parse_api_date(filters.get("periodo_inicio"))
     periodo_fim = parse_api_date(filters.get("periodo_fim"))
-    convenio = normalize_lookup_text(filters.get("convenio"))
-    prestador = normalize_lookup_text(filters.get("prestador"))
-    tipo_atendimento = normalize_lookup_text(filters.get("tipo_atendimento"))
-    motivo_glosa = normalize_lookup_text(filters.get("motivo_glosa"))
+    convenios = {
+        normalize_lookup_text(value) for value in filters.get("convenio", []) if value
+    }
+    prestadores = {
+        normalize_lookup_text(value) for value in filters.get("prestador", []) if value
+    }
+    tipos_atendimento = {
+        normalize_lookup_text(value)
+        for value in filters.get("tipo_atendimento", [])
+        if value
+    }
+    motivos_glosa = {
+        normalize_lookup_text(value) for value in filters.get("motivo_glosa", []) if value
+    }
     tratativa = filters.get("tratativa")
 
     filtered = []
@@ -2141,18 +2207,18 @@ def apply_dashboard_filters(registros, filters):
             continue
         if periodo_fim and (not data_glosa or data_glosa > periodo_fim):
             continue
-        if convenio and normalize_lookup_text(registro.get("convenio")) != convenio:
+        if convenios and normalize_lookup_text(registro.get("convenio")) not in convenios:
             continue
-        if prestador and normalize_lookup_text(registro.get("prestador")) != prestador:
+        if prestadores and normalize_lookup_text(registro.get("prestador")) not in prestadores:
             continue
         if (
-            tipo_atendimento
-            and normalize_lookup_text(registro.get("tp_atendimento")) != tipo_atendimento
+            tipos_atendimento
+            and normalize_lookup_text(registro.get("tp_atendimento")) not in tipos_atendimento
         ):
             continue
         if (
-            motivo_glosa
-            and normalize_lookup_text(registro.get("motivo_glosa")) != motivo_glosa
+            motivos_glosa
+            and normalize_lookup_text(registro.get("motivo_glosa")) not in motivos_glosa
         ):
             continue
         if tratativa == "recurso" and not is_recurso_registro(registro):
@@ -2352,9 +2418,17 @@ def dashboard(request):
             registros_filtrados,
             prazo_sla,
             prazos_convenio,
+            filtros.get("periodo_inicio"),
+            filtros.get("periodo_fim"),
         )
     except ApiError as exc:
-        indicadores = build_dashboard_indicadores([], prazo_sla, prazos_convenio)
+        indicadores = build_dashboard_indicadores(
+            [],
+            prazo_sla,
+            prazos_convenio,
+            filtros.get("periodo_inicio"),
+            filtros.get("periodo_fim"),
+        )
         dashboard_errors.append(("Indicadores", exc))
 
     auth_errors = [exc for _, exc in dashboard_errors if exc.status_code == 401]
