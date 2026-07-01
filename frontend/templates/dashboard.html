@@ -160,6 +160,139 @@
     </article>
   </section>
 
+  <section class="geral-section">
+    <div class="geral-section-head">
+      <div>
+        <strong>Geral</strong>
+        <span>Visão consolidada do faturamento, glosas, recursos e perdas</span>
+      </div>
+      <div class="aging-summary">
+        <span>{{ indicadores.geral.period_label }}</span>
+        <span>{{ indicadores.geral.convenios|length }} convênios</span>
+      </div>
+    </div>
+
+    <article class="indicator-panel geral-funnel-panel">
+      <div class="indicator-panel-head">
+        <strong>Funil Financeiro por Convênio</strong>
+        {% if indicadores.geral.funnel_max_limit > 0 %}
+          <label class="geral-funnel-limit">
+            <span>Convênios</span>
+            <input
+              type="range"
+              min="1"
+              max="{{ indicadores.geral.funnel_max_limit }}"
+              value="{{ indicadores.geral.funnel_default_limit }}"
+              data-geral-funnel-range
+              aria-label="Quantidade de convênios exibidos no funil"
+            >
+            <output data-geral-funnel-output>{{ indicadores.geral.funnel_default_limit }}</output>
+          </label>
+        {% else %}
+          <span>{{ indicadores.geral.totals.fatura_formatado }} faturados</span>
+        {% endif %}
+      </div>
+      <div class="geral-funnel" data-geral-funnel data-default-visible="{{ indicadores.geral.funnel_default_limit }}">
+        <div class="geral-funnel-head">
+          <div class="geral-funnel-table-spacer" aria-hidden="true"></div>
+          {% for stage in indicadores.geral.funnel %}
+            <div class="geral-funnel-stage-card geral-funnel-stage-card--{{ forloop.counter }}" data-funnel-stage-card data-stage-key="{{ stage.key }}" data-reference-key="{{ stage.reference_key }}" data-reference-label="{{ stage.reference_label }}">
+              <b>{{ stage.label }}</b>
+              <strong data-stage-value>{{ stage.value_formatado }}</strong>
+              {% if stage.subtitle %}
+                <span>{{ stage.subtitle }}</span>
+              {% endif %}
+              {% if not forloop.first %}
+                <small>
+                  <span data-stage-conversion>{{ stage.conversion }}% de {% if stage.reference_key %}<span class="geral-funnel-reference">{{ stage.reference_label }}</span>{% else %}{{ stage.reference_label }}{% endif %}</span>
+                </small>
+              {% endif %}
+            </div>
+            {% if not forloop.last %}
+              <div class="geral-funnel-stage-gap" aria-hidden="true"></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="geral-funnel-flow">
+          <div class="geral-funnel-table-spacer" aria-hidden="true"></div>
+          {% for stage in indicadores.geral.funnel %}
+            <div
+              class="geral-funnel-band geral-funnel-band--{{ forloop.counter }} {% if forloop.first %}is-first{% endif %} {% if forloop.last %}is-last{% endif %}"
+              style="--stage-height: {{ stage.height }}px;"
+              data-funnel-band
+              data-stage-key="{{ stage.key }}"
+              data-chart-tooltip="{{ stage.tooltip }}"
+            >
+              <div class="geral-funnel-fill"></div>
+              <em data-stage-share>{{ stage.share }}%</em>
+            </div>
+            {% if not forloop.last %}
+              <div
+                class="geral-funnel-connector geral-funnel-connector--{{ forloop.counter }}"
+                style="--connector-height: {{ stage.connector_height }}px;"
+                data-funnel-connector
+                aria-hidden="true"
+              >
+                <svg viewBox="0 0 112 {{ stage.connector_height }}" preserveAspectRatio="none" focusable="false" data-connector-svg>
+                  <defs>
+                    <linearGradient id="geral-funnel-flow-{{ forloop.counter }}" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="{{ stage.flow_color }}" stop-opacity="0.34"></stop>
+                      <stop offset="48%" stop-color="{{ stage.flow_color }}" stop-opacity="0.18"></stop>
+                      <stop offset="100%" stop-color="{{ stage.flow_color }}" stop-opacity="0"></stop>
+                    </linearGradient>
+                  </defs>
+                  <path class="geral-funnel-connector-shape" d="{{ stage.connector_path }}" fill="url(#geral-funnel-flow-{{ forloop.counter }})" data-connector-shape></path>
+                  <path class="geral-funnel-connector-glow" d="{{ stage.connector_path }}" data-connector-glow></path>
+                </svg>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="geral-funnel-table-wrap">
+        <table class="geral-funnel-table">
+          <thead>
+            <tr>
+              <th>Por Convênio</th>
+              {% for stage in indicadores.geral.funnel %}
+                <th class="geral-funnel-table-stage geral-funnel-table-stage--{{ forloop.counter }}">{{ stage.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for convenio in indicadores.geral.convenio_table %}
+              <tr data-geral-funnel-rank="{{ convenio.rank }}">
+                <th>
+                  <span class="geral-funnel-convenio">
+                    <span>{{ convenio.label }}</span>
+                  </span>
+                </th>
+                {% for stage in convenio.stages %}
+                  <td data-stage-key="{{ stage.key }}" data-stage-value="{{ stage.value_raw }}">
+                    <strong>{{ stage.value_formatado }}</strong>
+                    <span>{{ stage.share }}%</span>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total</th>
+              {% for stage in indicadores.geral.funnel_total_table %}
+                <td data-total-cell data-stage-key="{{ stage.key }}">
+                  <strong data-total-value>{{ stage.value_formatado }}</strong>
+                  <span data-total-share>{{ stage.share }}%</span>
+                </td>
+              {% endfor %}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </article>
+
+  </section>
+
   <section class="recovery-section">
     <div class="recovery-section-head">
       <div>
@@ -759,6 +892,137 @@ Quantidade: {{ point.count }}"
       });
     };
 
+    const setupGeralFunnelLimit = () => {
+      document.querySelectorAll('[data-geral-funnel-range]').forEach((range) => {
+        const panel = range.closest('.geral-funnel-panel');
+        const funnel = panel?.querySelector('[data-geral-funnel]');
+        const output = panel?.querySelector('[data-geral-funnel-output]');
+        if (!panel || !funnel || !output) return;
+
+        const rows = [...panel.querySelectorAll('tbody [data-geral-funnel-rank]')];
+        const stageKeys = [...panel.querySelectorAll('[data-funnel-stage-card]')].map((card) => card.dataset.stageKey);
+        const stageCards = new Map([...panel.querySelectorAll('[data-funnel-stage-card]')].map((card) => [card.dataset.stageKey, card]));
+        const bands = [...panel.querySelectorAll('[data-funnel-band]')];
+        const connectors = [...panel.querySelectorAll('[data-funnel-connector]')];
+        const totalCells = new Map([...panel.querySelectorAll('[data-total-cell]')].map((cell) => [cell.dataset.stageKey, cell]));
+        const connectorWidth = 112;
+
+        const formatPercent = (value) => `${(Number.isFinite(value) ? value : 0).toFixed(1).replace('.', ',')}%`;
+        const formatMoney = (value) => Number(value || 0).toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        });
+        const percent = (value, total) => total > 0 ? (value / total) * 100 : 0;
+        const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+        const stageHeight = (value, maxValue) => 30 + Math.round(percent(value, maxValue) * 0.86);
+        const renderedHeight = (height) => clamp(height + 34, 74, 152);
+        const connectorPath = (fromHeight, toHeight) => {
+          const connectorHeight = Math.max(fromHeight, toHeight);
+          const center = connectorHeight / 2;
+          const fromTop = center - (fromHeight / 2);
+          const fromBottom = center + (fromHeight / 2);
+          const toTop = center - (toHeight / 2);
+          const toBottom = center + (toHeight / 2);
+          const c1 = connectorWidth * 0.25;
+          const c2 = connectorWidth * 0.72;
+          return {
+            height: connectorHeight,
+            path: [
+              `M 0 ${fromTop.toFixed(1)}`,
+              `C ${c1.toFixed(1)} ${fromTop.toFixed(1)}, ${c1.toFixed(1)} ${toTop.toFixed(1)}, ${c2.toFixed(1)} ${toTop.toFixed(1)}`,
+              `C ${connectorWidth} ${toTop.toFixed(1)}, ${connectorWidth} ${toTop.toFixed(1)}, ${connectorWidth} ${toTop.toFixed(1)}`,
+              `L ${connectorWidth} ${toBottom.toFixed(1)}`,
+              `C ${connectorWidth} ${toBottom.toFixed(1)}, ${connectorWidth} ${toBottom.toFixed(1)}, ${c2.toFixed(1)} ${toBottom.toFixed(1)}`,
+              `C ${c1.toFixed(1)} ${toBottom.toFixed(1)}, ${c1.toFixed(1)} ${fromBottom.toFixed(1)}, 0 ${fromBottom.toFixed(1)}`,
+              'Z',
+            ].join(' '),
+          };
+        };
+
+        const applyLimit = () => {
+          const limit = Number(range.value) || Number(funnel.dataset.defaultVisible) || 10;
+          output.textContent = String(limit);
+          const totals = Object.fromEntries(stageKeys.map((key) => [key, 0]));
+
+          rows.forEach((row) => {
+            const rank = Number(row.dataset.geralFunnelRank);
+            const visible = rank <= limit;
+            row.hidden = !visible;
+            if (!visible) return;
+            row.querySelectorAll('[data-stage-key][data-stage-value]').forEach((cell) => {
+              totals[cell.dataset.stageKey] += Number(cell.dataset.stageValue) || 0;
+            });
+          });
+
+          const fatura = totals[stageKeys[0]] || 0;
+          const maxValue = Math.max(...stageKeys.map((key) => totals[key] || 0), 0);
+          const heights = stageKeys.map((key) => stageHeight(totals[key] || 0, maxValue));
+          const renderedHeights = heights.map(renderedHeight);
+
+          rows.forEach((row) => {
+            if (row.hidden) return;
+            row.querySelectorAll('[data-stage-key][data-stage-value]').forEach((cell) => {
+              const value = Number(cell.dataset.stageValue) || 0;
+              const stageTotal = totals[cell.dataset.stageKey] || 0;
+              const shareNode = cell.querySelector('span');
+              if (shareNode) shareNode.textContent = formatPercent(percent(value, stageTotal));
+            });
+          });
+
+          stageKeys.forEach((key, index) => {
+            const value = totals[key] || 0;
+            const card = stageCards.get(key);
+            const referenceKey = card?.dataset.referenceKey;
+            const referenceLabel = card?.dataset.referenceLabel || 'etapa anterior';
+            const previousValue = referenceKey
+              ? (totals[referenceKey] || 0)
+              : (index > 0 ? (totals[stageKeys[index - 1]] || 0) : 0);
+            const share = index === 0 ? 100 : percent(value, fatura);
+            const conversion = index === 0 ? 100 : percent(value, previousValue);
+            const totalCell = totalCells.get(key);
+
+            card?.querySelector('[data-stage-value]') && (card.querySelector('[data-stage-value]').textContent = formatMoney(value));
+            if (card?.querySelector('[data-stage-conversion]')) {
+              const conversionNode = card.querySelector('[data-stage-conversion]');
+              if (referenceKey) {
+                conversionNode.innerHTML = `${formatPercent(conversion)} de <span class="geral-funnel-reference">${referenceLabel}</span>`;
+              } else {
+                conversionNode.textContent = `${formatPercent(conversion)} de ${referenceLabel}`;
+              }
+            }
+
+            const band = bands[index];
+            if (band) {
+              band.style.setProperty('--stage-height', `${heights[index]}px`);
+              const shareNode = band.querySelector('[data-stage-share]');
+              if (shareNode) shareNode.textContent = formatPercent(share);
+              band.dataset.chartTooltip = `${card?.querySelector('b')?.textContent || ''}: ${formatMoney(value)}\nParticipação sobre fatura total: ${formatPercent(share)}`;
+            }
+
+            if (totalCell) {
+              const totalShare = value ? 100 : 0;
+              totalCell.querySelector('[data-total-value]').textContent = formatMoney(value);
+              totalCell.querySelector('[data-total-share]').textContent = formatPercent(totalShare);
+            }
+          });
+
+          connectors.forEach((connector, index) => {
+            const data = connectorPath(renderedHeights[index], renderedHeights[index + 1]);
+            connector.style.setProperty('--connector-height', `${data.height}px`);
+            const svg = connector.querySelector('[data-connector-svg]');
+            const shape = connector.querySelector('[data-connector-shape]');
+            const glow = connector.querySelector('[data-connector-glow]');
+            if (svg) svg.setAttribute('viewBox', `0 0 ${connectorWidth} ${data.height}`);
+            if (shape) shape.setAttribute('d', data.path);
+            if (glow) glow.setAttribute('d', data.path);
+          });
+        };
+
+        range.addEventListener('input', applyLimit);
+        applyLimit();
+      });
+    };
+
     const setupMultiSelectFilters = () => {
       document.querySelectorAll('[data-multi-select]').forEach((details) => {
         const label = details.querySelector('[data-multi-select-label]');
@@ -987,6 +1251,7 @@ Quantidade: {{ point.count }}"
     setupRecoveryTrendHover();
     setupChartTooltips();
     setupRecoveryScatterLimit();
+    setupGeralFunnelLimit();
     setupMultiSelectFilters();
     scheduleRecoveryLayout();
     window.addEventListener('resize', scheduleRecoveryLayout);

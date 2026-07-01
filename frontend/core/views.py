@@ -1606,6 +1606,400 @@ def build_recuperacao_indicators(rows, period_start=None, period_end=None):
     }
 
 
+def geral_empty_month(key):
+    return {
+        "label": month_label(key),
+        "fatura": 0,
+        "glosa": 0,
+        "recursado": 0,
+        "acato": 0,
+        "recuperado": 0,
+        "qtd": 0,
+        "qtd_acatos": 0,
+        "convenios": {},
+        "motivos": {},
+    }
+
+
+def geral_metric_points(month_items, value_key):
+    point_count = max(len(month_items) - 1, 1)
+    points = []
+    values = []
+    for index, item in enumerate(month_items):
+        value = item[value_key]
+        x = round(4 + ((index / point_count) * 92), 2)
+        y = round(92 - ((min(value, 100) / 100) * 76), 2)
+        points.append(f"{x},{y}")
+        values.append(
+            {
+                "x": format_css_number(x),
+                "y": format_css_number(y),
+                "value": value,
+                "label": item["label"],
+                "motivos_tooltip": item.get("motivos_tooltip", ""),
+            }
+        )
+    return " ".join(points), values
+
+
+def funnel_rendered_height(stage_height):
+    return max(74, min(stage_height + 34, 152))
+
+
+def funnel_connector_path(from_height, to_height, width=112):
+    connector_height = max(from_height, to_height)
+    center = connector_height / 2
+    from_top = center - (from_height / 2)
+    from_bottom = center + (from_height / 2)
+    to_top = center - (to_height / 2)
+    to_bottom = center + (to_height / 2)
+    c1 = round(width * 0.25, 1)
+    c2 = round(width * 0.72, 1)
+    values = {
+        "width": width,
+        "from_top": round(from_top, 1),
+        "from_bottom": round(from_bottom, 1),
+        "to_top": round(to_top, 1),
+        "to_bottom": round(to_bottom, 1),
+        "c1": c1,
+        "c2": c2,
+    }
+    return {
+        "height": round(connector_height, 1),
+        "path": (
+            "M 0 {from_top} "
+            "C {c1} {from_top}, {c1} {to_top}, {c2} {to_top} "
+            "C {width} {to_top}, {width} {to_top}, {width} {to_top} "
+            "L {width} {to_bottom} "
+            "C {width} {to_bottom}, {width} {to_bottom}, {c2} {to_bottom} "
+            "C {c1} {to_bottom}, {c1} {from_bottom}, 0 {from_bottom} "
+            "Z"
+        ).format(**values),
+    }
+
+
+def build_geral_indicators(rows, period_start=None, period_end=None):
+    month_keys = period_month_keys(period_start, period_end)
+    monthly = {key: geral_empty_month(key) for key in month_keys}
+    convenio_groups = {}
+
+    for registro in rows:
+        convenio = registro.get("convenio") or "Não informado"
+        fatura = as_float_or_zero(registro.get("valor"))
+        glosa = registro_valor_glosado(registro)
+        recursado = glosa if is_recurso_registro(registro) else 0
+        acato = glosa if is_acato_registro(registro) else 0
+        recuperado = as_float_or_zero(registro.get("valor_recebido"))
+        motivo = normalize_motivo_label(registro.get("motivo_glosa"))
+
+        current = convenio_groups.setdefault(
+            convenio,
+            {
+                "label": convenio,
+                "fatura": 0,
+                "glosa": 0,
+                "recursado": 0,
+                "sucesso": 0,
+                "acato": 0,
+                "recuperado": 0,
+                "qtd": 0,
+            },
+        )
+        current["fatura"] += fatura
+        current["glosa"] += glosa
+        current["recursado"] += recursado
+        current["sucesso"] += recuperado if recursado and recuperado > 0 else 0
+        current["acato"] += acato
+        current["recuperado"] += recuperado
+        current["qtd"] += 1
+
+        key = month_key(registro.get("data_glosa"))
+        if key not in monthly:
+            continue
+        month_item = monthly[key]
+        month_item["fatura"] += fatura
+        month_item["glosa"] += glosa
+        month_item["recursado"] += recursado
+        month_item["acato"] += acato
+        month_item["recuperado"] += recuperado
+        month_item["qtd"] += 1
+        if acato:
+            month_item["qtd_acatos"] += 1
+
+        convenio_month = month_item["convenios"].setdefault(
+            convenio,
+            {
+                "label": convenio,
+                "fatura": 0,
+                "glosa": 0,
+                "recursado": 0,
+                "acato": 0,
+            },
+        )
+        convenio_month["fatura"] += fatura
+        convenio_month["glosa"] += glosa
+        convenio_month["recursado"] += recursado
+        convenio_month["acato"] += acato
+
+        if acato:
+            motivo_month = month_item["motivos"].setdefault(
+                motivo,
+                {"label": motivo, "count": 0, "value": 0},
+            )
+            motivo_month["count"] += 1
+            motivo_month["value"] += acato
+
+    totals = {
+        "fatura": sum(item["fatura"] for item in convenio_groups.values()),
+        "glosa": sum(item["glosa"] for item in convenio_groups.values()),
+        "recursado": sum(item["recursado"] for item in convenio_groups.values()),
+        "sucesso": sum(item["sucesso"] for item in convenio_groups.values()),
+        "acato": sum(item["acato"] for item in convenio_groups.values()),
+        "recuperado": sum(item["recuperado"] for item in convenio_groups.values()),
+    }
+    colors = [
+        "#1f6f86",
+        "#2f8a5f",
+        "#d58a22",
+        "#8069a8",
+        "#c56d86",
+        "#4f7fc4",
+        "#8a6f2f",
+    ]
+    convenio_items = sorted(
+        convenio_groups.values(),
+        key=lambda item: (item["glosa"], item["fatura"]),
+        reverse=True,
+    )
+    for index, item in enumerate(convenio_items, start=1):
+        item["rank"] = index
+        item["color"] = colors[(index - 1) % len(colors)]
+        item["fatura_formatado"] = format_brl_input(item["fatura"])
+        item["glosa_formatado"] = format_brl_input(item["glosa"])
+        item["recursado_formatado"] = format_brl_input(item["recursado"])
+        item["sucesso_formatado"] = format_brl_input(item["sucesso"])
+        item["acato_formatado"] = format_brl_input(item["acato"])
+
+    funnel_stages = [
+        ("fatura", "1. Fatura Total", "", totals["fatura"]),
+        ("glosa", "2. Valor Glosado", "Contestados pelos convênios", totals["glosa"]),
+        ("recursado", "3. Recursos", "Valores recorridos", totals["recursado"]),
+        ("sucesso", "4. Sucesso do Recurso", "Valores recuperados", totals["sucesso"]),
+        ("acato", "5. Acatos (Perdas)", "Valores não recuperados", totals["acato"]),
+    ]
+    max_funnel = max((stage[3] for stage in funnel_stages), default=0)
+    funnel = []
+    stage_flow_colors = ["#2a8198", "#4f9bad", "#72aebb", "#66a984", "#778392"]
+    funnel_value_lookup = {key: value for key, _label, _subtitle, value in funnel_stages}
+    previous_value = None
+    for index, (key, label, subtitle, value) in enumerate(funnel_stages):
+        reference_key = "glosa" if key in {"sucesso", "acato"} else None
+        reference_value = (
+            funnel_value_lookup.get(reference_key, 0)
+            if reference_key
+            else previous_value
+        )
+        conversion = 100 if reference_value is None else percent_value(value, reference_value)
+        drop = 0 if reference_value is None else max(reference_value - value, 0)
+        drop_pct = 0 if reference_value is None else percent_value(drop, reference_value)
+        height = 30 + round(percent_value(value, max_funnel) * 0.86)
+        segments = []
+        for convenio in convenio_items:
+            segment_value = convenio[key]
+            if segment_value <= 0:
+                continue
+            segments.append(
+                {
+                    "label": convenio["label"],
+                    "rank": convenio["rank"],
+                    "value": segment_value,
+                    "value_formatado": format_brl_input(segment_value),
+                    "share": percent_value(segment_value, value),
+                    "width": percent_value(segment_value, value),
+                    "color": convenio["color"],
+                }
+            )
+        funnel.append(
+            {
+                "key": key,
+                "label": label,
+                "subtitle": subtitle,
+                "reference_key": reference_key or "",
+                "reference_label": "Valor Glosado" if reference_key == "glosa" else "etapa anterior",
+                "value": value,
+                "value_formatado": format_brl_input(value),
+                "share": percent_value(value, totals["fatura"]),
+                "conversion": conversion,
+                "drop": drop,
+                "drop_formatado": format_brl_input(drop),
+                "drop_pct": drop_pct,
+                "width": max(percent_value(value, max_funnel), 3 if value else 0),
+                "height": height,
+                "rendered_height": funnel_rendered_height(height),
+                "flow_color": stage_flow_colors[index],
+                "segments": segments,
+                "tooltip": "\n".join(
+                    [
+                        f"{label}: {format_brl_input(value)}",
+                        f"Participação sobre fatura total: {percent_value(value, totals['fatura'])}%",
+                    ]
+                ),
+            }
+        )
+        previous_value = value
+
+    for index, item in enumerate(funnel):
+        next_item = funnel[index + 1] if index + 1 < len(funnel) else None
+        item["next_height"] = next_item["height"] if next_item else item["height"]
+        item["connector_drop_pct"] = next_item["drop_pct"] if next_item else 0
+        if next_item:
+            connector = funnel_connector_path(
+                item["rendered_height"],
+                next_item["rendered_height"],
+            )
+            item["connector_height"] = connector["height"]
+            item["connector_path"] = connector["path"]
+
+    convenio_table = []
+    for convenio in convenio_items:
+        stages = []
+        for key, label, _subtitle, value in funnel_stages:
+            stage_value = convenio[key]
+            stages.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "value": stage_value,
+                    "value_raw": format_css_number(stage_value),
+                    "value_formatado": format_brl_input(stage_value),
+                    "share": percent_value(stage_value, value),
+                }
+            )
+        convenio_table.append(
+            {
+                "label": convenio["label"],
+                "rank": convenio["rank"],
+                "color": convenio["color"],
+                "stages": stages,
+            }
+        )
+    total_table = [
+        {
+            "key": key,
+            "label": label,
+            "value": value,
+            "value_formatado": format_brl_input(value),
+            "share": 100 if value else 0,
+        }
+        for key, label, _subtitle, value in funnel_stages
+    ]
+
+    month_items = []
+    max_month_fatura = max((item["fatura"] for item in monthly.values()), default=0)
+    for key in month_keys:
+        item = monthly[key]
+        convenio_segments = []
+        tooltip_lines = [f"Competência: {item['label']}"]
+        for convenio in convenio_items:
+            convenio_item = item["convenios"].get(convenio["label"])
+            if not convenio_item or convenio_item["fatura"] <= 0:
+                continue
+            convenio_segments.append(
+                {
+                    "label": convenio["label"],
+                    "width": percent_value(convenio_item["fatura"], item["fatura"]),
+                    "color": convenio["color"],
+                }
+            )
+            tooltip_lines.extend(
+                [
+                    f"{convenio['label']}",
+                    f"Faturamento: {format_brl_input(convenio_item['fatura'])}",
+                    f"Glosa: {format_brl_input(convenio_item['glosa'])}",
+                    f"Recursado: {format_brl_input(convenio_item['recursado'])}",
+                    f"Acato: {format_brl_input(convenio_item['acato'])}",
+                ]
+            )
+        item["fatura_formatado"] = format_brl_input(item["fatura"])
+        item["glosa_formatado"] = format_brl_input(item["glosa"])
+        item["recursado_formatado"] = format_brl_input(item["recursado"])
+        item["acato_formatado"] = format_brl_input(item["acato"])
+        item["bar_height"] = max(percent_value(item["fatura"], max_month_fatura), 2 if item["fatura"] else 0)
+        item["segments"] = convenio_segments
+        item["taxa_glosa"] = percent_value(item["glosa"], item["fatura"])
+        item["indice_recuperacao"] = percent_value(item["recuperado"], item["glosa"])
+        item["taxa_sucesso"] = percent_value(item["recuperado"], item["recursado"])
+        item["taxa_acato"] = percent_value(item["acato"], item["glosa"])
+        item["tooltip"] = "\n".join(tooltip_lines)
+        item["motivos_tooltip"] = "\n".join(
+            [f"Competência: {item['label']}"]
+            + [
+                (
+                    f"{motivo['label']}: {motivo['count']} "
+                    f"acato{'s' if motivo['count'] != 1 else ''} - "
+                    f"{format_brl_input(motivo['value'])}"
+                )
+                for motivo in sorted(
+                    item["motivos"].values(),
+                    key=lambda motivo: (motivo["count"], motivo["value"]),
+                    reverse=True,
+                )[:6]
+            ]
+            + [
+                f"Taxa de acato: {item['taxa_acato']}%",
+                f"Taxa de sucesso: {item['taxa_sucesso']}%",
+            ]
+        )
+        month_items.append(item)
+
+    taxa_glosa_points, taxa_glosa_values = geral_metric_points(month_items, "taxa_glosa")
+    indice_recuperacao_points, indice_recuperacao_values = geral_metric_points(
+        month_items,
+        "indice_recuperacao",
+    )
+    taxa_sucesso_points, taxa_sucesso_values = geral_metric_points(
+        month_items,
+        "taxa_sucesso",
+    )
+    taxa_acato_points, taxa_acato_values = geral_metric_points(month_items, "taxa_acato")
+
+    return {
+        "period_label": period_label_from_month_keys(month_keys),
+        "months": [month_label(key) for key in month_keys],
+        "month_count": len(month_keys),
+        "funnel": funnel,
+        "convenios": convenio_items,
+        "convenio_table": convenio_table,
+        "funnel_total_table": total_table,
+        "funnel_default_limit": min(len(convenio_items), 10),
+        "funnel_max_limit": len(convenio_items),
+        "mensal": month_items,
+        "taxa_glosa_points": taxa_glosa_points,
+        "indice_recuperacao_points": indice_recuperacao_points,
+        "taxa_sucesso_points": taxa_sucesso_points,
+        "taxa_acato_points": taxa_acato_points,
+        "taxa_glosa_values": taxa_glosa_values,
+        "indice_recuperacao_values": indice_recuperacao_values,
+        "taxa_sucesso_values": taxa_sucesso_values,
+        "taxa_acato_values": taxa_acato_values,
+        "rate_ticks": [
+            {
+                "label": f"{rate}%",
+                "y": format_css_number(92 - ((rate / 100) * 76)),
+            }
+            for rate in (100, 75, 50, 25, 0)
+        ],
+        "totals": {
+            **totals,
+            "fatura_formatado": format_brl_input(totals["fatura"]),
+            "glosa_formatado": format_brl_input(totals["glosa"]),
+            "recursado_formatado": format_brl_input(totals["recursado"]),
+            "sucesso_formatado": format_brl_input(totals["sucesso"]),
+            "acato_formatado": format_brl_input(totals["acato"]),
+        },
+    }
+
+
 def normalize_lookup_text(value):
     return " ".join(str(value or "").strip().upper().split())
 
@@ -2042,6 +2436,7 @@ def build_dashboard_indicadores(
         period_end=period_end,
     )
     recuperacao = build_recuperacao_indicators(rows, period_start, period_end)
+    geral = build_geral_indicators(rows, period_start, period_end)
 
     return {
         "kpis": {
@@ -2100,6 +2495,7 @@ def build_dashboard_indicadores(
         "aging": aging,
         "aging_glosas": aging_indicators,
         "volume_mensal": volume_mensal,
+        "geral": geral,
         "motivos": motivos,
         "recuperacao": recuperacao,
     }

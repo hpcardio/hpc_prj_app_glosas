@@ -6,6 +6,7 @@ from django.test import RequestFactory, TestCase
 
 from core.views import (
     apply_dashboard_filters,
+    build_geral_indicators,
     build_recuperacao_indicators,
     get_dashboard_filters,
     subtract_months,
@@ -172,6 +173,48 @@ class DashboardIndicadoresTests(TestCase):
             tooltip,
         )
         self.assertNotIn('Taxa de sucesso do recurso', tooltip)
+
+    def test_geral_consolida_funil_por_convenio_e_taxas_mensais(self):
+        indicadores = build_geral_indicators(
+            [
+                {
+                    'sn_ativo': 'true',
+                    'sn_glosado': 'true',
+                    'processo_recurso': 'REC-1',
+                    'dt_recurso': '2026-01-10',
+                    'data_glosa': '2026-01-01',
+                    'motivo_glosa': 'Motivo A',
+                    'convenio': 'Convenio A',
+                    'valor': 10000,
+                    'valor_glosado': 1000,
+                    'valor_recebido': 500,
+                },
+                {
+                    'sn_ativo': 'true',
+                    'sn_glosado': 'not',
+                    'processo_recurso': 'AC-1',
+                    'dt_recurso': '2026-01-12',
+                    'data_glosa': '2026-01-01',
+                    'motivo_glosa': 'Motivo B',
+                    'convenio': 'Convenio B',
+                    'valor': 5000,
+                    'valor_glosado': 250,
+                    'valor_recebido': 0,
+                },
+            ],
+            '2026-01-01',
+            '2026-01-31',
+        )
+
+        self.assertEqual(indicadores['totals']['fatura'], 15000)
+        self.assertEqual(indicadores['totals']['glosa'], 1250)
+        self.assertEqual(indicadores['totals']['recursado'], 1000)
+        self.assertEqual(indicadores['totals']['acato'], 250)
+        self.assertEqual(indicadores['funnel'][0]['label'], '1. Fatura Total')
+        self.assertEqual(len(indicadores['funnel'][0]['segments']), 2)
+        self.assertEqual(indicadores['mensal'][0]['taxa_glosa'], 8.3)
+        self.assertEqual(indicadores['mensal'][0]['taxa_acato'], 20.0)
+        self.assertIn('Motivo B: 1 acato', indicadores['mensal'][0]['motivos_tooltip'])
 
 
 class LoginFlowTests(TestCase):
