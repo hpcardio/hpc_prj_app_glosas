@@ -3318,6 +3318,10 @@ def group_follow_up_glosas_by_process(cards):
     process_groups = []
     for key in order:
         group = grouped[key]
+        group["remessas"].sort(
+            key=lambda card: str(card.get("data_competencia") or ""),
+            reverse=True,
+        )
         group["convenio"] = unique_join(
             card.get("convenio") for card in group["remessas"]
         )
@@ -3327,6 +3331,16 @@ def group_follow_up_glosas_by_process(cards):
         )
         group["total_remessas"] = len(group["remessas"])
         process_groups.append(group)
+    process_groups.sort(
+        key=lambda group: max(
+            (
+                str(card.get("data_competencia") or "")
+                for card in group["remessas"]
+            ),
+            default="",
+        ),
+        reverse=True,
+    )
     return process_groups
 
 

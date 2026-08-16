@@ -33,6 +33,7 @@ from core.views import (
     disabled_convenio_ids,
     extract_api_error_message,
     get_dashboard_filters,
+    group_follow_up_glosas_by_process,
     is_enabled_convenio_registro,
     is_recebido_registro,
     REQUISICOES_NOTA_PATH,
@@ -1526,6 +1527,36 @@ class FollowUpGlosasTests(TestCase):
             'limit': 10,
             'offset': 0,
         }
+
+    def test_ordena_processos_e_remessas_por_competencia_decrescente(self):
+        cards = [
+            {
+                'cd_remessa': 1,
+                'data_competencia': '2026-04-01',
+                'processo': {'numero_processo': 'P-ANTIGO'},
+            },
+            {
+                'cd_remessa': 2,
+                'data_competencia': '2026-05-01',
+                'processo': {'numero_processo': 'P-RECENTE'},
+            },
+            {
+                'cd_remessa': 3,
+                'data_competencia': '2026-07-01',
+                'processo': {'numero_processo': 'P-RECENTE'},
+            },
+        ]
+
+        processos = group_follow_up_glosas_by_process(cards)
+
+        self.assertEqual(
+            [item['processo']['numero_processo'] for item in processos],
+            ['P-RECENTE', 'P-ANTIGO'],
+        )
+        self.assertEqual(
+            [item['cd_remessa'] for item in processos[0]['remessas']],
+            [3, 2],
+        )
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
