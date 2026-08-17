@@ -45,6 +45,7 @@ DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
 DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
 DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
+DASHBOARD_FOLLOW_UP_CACHE_KEY = "dashboard:follow-up-resumo"
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
@@ -5153,6 +5154,48 @@ def build_dashboard_indicadores(
     }
 
 
+def apply_follow_up_summary_to_dashboard_indicators(indicadores, resumo):
+    if not isinstance(resumo, dict):
+        return indicadores
+
+    kpis = indicadores.get("kpis")
+    if not isinstance(kpis, dict):
+        return indicadores
+
+    quantidade_glosas = as_int_or_zero(resumo.get("quantidade_glosas"))
+    valor_total_glosado = as_float_or_zero(
+        resumo.get("valor_total_glosado")
+    )
+    valor_total_pendente = as_float_or_zero(
+        resumo.get("valor_total_pendente")
+    )
+    quantidade_tratada = (
+        as_int_or_zero(kpis.get("total_recursos"))
+        + as_int_or_zero(kpis.get("total_acatos"))
+    )
+    quantidade_pendente = max(
+        quantidade_glosas - quantidade_tratada,
+        0,
+    )
+
+    kpis.update(
+        {
+            "total_registros": quantidade_glosas,
+            "total_glosado": valor_total_glosado,
+            "total_glosado_formatado": format_brl_input(
+                valor_total_glosado
+            ),
+            "glosas_sem_processo": quantidade_pendente,
+            "total_glosas_sem_processo": quantidade_pendente,
+            "total_glosas_sem_processo_valor": valor_total_pendente,
+            "total_glosas_sem_processo_valor_formatado": format_brl_input(
+                valor_total_pendente
+            ),
+        }
+    )
+    return indicadores
+
+
 def clean_dashboard_filter_value(value):
     return str(value or "").strip()
 
@@ -5424,6 +5467,7 @@ def clear_dashboard_cache():
             DASHBOARD_PRAZOS_CACHE_KEY,
             DASHBOARD_CONVENIOS_CACHE_KEY,
             DASHBOARD_TISS_CACHE_KEY,
+            DASHBOARD_FOLLOW_UP_CACHE_KEY,
         ]
     )
 
@@ -5612,6 +5656,38 @@ def dashboard(request):
             filtros.get("periodo_inicio"),
             filtros.get("periodo_fim"),
         )
+        filtros_resumo_follow_up = (
+            "tratativa",
+            "convenio",
+            "prestador",
+            "tipo_atendimento",
+            "motivo_glosa",
+        )
+        usar_resumo_follow_up = not any(
+            filtros.get(chave) for chave in filtros_resumo_follow_up
+        ) and not any(
+            chave in request.GET
+            for chave in ("periodo_inicio", "periodo_fim")
+        )
+        if usar_resumo_follow_up:
+            try:
+                resumo_follow_up = get_cached_dashboard_payload(
+                    DASHBOARD_FOLLOW_UP_CACHE_KEY,
+                    FOLLOW_UP_GLOSAS_PATH,
+                    {
+                        "limit": 1,
+                        "offset": 0,
+                        "incluir_detalhes": "false",
+                        "agrupar_por_processo": "true",
+                    },
+                    force_refresh=force_refresh,
+                )
+                indicadores = apply_follow_up_summary_to_dashboard_indicators(
+                    indicadores,
+                    resumo_follow_up,
+                )
+            except ApiError as exc:
+                dashboard_errors.append(("Resumo do Follow-Up", exc))
     except ApiError as exc:
         indicadores = build_dashboard_indicadores(
             [],

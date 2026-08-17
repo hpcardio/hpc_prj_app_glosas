@@ -13,6 +13,7 @@ from core.views import (
     ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY,
     ACOMPANHAMENTO_BUCKETS,
     ACOMPANHAMENTO_GLOSAS_CACHE_KEY,
+    apply_follow_up_summary_to_dashboard_indicators,
     apply_dashboard_filters,
     attach_registros_glosa,
     build_acompanhamento_cards,
@@ -425,6 +426,47 @@ class AcompanhamentoRowsTests(TestCase):
 class DashboardIndicadoresTests(TestCase):
     def test_dashboard_e_acompanhamento_compartilham_cache_de_glosas(self):
         self.assertEqual(ACOMPANHAMENTO_GLOSAS_CACHE_KEY, DASHBOARD_GLOSAS_CACHE_KEY)
+
+    def test_cards_usam_resumo_unificado_do_follow_up(self):
+        indicadores = build_dashboard_indicadores(
+            [
+                {
+                    'sn_ativo': 'true',
+                    'sn_glosado': 'true',
+                    'conciliacao_remessa_id': 10,
+                    'valor_indicador': 25,
+                    'valor_glosa_pendente': 25,
+                    'data_glosa': '2026-07-10',
+                    'convenio': 'IPM',
+                    'motivo_glosa': '1714',
+                }
+            ]
+        )
+
+        apply_follow_up_summary_to_dashboard_indicators(
+            indicadores,
+            {
+                'quantidade_glosas': 6732,
+                'valor_total_glosado': '344100.86',
+                'valor_total_pendente': '344100.86',
+                'valor_total_tratado': '0.00',
+            },
+        )
+
+        self.assertEqual(indicadores['kpis']['total_registros'], 6732)
+        self.assertEqual(indicadores['kpis']['total_glosado'], 344100.86)
+        self.assertEqual(
+            indicadores['kpis']['total_glosado_formatado'],
+            'R$ 344.100,86',
+        )
+        self.assertEqual(
+            indicadores['kpis']['total_glosas_sem_processo'],
+            6732,
+        )
+        self.assertEqual(
+            indicadores['kpis']['total_glosas_sem_processo_valor_formatado'],
+            'R$ 344.100,86',
+        )
 
     def test_limite_do_dashboard_comporta_dataset_consolidado(self):
         from .views import DASHBOARD_GLOSAS_LIMIT
