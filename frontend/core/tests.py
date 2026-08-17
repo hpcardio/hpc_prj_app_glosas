@@ -31,6 +31,7 @@ from core.views import (
     DASHBOARD_GLOSAS_CACHE_KEY,
     ATENDIMENTO_NOTA_CACHE_NAMESPACE,
     disabled_convenio_ids,
+    enrich_dashboard_motivos_glosa,
     extract_api_error_message,
     get_dashboard_filters,
     group_follow_up_glosas_by_process,
@@ -642,6 +643,36 @@ class DashboardIndicadoresTests(TestCase):
 
         self.assertEqual(indicadores['total_motivos'], 13)
         self.assertEqual(len(indicadores['scatter']), 13)
+        self.assertTrue(indicadores['tem_dados'])
+
+    def test_dashboard_enriquece_codigo_da_glosa_com_descricao_tiss(self):
+        registros = enrich_dashboard_motivos_glosa(
+            [
+                {'id': 1, 'motivo_glosa': '1714'},
+                {'id': 2, 'motivo_glosa': '1437 - descrição antiga'},
+                {'id': 3, 'motivo_glosa': 'Motivo sem código'},
+            ],
+            [
+                {
+                    'codigo_termo': '1714',
+                    'termo': 'VALOR DO SERVIÇO SUPERIOR AO VALOR DE TABELA',
+                },
+                {
+                    'codigo_termo': '1437',
+                    'termo': 'SENHA DE AUTORIZAÇÃO CANCELADA',
+                },
+            ],
+        )
+
+        self.assertEqual(
+            registros[0]['motivo_glosa'],
+            '1714 - VALOR DO SERVIÇO SUPERIOR AO VALOR DE TABELA',
+        )
+        self.assertEqual(
+            registros[1]['motivo_glosa'],
+            '1437 - SENHA DE AUTORIZAÇÃO CANCELADA',
+        )
+        self.assertEqual(registros[2]['motivo_glosa'], 'Motivo sem código')
 
     def test_recuperacao_mensal_usa_periodo_informado(self):
         indicadores = build_recuperacao_indicators(

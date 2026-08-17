@@ -305,6 +305,7 @@
       </div>
     </div>
 
+    {% if indicadores.recuperacao.tem_dados %}
     <section class="recovery-grid">
       <article class="indicator-panel indicator-panel--wide recovery-scatter-panel">
         <div class="indicator-panel-head">
@@ -496,6 +497,12 @@
         </div>
       </div>
     </article>
+    {% else %}
+      <article class="indicator-panel indicator-empty-panel">
+        <strong>Nenhuma tratativa de recurso registrada</strong>
+        <span>Os gráficos de recuperação serão preenchidos após o registro de recursos e respectivos recebimentos.</span>
+      </article>
+    {% endif %}
   </section>
 
   <section class="aging-section">
@@ -510,6 +517,7 @@
         </div>
       </div>
 
+      {% if indicadores.aging_glosas.tem_dados %}
       <article class="indicator-panel indicator-panel--wide">
         <div class="indicator-panel-head">
           <strong>
@@ -622,6 +630,12 @@ Prazo para recurso: {{ item.dias_para_recurso }} dias"
           </div>
         </article>
       </section>
+      {% else %}
+        <article class="indicator-panel indicator-empty-panel">
+          <strong>Nenhuma glosa tratada no período</strong>
+          <span>O aging considera somente glosas com recurso ou acato registrado. As glosas pendentes não entram nesse cálculo.</span>
+        </article>
+      {% endif %}
     </div>
   </section>
 
