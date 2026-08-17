@@ -35,6 +35,7 @@ from core.views import (
     enrich_dashboard_motivos_glosa,
     extract_api_error_message,
     get_dashboard_filters,
+    get_dashboard_follow_up_summary,
     group_follow_up_glosas_by_process,
     is_enabled_convenio_registro,
     is_recebido_registro,
@@ -467,6 +468,73 @@ class DashboardIndicadoresTests(TestCase):
             indicadores['kpis']['total_glosas_sem_processo_valor_formatado'],
             'R$ 344.100,86',
         )
+
+    def test_funil_usa_fatura_e_glosa_das_remessas_do_follow_up(self):
+        indicadores = build_geral_indicators(
+            [
+                {
+                    'sn_ativo': 'true',
+                    'sn_glosado': 'true',
+                    'processo_recurso': 'REC-1',
+                    'dt_recurso': '2026-07-11',
+                    'data_glosa': '2026-07-10',
+                    'convenio': 'IPM',
+                    'valor': 30,
+                    'valor_glosado': 20,
+                    'valor_recebido': 10,
+                    'qtd_recebida': 1,
+                    'dt_recebimento': '2026-07-20',
+                }
+            ],
+            '2026-07-01',
+            '2026-07-31',
+            [
+                {
+                    'convenio': 'IPM',
+                    'valor_itens': '500.00',
+                    'valor_glosado': '100.00',
+                },
+                {
+                    'convenio': 'Outro',
+                    'valor_itens': '300.00',
+                    'valor_glosado': '50.00',
+                },
+            ],
+        )
+
+        self.assertEqual(indicadores['totals']['fatura'], 800)
+        self.assertEqual(indicadores['totals']['glosa'], 150)
+        self.assertEqual(indicadores['totals']['recursado'], 20)
+        self.assertEqual(indicadores['totals']['sucesso'], 10)
+        self.assertEqual(indicadores['funnel'][1]['conversion'], 18.8)
+        self.assertEqual(indicadores['funnel'][1]['share'], 18.8)
+        self.assertEqual(len(indicadores['convenio_table']), 2)
+
+    @patch('core.views.api_get')
+    def test_resumo_follow_up_carrega_todas_paginas_de_processos(self, api_get):
+        cache.delete('dashboard:follow-up-resumo')
+        api_get.side_effect = [
+            {
+                'cards': [{'cd_remessa': 1}],
+                'total': 101,
+                'quantidade_glosas': 2,
+                'valor_total_glosado': '30.00',
+                'valor_total_pendente': '30.00',
+            },
+            {
+                'cards': [{'cd_remessa': 2}],
+                'total': 101,
+            },
+        ]
+
+        resumo = get_dashboard_follow_up_summary()
+
+        self.assertEqual(
+            [card['cd_remessa'] for card in resumo['cards']],
+            [1, 2],
+        )
+        self.assertEqual(api_get.call_count, 2)
+        self.assertEqual(api_get.call_args_list[1].args[1]['offset'], 100)
 
     def test_limite_do_dashboard_comporta_dataset_consolidado(self):
         from .views import DASHBOARD_GLOSAS_LIMIT
