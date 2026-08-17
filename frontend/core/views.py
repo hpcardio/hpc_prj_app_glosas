@@ -3514,6 +3514,26 @@ def normalize_motivo_label(value):
     return text
 
 
+def enrich_dashboard_motivos_glosa(registros, tiss_rows):
+    termos_por_codigo = {
+        str(item.get("codigo_termo") or "").strip(): " ".join(
+            str(item.get("termo") or "").strip().split()
+        )
+        for item in (tiss_rows or [])
+        if item.get("codigo_termo") and item.get("termo")
+    }
+    enriched = []
+    for registro in registros:
+        item = dict(registro)
+        motivo = " ".join(str(item.get("motivo_glosa") or "").strip().split())
+        codigo = motivo.split(maxsplit=1)[0].strip(":-–—") if motivo else ""
+        descricao = termos_por_codigo.get(codigo)
+        if descricao:
+            item["motivo_glosa"] = f"{codigo} - {descricao}"
+        enriched.append(item)
+    return enriched
+
+
 def period_month_keys(period_start=None, period_end=None):
     end_date = parse_api_date(period_end) or date.today()
     start_date = parse_api_date(period_start) or subtract_months(
@@ -4165,6 +4185,7 @@ def build_recuperacao_indicators(rows, period_start=None, period_end=None):
     )
 
     return {
+        "tem_dados": bool(recovery_rows),
         "scatter": scatter,
         "convenio_valor": convenio_valor,
         "convenio_recursado": convenio_recursado,
@@ -4912,6 +4933,7 @@ def build_aging_indicators(vw_rows, period_start=None, period_end=None):
     em_aberto = sum(1 for row in vw_rows if row["status_tratativa"] == "Em aberto")
 
     return {
+        "tem_dados": bool(treated_rows),
         "total": len(vw_rows),
         "tratados": len(treated_rows),
         "em_aberto": em_aberto,
@@ -5552,6 +5574,7 @@ def dashboard(request):
         dashboard_errors.append(("Convênios", exc))
 
     tiss_motivos = []
+    tiss_rows = []
     try:
         tiss_payload = get_cached_dashboard_payload(
             DASHBOARD_TISS_CACHE_KEY,
@@ -5576,6 +5599,7 @@ def dashboard(request):
             force_refresh=force_refresh,
         )
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
+        registros = enrich_dashboard_motivos_glosa(registros, tiss_rows)
         opcoes_filtro = build_dashboard_filter_options(registros)
         opcoes_filtro["convenios"] = convenio_options
         if tiss_motivos:
