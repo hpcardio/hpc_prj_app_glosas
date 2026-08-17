@@ -203,6 +203,7 @@
             >
               <span class="follow-up-glosa-chevron" :class="{ 'is-open': remessaOpen }">&#9654;</span>
               <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>NÚMERO DO LOTE</small><strong>{{ card.numero_lote|default:"-" }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ card.data_competencia_formatada }}</strong></span>
               <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ card.valor_itens|br_currency }}</strong></span>
               <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
