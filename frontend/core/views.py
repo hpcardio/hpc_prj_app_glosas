@@ -4294,7 +4294,12 @@ def funnel_connector_path(from_height, to_height, width=112):
     }
 
 
-def build_geral_indicators(rows, period_start=None, period_end=None):
+def build_geral_indicators(
+    rows,
+    period_start=None,
+    period_end=None,
+    follow_up_cards=None,
+):
     month_keys = period_month_keys(period_start, period_end)
     monthly = {key: geral_empty_month(key) for key in month_keys}
     convenio_groups = {}
@@ -4378,6 +4383,33 @@ def build_geral_indicators(rows, period_start=None, period_end=None):
             )
             motivo_month["count"] += 1
             motivo_month["value"] += acato
+
+    if follow_up_cards is not None:
+        valores_follow_up = {}
+        for card in follow_up_cards:
+            convenio = card.get("convenio") or "Não informado"
+            current = valores_follow_up.setdefault(
+                convenio,
+                {"fatura": 0, "glosa": 0, "qtd": 0},
+            )
+            current["fatura"] += as_float_or_zero(card.get("valor_itens"))
+            current["glosa"] += as_float_or_zero(card.get("valor_glosado"))
+            current["qtd"] += 1
+
+        tratamentos_por_convenio = convenio_groups
+        convenio_groups = {}
+        for convenio, valores in valores_follow_up.items():
+            tratamentos = tratamentos_por_convenio.get(convenio, {})
+            convenio_groups[convenio] = {
+                "label": convenio,
+                "fatura": valores["fatura"],
+                "glosa": valores["glosa"],
+                "recursado": tratamentos.get("recursado", 0),
+                "sucesso": tratamentos.get("sucesso", 0),
+                "acato": tratamentos.get("acato", 0),
+                "recuperado": tratamentos.get("recuperado", 0),
+                "qtd": valores["qtd"],
+            }
 
     totals = {
         "fatura": sum(item["fatura"] for item in convenio_groups.values()),
@@ -5196,6 +5228,42 @@ def apply_follow_up_summary_to_dashboard_indicators(indicadores, resumo):
     return indicadores
 
 
+def get_dashboard_follow_up_summary(force_refresh=False):
+    if force_refresh:
+        cache.delete(DASHBOARD_FOLLOW_UP_CACHE_KEY)
+
+    cached = cache.get(DASHBOARD_FOLLOW_UP_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    limit = 100
+    offset = 0
+    resumo = None
+    cards = []
+    while resumo is None or offset < as_int_or_zero(resumo.get("total")):
+        pagina = api_get(
+            FOLLOW_UP_GLOSAS_PATH,
+            {
+                "limit": limit,
+                "offset": offset,
+                "incluir_detalhes": "false",
+                "agrupar_por_processo": "true",
+            },
+        )
+        if resumo is None:
+            resumo = dict(pagina) if isinstance(pagina, dict) else {}
+        cards.extend(pagina.get("cards") or [])
+        offset += limit
+
+    resumo["cards"] = cards
+    cache.set(
+        DASHBOARD_FOLLOW_UP_CACHE_KEY,
+        resumo,
+        getattr(settings, "DASHBOARD_CACHE_SECONDS", 45),
+    )
+    return resumo
+
+
 def clean_dashboard_filter_value(value):
     return str(value or "").strip()
 
@@ -5671,20 +5739,18 @@ def dashboard(request):
         )
         if usar_resumo_follow_up:
             try:
-                resumo_follow_up = get_cached_dashboard_payload(
-                    DASHBOARD_FOLLOW_UP_CACHE_KEY,
-                    FOLLOW_UP_GLOSAS_PATH,
-                    {
-                        "limit": 1,
-                        "offset": 0,
-                        "incluir_detalhes": "false",
-                        "agrupar_por_processo": "true",
-                    },
+                resumo_follow_up = get_dashboard_follow_up_summary(
                     force_refresh=force_refresh,
                 )
                 indicadores = apply_follow_up_summary_to_dashboard_indicators(
                     indicadores,
                     resumo_follow_up,
+                )
+                indicadores["geral"] = build_geral_indicators(
+                    registros_filtrados,
+                    filtros.get("periodo_inicio"),
+                    filtros.get("periodo_fim"),
+                    resumo_follow_up.get("cards") or [],
                 )
             except ApiError as exc:
                 dashboard_errors.append(("Resumo do Follow-Up", exc))
