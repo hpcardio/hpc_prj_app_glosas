@@ -4880,7 +4880,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .follow-up-glosa-remessa-header {
   display: grid;
-  grid-template-columns: 18px repeat(2, minmax(100px, 0.8fr)) repeat(4, minmax(115px, 1fr));
+  grid-template-columns: 18px repeat(3, minmax(100px, 0.8fr)) repeat(4, minmax(115px, 1fr));
   align-items: center;
   gap: 12px;
   width: 100%;
