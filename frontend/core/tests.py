@@ -1423,7 +1423,7 @@ class FollowUpGlosasTests(TestCase):
                 {
                     'conciliacao_remessa_id': 12,
                     'cd_remessa': 987,
-                    'numero_lote': 'TISS_0000123_4207',
+                    'numero_protocolo': '6094970',
                     'convenio': 'Convênio Teste',
                     'data_competencia': '2026-07-01',
                     'data_entrega': '2026-07-10',
@@ -1992,8 +1992,8 @@ class FollowUpGlosasTests(TestCase):
         )
         for expected in (
             'REMESSA',
-            'NÚMERO DO LOTE',
-            'TISS_0000123_4207',
+            'PROTOCOLO TRUE',
+            '6094970',
             'COMPETÊNCIA',
             '07/2026',
             '#987',
@@ -2041,7 +2041,7 @@ class FollowUpGlosasTests(TestCase):
         )[1].split('</button>', 1)[0]
         remessa_rotulos = (
             'REMESSA',
-            'NÚMERO DO LOTE',
+            'PROTOCOLO TRUE',
             'COMPETÊNCIA',
             'VALOR TOTAL',
             'VALOR GLOSADO',
