@@ -3358,13 +3358,7 @@ def is_recurso_registro(registro):
 
 
 def has_internal_treatment(registro):
-    return bool(
-        registro.get("dt_recurso")
-        and (
-            is_acato_registro(registro)
-            or registro.get("processo_recurso")
-        )
-    )
+    return bool(registro.get("dt_recurso"))
 
 
 def is_pending_conciliation_registro(registro):
@@ -4813,7 +4807,7 @@ def build_aging_indicators(vw_rows, period_start=None, period_end=None):
     treated_rows = [
         row
         for row in vw_rows
-        if row["dt_recurso"] is not None and row["processo_recurso"]
+        if has_internal_treatment(row)
     ]
 
     heatmap_lookup = {}

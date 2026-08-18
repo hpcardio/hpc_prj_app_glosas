@@ -106,6 +106,24 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(contas[0]['registro_recusa'], {})
         self.assertEqual(contas[0]['registro_glosa_status'], 'not')
 
+    def test_formularios_nao_exigem_processo_do_recurso(self):
+        templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+
+        for template_name in (
+            'conta_atendimento.html',
+            'follow_up_glosas.html',
+        ):
+            template = (templates_dir / template_name).read_text()
+            self.assertNotIn(
+                'Processo do Recurso <span class="required-marker"',
+                template,
+            )
+            self.assertNotIn(
+                'name="processo_recurso" class="form-control" required',
+                template,
+            )
+            self.assertNotIn(':required="modal !== \'acatar\'"', template)
+
     @patch('core.views.get_cached_api_payload')
     def test_guia_vazia_e_hifen_casam_mesmo_registro(self, get_cached_api_payload):
         conta = {
@@ -262,7 +280,7 @@ class AcompanhamentoRowsTests(TestCase):
                 {
                     'id': 10,
                     'sn_glosado': 'true',
-                    'processo_recurso': 'REC-1',
+                    'processo_recurso': None,
                     'dt_recurso': '2026-07-04',
                     'processo_controle_fatura_gab': 'ORI-1',
                     'nm_paciente': 'Paciente Teste',
@@ -2354,7 +2372,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'cell-mono">PROC-20</td>')
 
     @patch('core.views.api_put')
-    def test_recursar_atualiza_registro_analitico_existente(self, api_put):
+    def test_recursar_sem_processo_atualiza_registro_analitico(self, api_put):
         api_put.return_value = {'id': 71, 'sn_glosado': 'true'}
         response = self.client.post(
             '/follow-up-glosas/',
@@ -2389,7 +2407,6 @@ class FollowUpGlosasTests(TestCase):
                 'dt_pagamento': '2026-07-10',
                 'motivo_glosa': '1016 - Motivo TISS',
                 'cd_tuss': '1714',
-                'processo_recurso': 'REC-71',
                 'dt_recurso': '2026-07-11',
                 'qtd_glosada': '1',
                 'valor_glosado': 'R$ 75,00',
@@ -2421,7 +2438,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['ds_gru_fat'], 'EXAMES E DIAGNÓSTICOS')
         self.assertEqual(payload['cd_tuss'], '1714')
         self.assertEqual(payload['motivo_glosa'], '1016')
-        self.assertEqual(payload['processo_recurso'], 'REC-71')
+        self.assertIsNone(payload['processo_recurso'])
         self.assertEqual(payload['valor_recursado'], 75.0)
 
     @patch('core.views.api_put')
@@ -2541,7 +2558,7 @@ class FollowUpGlosasTests(TestCase):
             "this.motivoTratado = (acato ? "
             "this.motivoAcato : this.motivoRecusa) || this.motivoOrigem;",
         )
-        self.assertContains(response, ':required="modal !== \'acatar\'"')
+        self.assertNotContains(response, ':required="modal !== \'acatar\'"')
 
 
 class AssociacoesRemessasIpmTests(TestCase):
