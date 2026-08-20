@@ -3302,6 +3302,7 @@ def group_follow_up_glosas_by_process(cards):
                 "valor_glosado": 0.0,
                 "valor_total_tratado": 0.0,
                 "valor_glosa_pendente": 0.0,
+                "possui_recurso": False,
                 "remessas": [],
             }
             order.append(key)
@@ -3315,6 +3316,9 @@ def group_follow_up_glosas_by_process(cards):
         )
         group["valor_glosa_pendente"] += as_float_or_zero(
             card.get("valor_glosa_pendente")
+        )
+        group["possui_recurso"] = (
+            group["possui_recurso"] or bool(card.get("possui_recurso"))
         )
 
     process_groups = []
@@ -6135,10 +6139,9 @@ def follow_up_glosas_recurso_pdf(request):
     processo_original = (
         request.GET.get("processo_original") or ""
     ).strip()
-    cd_remessa = as_int_or_zero(request.GET.get("cd_remessa"))
-    if not processo_original or cd_remessa <= 0:
+    if not processo_original:
         return HttpResponse(
-            "Informe o processo original e a remessa para gerar o PDF.",
+            "Informe o processo original para gerar o PDF.",
             status=400,
             content_type="text/plain; charset=utf-8",
         )
@@ -6147,7 +6150,6 @@ def follow_up_glosas_recurso_pdf(request):
             FOLLOW_UP_RECURSO_PDF_PATH,
             {
                 "processo_original": processo_original,
-                "cd_remessa": cd_remessa,
                 "download": "false",
             },
         )
@@ -6178,7 +6180,7 @@ def follow_up_glosas_recurso_pdf(request):
     response["Content-Disposition"] = upstream.headers.get(
         "Content-Disposition"
     ) or (
-        f'inline; filename="recurso-glosa-{cd_remessa}.pdf"'
+        'inline; filename="recurso-glosa-processo.pdf"'
     )
     if content_length := upstream.headers.get("Content-Length"):
         response["Content-Length"] = content_length

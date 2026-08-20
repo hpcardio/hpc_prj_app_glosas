@@ -145,13 +145,14 @@
         @expand-follow-up-level-1.window="open = true"
         @collapse-all-follow-up.window="open = false"
       >
-        <button
-          type="button"
-          class="follow-up-glosa-card-header"
-          @click="open = !open"
-          :aria-expanded="open"
-          aria-controls="follow-up-process-remessas-{{ forloop.counter }}"
-        >
+        <div class="follow-up-glosa-card-header-row">
+          <button
+            type="button"
+            class="follow-up-glosa-card-header"
+            @click="open = !open"
+            :aria-expanded="open"
+            aria-controls="follow-up-process-remessas-{{ forloop.counter }}"
+          >
           <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
           <span class="follow-up-glosa-card-field"><small>PROCESSO</small><strong>{{ processo_card.processo.numero_processo|default:"-" }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ processo_card.convenio }}</strong></span>
@@ -162,7 +163,18 @@
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ processo_card.valor_glosado|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ processo_card.valor_total_tratado|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR PENDENTE</small><strong>R$ {{ processo_card.valor_glosa_pendente|br_currency }}</strong></span>
-        </button>
+          </button>
+          {% if processo_card.possui_recurso %}
+          <a
+            class="follow-up-glosa-pdf-action"
+            href="{% url 'follow_up_glosas_recurso_pdf' %}?processo_original={{ processo_card.processo.numero_processo|urlencode }}"
+            target="_blank"
+            rel="noopener"
+            title="Gerar PDF consolidado do recurso"
+            aria-label="Gerar PDF dos recursos do processo {{ processo_card.processo.numero_processo }}"
+          >PDF</a>
+          {% endif %}
+        </div>
 
         <div id="follow-up-process-remessas-{{ forloop.counter }}" class="follow-up-glosa-card-body" x-show="open" x-cloak>
           <div class="follow-up-glosa-card-content">
@@ -186,7 +198,6 @@
             @expand-follow-up-level-2.window="expandRemessa()"
             @collapse-all-follow-up.window="remessaOpen = false"
           >
-            <div class="follow-up-glosa-remessa-header-row">
               <button
                 type="button"
                 class="follow-up-glosa-remessa-header"
@@ -211,15 +222,6 @@
                 <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ card.valor_total_tratado|br_currency }}</strong></span>
                 <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>TOTAL PENDENTE</small><strong>R$ {{ card.valor_glosa_pendente|br_currency }}</strong></span>
               </button>
-              <a
-                class="follow-up-glosa-pdf-action"
-                href="{% url 'follow_up_glosas_recurso_pdf' %}?cd_remessa={{ card.cd_remessa }}&amp;processo_original={{ processo_card.processo.numero_processo|urlencode }}"
-                target="_blank"
-                rel="noopener"
-                title="Gerar PDF do recurso"
-                aria-label="Gerar PDF do recurso da remessa {{ card.cd_remessa }}"
-              >PDF</a>
-            </div>
             <div class="follow-up-glosa-remessa-body" x-show="remessaOpen" x-cloak>
               <div id="follow-up-glosa-detail-{{ card.detalhe_dom_id }}" class="follow-up-glosa-card-content">
           {% if card.detalhes_carregados %}
