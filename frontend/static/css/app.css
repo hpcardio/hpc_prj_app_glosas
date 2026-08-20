@@ -4878,6 +4878,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
   background: #fff;
 }
 
+.follow-up-glosa-remessa-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  background: #eef6f8;
+}
+
 .follow-up-glosa-remessa-header {
   display: grid;
   grid-template-columns: 18px repeat(3, minmax(100px, 0.8fr)) repeat(4, minmax(115px, 1fr));
@@ -4895,6 +4902,26 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .follow-up-glosa-remessa-header:hover {
   background: #e4f0f4;
+}
+
+.follow-up-glosa-pdf-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  margin: 8px 10px 8px 0;
+  border: 1px solid #397d94;
+  border-radius: 6px;
+  background: #fff;
+  color: #17647d;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.follow-up-glosa-pdf-action:hover {
+  background: #17647d;
+  color: #fff;
 }
 
 .follow-up-glosa-remessa-body {

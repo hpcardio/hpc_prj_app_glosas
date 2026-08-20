@@ -60,6 +60,7 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
     f"{CONCILIACAO_FATURAMENTO_PATH}/conciliacoes"
 )
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
+FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
 ASSOCIACOES_REMESSAS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-remessas-ipm"
 )
@@ -6127,6 +6128,62 @@ def follow_up_glosas(request):
             "tipos_atendimento": TIPOS_ATENDIMENTO,
         },
     )
+
+
+@require_http_methods(["GET"])
+def follow_up_glosas_recurso_pdf(request):
+    processo_original = (
+        request.GET.get("processo_original") or ""
+    ).strip()
+    cd_remessa = as_int_or_zero(request.GET.get("cd_remessa"))
+    if not processo_original or cd_remessa <= 0:
+        return HttpResponse(
+            "Informe o processo original e a remessa para gerar o PDF.",
+            status=400,
+            content_type="text/plain; charset=utf-8",
+        )
+    try:
+        upstream = api_get_stream(
+            FOLLOW_UP_RECURSO_PDF_PATH,
+            {
+                "processo_original": processo_original,
+                "cd_remessa": cd_remessa,
+                "download": "false",
+            },
+        )
+    except ApiError as exc:
+        status_code = exc.status_code or 502
+        if not 400 <= status_code <= 599:
+            status_code = 502
+        return HttpResponse(
+            "PDF do recurso: " + extract_api_error_message(exc),
+            status=status_code,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    def iter_pdf():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = StreamingHttpResponse(
+        iter_pdf(),
+        content_type=(
+            upstream.headers.get("Content-Type") or "application/pdf"
+        ),
+    )
+    response["Content-Disposition"] = upstream.headers.get(
+        "Content-Disposition"
+    ) or (
+        f'inline; filename="recurso-glosa-{cd_remessa}.pdf"'
+    )
+    if content_length := upstream.headers.get("Content-Length"):
+        response["Content-Length"] = content_length
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @require_http_methods(["GET", "POST"])

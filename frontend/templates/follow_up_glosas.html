@@ -186,30 +186,40 @@
             @expand-follow-up-level-2.window="expandRemessa()"
             @collapse-all-follow-up.window="remessaOpen = false"
           >
-            <button
-              type="button"
-              class="follow-up-glosa-remessa-header"
-              x-ref="remessaHeader"
-              @click="toggleRemessa()"
-              :aria-expanded="remessaOpen"
-              aria-controls="follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
-              {% if card.conciliacao_remessa_id %}
-              hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}"
-              hx-trigger="follow-up-load once"
-              hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
-              hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
-              hx-swap="outerHTML"
-              {% endif %}
-            >
-              <span class="follow-up-glosa-chevron" :class="{ 'is-open': remessaOpen }">&#9654;</span>
-              <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
-              <span class="follow-up-glosa-card-field"><small>PROTOCOLO TRUE</small><strong>{{ card.numero_protocolo|default:"-" }}</strong></span>
-              <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ card.data_competencia_formatada }}</strong></span>
-              <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ card.valor_itens|br_currency }}</strong></span>
-              <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
-              <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ card.valor_total_tratado|br_currency }}</strong></span>
-              <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>TOTAL PENDENTE</small><strong>R$ {{ card.valor_glosa_pendente|br_currency }}</strong></span>
-            </button>
+            <div class="follow-up-glosa-remessa-header-row">
+              <button
+                type="button"
+                class="follow-up-glosa-remessa-header"
+                x-ref="remessaHeader"
+                @click="toggleRemessa()"
+                :aria-expanded="remessaOpen"
+                aria-controls="follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
+                {% if card.conciliacao_remessa_id %}
+                hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}"
+                hx-trigger="follow-up-load once"
+                hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
+                hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
+                hx-swap="outerHTML"
+                {% endif %}
+              >
+                <span class="follow-up-glosa-chevron" :class="{ 'is-open': remessaOpen }">&#9654;</span>
+                <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>PROTOCOLO TRUE</small><strong>{{ card.numero_protocolo|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ card.data_competencia_formatada }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ card.valor_itens|br_currency }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ card.valor_total_tratado|br_currency }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>TOTAL PENDENTE</small><strong>R$ {{ card.valor_glosa_pendente|br_currency }}</strong></span>
+              </button>
+              <a
+                class="follow-up-glosa-pdf-action"
+                href="{% url 'follow_up_glosas_recurso_pdf' %}?cd_remessa={{ card.cd_remessa }}&amp;processo_original={{ processo_card.processo.numero_processo|urlencode }}"
+                target="_blank"
+                rel="noopener"
+                title="Gerar PDF do recurso"
+                aria-label="Gerar PDF do recurso da remessa {{ card.cd_remessa }}"
+              >PDF</a>
+            </div>
             <div class="follow-up-glosa-remessa-body" x-show="remessaOpen" x-cloak>
               <div id="follow-up-glosa-detail-{{ card.detalhe_dom_id }}" class="follow-up-glosa-card-content">
           {% if card.detalhes_carregados %}
