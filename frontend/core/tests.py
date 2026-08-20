@@ -1688,6 +1688,71 @@ class FollowUpGlosasTests(TestCase):
             'offset': 0,
         }
 
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_card_exibe_acao_para_gerar_pdf_do_recurso(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        api_get.return_value = self._api_payload()
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '>PDF</a>')
+        self.assertContains(
+            response,
+            '/follow-up-glosas/recurso-pdf/?cd_remessa=987&amp;'
+            'processo_original=CONC-12',
+        )
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_entrega_pdf_do_recurso_autenticado(
+        self,
+        api_get_stream,
+    ):
+        upstream = Mock()
+        upstream.headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': (
+                'inline; filename="recurso-glosa-CONC-12-remessa-987.pdf"'
+            ),
+            'Content-Length': '17',
+        }
+        upstream.iter_content.return_value = [b'%PDF-1.7\nrecurso']
+        api_get_stream.return_value = upstream
+
+        response = self.client.get(
+            '/follow-up-glosas/recurso-pdf/',
+            {'cd_remessa': '987', 'processo_original': 'CONC-12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'%PDF-1.7\nrecurso',
+        )
+        api_get_stream.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/'
+            'glosas-pendentes/recurso.pdf',
+            {
+                'processo_original': 'CONC-12',
+                'cd_remessa': 987,
+                'download': 'false',
+            },
+        )
+        upstream.close.assert_called_once()
+
+    @patch('core.views.api_get_stream')
+    def test_pdf_do_recurso_exige_processo_e_remessa(self, api_get_stream):
+        response = self.client.get('/follow-up-glosas/recurso-pdf/')
+
+        self.assertEqual(response.status_code, 400)
+        api_get_stream.assert_not_called()
+
     def test_ordena_processos_e_remessas_por_competencia_decrescente(self):
         cards = [
             {

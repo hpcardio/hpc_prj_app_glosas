@@ -113,6 +113,7 @@ SCREEN_KEYS = tuple(
 ROUTE_PERMISSIONS = {
     "dashboard": "indicadores",
     "follow_up_glosas": "follow_up_glosas",
+    "follow_up_glosas_recurso_pdf": "follow_up_glosas",
     "associacoes_remessas_ipm": "follow_up_glosas",
     "glosas": "follow_up_glosas",
     "conta_atendimento": "triagem",
