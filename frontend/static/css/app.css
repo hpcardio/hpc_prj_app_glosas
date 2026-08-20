@@ -4852,6 +4852,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
   margin-bottom: 0;
 }
 
+.follow-up-glosa-card-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  background: #fbfdfe;
+}
+
 .follow-up-glosa-card-header {
   display: grid;
   grid-template-columns: 18px minmax(105px, 0.9fr) minmax(120px, 1fr) repeat(2, minmax(85px, 0.7fr)) minmax(105px, 0.85fr) repeat(4, minmax(100px, 0.8fr));
@@ -4876,13 +4883,6 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border: 1px solid #d4e1e8;
   border-radius: 7px;
   background: #fff;
-}
-
-.follow-up-glosa-remessa-header-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  background: #eef6f8;
 }
 
 .follow-up-glosa-remessa-header {

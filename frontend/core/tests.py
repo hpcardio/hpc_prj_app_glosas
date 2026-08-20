@@ -1592,6 +1592,7 @@ class FollowUpGlosasTests(TestCase):
                     'valor_glosado': '150.00',
                     'valor_glosa_pendente': '100.00',
                     'valor_total_tratado': '50.00',
+                    'possui_recurso': True,
                     'processo': {
                         'numero_processo': 'CONC-12',
                         'data_abertura': '2026-07-09',
@@ -1690,7 +1691,7 @@ class FollowUpGlosasTests(TestCase):
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
-    def test_card_exibe_acao_para_gerar_pdf_do_recurso(
+    def test_card_do_processo_exibe_acao_para_gerar_pdf_do_recurso(
         self,
         api_get,
         get_cached_api_payload,
@@ -1704,9 +1705,26 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, '>PDF</a>')
         self.assertContains(
             response,
-            '/follow-up-glosas/recurso-pdf/?cd_remessa=987&amp;'
-            'processo_original=CONC-12',
+            '/follow-up-glosas/recurso-pdf/?processo_original=CONC-12',
         )
+        self.assertEqual(response.content.count(b'>PDF</a>'), 1)
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_card_sem_recurso_nao_exibe_acao_de_pdf(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        payload['cards'][0]['possui_recurso'] = False
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '>PDF</a>')
 
     @patch('core.views.api_get_stream')
     def test_proxy_entrega_pdf_do_recurso_autenticado(
@@ -1717,7 +1735,7 @@ class FollowUpGlosasTests(TestCase):
         upstream.headers = {
             'Content-Type': 'application/pdf',
             'Content-Disposition': (
-                'inline; filename="recurso-glosa-CONC-12-remessa-987.pdf"'
+                'inline; filename="recurso-glosa-CONC-12.pdf"'
             ),
             'Content-Length': '17',
         }
@@ -1726,7 +1744,7 @@ class FollowUpGlosasTests(TestCase):
 
         response = self.client.get(
             '/follow-up-glosas/recurso-pdf/',
-            {'cd_remessa': '987', 'processo_original': 'CONC-12'},
+            {'processo_original': 'CONC-12'},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1740,14 +1758,13 @@ class FollowUpGlosasTests(TestCase):
             'glosas-pendentes/recurso.pdf',
             {
                 'processo_original': 'CONC-12',
-                'cd_remessa': 987,
                 'download': 'false',
             },
         )
         upstream.close.assert_called_once()
 
     @patch('core.views.api_get_stream')
-    def test_pdf_do_recurso_exige_processo_e_remessa(self, api_get_stream):
+    def test_pdf_do_recurso_exige_processo(self, api_get_stream):
         response = self.client.get('/follow-up-glosas/recurso-pdf/')
 
         self.assertEqual(response.status_code, 400)
