@@ -52,11 +52,11 @@
       {% if screen_access.indicadores %}
       <a class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}" title="Indicadores"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></span><span class="nav-label">Indicadores</span></a>
       {% endif %}
-      {% if screen_access.follow_up_glosas or screen_access.triagem or screen_access.acompanhamento %}
-      <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('{% url 'follow_up_glosas' %}') || '{{ request.path }}'.startsWith('{% url 'associacoes_remessas_ipm' %}') || '{{ request.path }}'.startsWith('{% url 'conta_atendimento' %}') || '{{ request.path }}'.startsWith('{% url 'acompanhamento' %}')">
+      {% if screen_access.follow_up_glosas or screen_access.recursos_processos or screen_access.triagem or screen_access.acompanhamento %}
+      <div class="nav-group" x-data="{ open: false }" x-init="open = '{{ request.path }}'.startsWith('{% url 'follow_up_glosas' %}') || '{{ request.path }}'.startsWith('{% url 'recursos' %}') || '{{ request.path }}'.startsWith('{% url 'associacoes_remessas_ipm' %}') || '{{ request.path }}'.startsWith('{% url 'conta_atendimento' %}') || '{{ request.path }}'.startsWith('{% url 'acompanhamento' %}')">
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'follow_up_glosas' or request.resolver_match.url_name == 'associacoes_remessas_ipm' or request.resolver_match.url_name == 'conta_atendimento' or request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'follow_up_glosas' or request.resolver_match.url_name == 'recursos' or request.resolver_match.url_name == 'associacoes_remessas_ipm' or request.resolver_match.url_name == 'conta_atendimento' or request.resolver_match.url_name == 'acompanhamento' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
           :aria-expanded="sidebarOpen && open"
           title="Núcleo Gestor de Glosas"
@@ -68,6 +68,9 @@
           {% if screen_access.follow_up_glosas %}
           <a class="nav-subitem {% if request.resolver_match.url_name == 'follow_up_glosas' %}is-active{% endif %}" href="{% url 'follow_up_glosas' %}" title="Follow-Up de Glosas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path><path d="M17 15v4"></path><path d="M15 17h4"></path></svg></span><span class="nav-label">Follow-Up de Glosas</span></a>
           <a class="nav-subitem {% if request.resolver_match.url_name == 'associacoes_remessas_ipm' %}is-active{% endif %}" href="{% url 'associacoes_remessas_ipm' %}" title="Associações de Remessas"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h4v4H7z"></path><path d="M13 13h4v4h-4z"></path><path d="M10 10l4 4"></path><path d="M14 7h3v3"></path><path d="M7 14v3h3"></path></svg></span><span class="nav-label">Associações de Remessas</span></a>
+          {% endif %}
+          {% if screen_access.recursos_processos or screen_access.follow_up_glosas %}
+          <a class="nav-subitem {% if request.resolver_match.url_name == 'recursos' %}is-active{% endif %}" href="{% url 'recursos' %}" title="Recursos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span><span class="nav-label">Recursos</span></a>
           {% endif %}
           {% if screen_access.triagem %}
           <a class="nav-subitem {% if request.resolver_match.url_name == 'conta_atendimento' %}is-active{% endif %}" href="{% url 'conta_atendimento' %}" title="Triagem"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10"></path><path d="M7 12h10"></path><path d="M7 17h6"></path></svg></span><span class="nav-label">Triagem</span></a>
