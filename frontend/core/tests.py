@@ -2091,7 +2091,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260814-associacoes-remessas-3',
+            '?v=20260821-recursos-sem-sublinhado',
             base_template.read_text(),
         )
 
@@ -2661,6 +2661,17 @@ class RecursosProcessosTests(TestCase):
 
     def _api_payload(self):
         return FollowUpGlosasTests._api_payload(self)
+
+    def test_cabecalho_clicavel_nao_sublinha_os_dados_do_processo(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            '.follow-up-glosa-card-header:hover {\n'
+            '  background: #f4f9fb;\n'
+            '  text-decoration: none;\n'
+            '}',
+            css,
+        )
 
     @patch('core.views.api_get')
     def test_renderiza_recursos_por_processo_com_cards_e_itens(self, api_get):
