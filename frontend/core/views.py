@@ -61,6 +61,7 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
 )
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
+PROCESSOS_RECURSO_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/recursos-processos"
 ASSOCIACOES_REMESSAS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-remessas-ipm"
 )
@@ -6715,19 +6716,91 @@ def remessas(request):
 @require_http_methods(["GET", "POST"])
 def recursos(request):
     if request.method == "POST":
+        processo_original = (request.POST.get("processo_original") or "").strip()
+        processo_recurso = (request.POST.get("processo_recurso") or "").strip()
         try:
-            api_post("/recursos", request.POST.dict())
+            api_put(PROCESSOS_RECURSO_PATH, {
+                "processo_original": processo_original,
+                "processo_recurso": processo_recurso,
+            })
             clear_filter_caches()
-            messages.success(request, "Recurso enviado para cadastro.")
-            return redirect("recursos")
+            messages.success(request, f"Processo do recurso registrado para {processo_original}.")
+            retorno = request.POST.get("return_query") or ""
+            return redirect(f"{request.path}?{retorno}" if retorno else request.path)
         except ApiError as exc:
-            messages.error(request, format_api_error(exc, "Cadastro de recurso"))
+            messages.error(request, format_api_error(exc, "Processo do recurso"))
+
+    filtros = {
+        "processo_original": (request.GET.get("processo_original") or "").strip(),
+        "processo_recurso": (request.GET.get("processo_recurso") or "").strip(),
+        "paciente": (request.GET.get("paciente") or "").strip(),
+        "periodo": (request.GET.get("periodo") or "").strip(),
+        "situacao": (request.GET.get("situacao") or "").strip(),
+    }
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    base_query = {key: value for key, value in filtros.items() if value}
+    params = {**base_query, "limit": limit, "offset": (page - 1) * limit}
+    expandir = request.GET.get("expandir") == "todos"
+    detalhar_processo = (request.GET.get("detalhar_processo") or "").strip()
+    if expandir:
+        params["incluir_detalhes"] = "true"
+    elif detalhar_processo:
+        params["detalhar_processo"] = detalhar_processo
+    payload = {"processos": [], "total": 0,
+               "quantidade_com_processo_recurso": 0,
+               "quantidade_sem_processo_recurso": 0}
     try:
-        registros = get_cached_api_payload("recursos", "/recursos")
+        payload = api_get(PROCESSOS_RECURSO_PATH, params=params)
     except ApiError as exc:
-        registros = []
         messages.error(request, format_api_error(exc, "Recursos"))
-    return render(request, "recursos.html", {"recursos": registros})
+
+    processos = []
+    for processo_api in payload.get("processos") or []:
+        cards = prepare_follow_up_glosas_cards(processo_api.get("cards") or [])
+        grupos = group_follow_up_glosas_by_process(cards)
+        grupo = grupos[0] if grupos else {"processo": {}, "remessas": []}
+        linhas = []
+        for remessa in grupo.get("remessas") or []:
+            for paciente_item in remessa.get("pacientes") or []:
+                for item in paciente_item.get("itens") or []:
+                    linhas.append({
+                        "paciente": paciente_item.get("nm_paciente") or "-",
+                        "atendimento": item.get("cd_atendimento") or "-",
+                        "dt_atendimento": item.get("dt_atendimento_formatada") or "-",
+                        "dt_alta": item.get("dt_alta_formatada") or "-",
+                        "grupo": item.get("ds_gru_fat") or "Grupo não informado",
+                        "codigo_item": item.get("codigo_item") or "-",
+                        "descricao": item.get("descricao") or "-",
+                        "valor_processado": as_float_or_zero(item.get("valor_processado")),
+                        "valor_glosa": as_float_or_zero(item.get("valor_glosa")),
+                        "valor_liberado": as_float_or_zero(item.get("valor_liberado")),
+                        "valor_tratado": as_float_or_zero(item.get("valor_total_tratado")),
+                    })
+        grupo.update({
+            "processo_original": processo_api.get("processo_original"),
+            "processo_recurso": processo_api.get("processo_recurso") or "",
+            "detalhes_carregados": bool(processo_api.get("detalhes_carregados")),
+            "linhas": linhas,
+        })
+        processos.append(grupo)
+
+    total = as_int_or_zero(payload.get("total"))
+    total_pages = max(ceil(total / limit), 1)
+    pagination = {
+        "page": page, "total_pages": total_pages,
+        "has_previous": page > 1, "has_next": page < total_pages,
+        "previous_url": f"?{urlencode({**base_query, 'page': page - 1})}" if page > 1 else "",
+        "next_url": f"?{urlencode({**base_query, 'page': page + 1})}" if page < total_pages else "",
+        "page_options": range(1, total_pages + 1), "query": base_query,
+        "total": total, "start": (page - 1) * limit + 1 if total else 0,
+        "end": min(page * limit, total),
+    }
+    return render(request, "recursos.html", {
+        "processos": processos, "filtros": filtros, "resumo": payload,
+        "pagination": pagination, "expandir": expandir,
+        "return_query": urlencode({**base_query, "page": page}),
+    })
 
 
 @require_http_methods(["GET", "POST"])

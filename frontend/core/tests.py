@@ -2209,13 +2209,16 @@ class FollowUpGlosasTests(TestCase):
         for hidden_menu in (
             'Glosas',
             'Remessas',
-            'Recursos',
             'Recebimentos',
         ):
             self.assertNotContains(
                 response,
                 f'<span class="nav-label">{hidden_menu}</span>',
             )
+        self.assertContains(
+            response,
+            '<span class="nav-label">Recursos</span>',
+        )
         css = Path(finders.find('css/app.css')).read_text()
         nav_group_rule = css.split('.nav-group-toggle {', 1)[1].split(
             '}',
@@ -2641,6 +2644,66 @@ class FollowUpGlosasTests(TestCase):
             "this.motivoAcato : this.motivoRecusa) || this.motivoOrigem;",
         )
         self.assertNotContains(response, ':required="modal !== \'acatar\'"')
+
+
+class RecursosProcessosTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Núcleo de Glosas',
+            'email': 'glosas@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+    def _api_payload(self):
+        return FollowUpGlosasTests._api_payload(self)
+
+    @patch('core.views.api_get')
+    def test_renderiza_recursos_por_processo_com_cards_e_itens(self, api_get):
+        api_get.return_value = {
+            'processos': [{
+                'processo_original': 'CONC-12',
+                'processo_recurso': 'REC-99',
+                'detalhes_carregados': True,
+                'cards': self._api_payload()['cards'],
+            }],
+            'total': 1,
+            'quantidade_com_processo_recurso': 1,
+            'quantidade_sem_processo_recurso': 0,
+        }
+
+        response = self.client.get('/recursos/', {'periodo': '07/2026'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'REC-99')
+        self.assertContains(response, 'Maria da Silva')
+        self.assertContains(response, 'EXAMES E DIAGNÓSTICOS')
+        self.assertContains(response, 'Procedimento analítico')
+
+    @patch('core.views.api_put')
+    def test_salva_processo_recurso_uma_vez_por_processo(self, api_put):
+        response = self.client.post('/recursos/', {
+            'processo_original': 'CONC-12',
+            'processo_recurso': 'REC-99',
+        })
+
+        self.assertRedirects(
+            response,
+            '/recursos/',
+            fetch_redirect_response=False,
+        )
+        api_put.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/'
+            'recursos-processos',
+            {
+                'processo_original': 'CONC-12',
+                'processo_recurso': 'REC-99',
+            },
+        )
 
 
 class AssociacoesRemessasIpmTests(TestCase):
@@ -5922,8 +5985,6 @@ class CadastrarNotaTests(TestCase):
             ('solicitacoes_nota.html', 'name="valor_nota"'),
             ('recebimentos.html', 'name="valor_recebido"'),
             ('remessas.html', 'name="valor_total"'),
-            ('recursos.html', 'name="valor_recursado"'),
-            ('recursos.html', 'name="valor_acatado"'),
             (
                 'conciliacoes_sem_recebimento.html',
                 'name="valor_glosado_{{ remessa.cd_remessa }}"',
