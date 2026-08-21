@@ -62,6 +62,7 @@ CONCILIACOES_GERENCIAMENTO_PATH = (
 FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
 PROCESSOS_RECURSO_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/recursos-processos"
+PROCESSOS_RECURSO_TIMEOUT = 60
 ASSOCIACOES_REMESSAS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-remessas-ipm"
 )
@@ -6751,7 +6752,11 @@ def recursos(request):
                "quantidade_com_processo_recurso": 0,
                "quantidade_sem_processo_recurso": 0}
     try:
-        payload = api_get(PROCESSOS_RECURSO_PATH, params=params)
+        payload = api_get(
+            PROCESSOS_RECURSO_PATH,
+            params=params,
+            timeout=PROCESSOS_RECURSO_TIMEOUT,
+        )
     except ApiError as exc:
         messages.error(request, format_api_error(exc, "Recursos"))
 
