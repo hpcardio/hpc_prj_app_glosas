@@ -2683,6 +2683,16 @@ class RecursosProcessosTests(TestCase):
         self.assertContains(response, 'Maria da Silva')
         self.assertContains(response, 'EXAMES E DIAGNÓSTICOS')
         self.assertContains(response, 'Procedimento analítico')
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/'
+            'recursos-processos',
+            params={
+                'periodo': '07/2026',
+                'limit': 10,
+                'offset': 0,
+            },
+            timeout=60,
+        )
 
     @patch('core.views.api_put')
     def test_salva_processo_recurso_uma_vez_por_processo(self, api_put):
