@@ -123,6 +123,16 @@ API_CONTA_ATENDIMENTO_PATH = os.getenv("API_CONTA_ATENDIMENTO_PATH", "/app_glosa
 API_REGISTRO_GLOSA_PATH = os.getenv("API_REGISTRO_GLOSA_PATH", "/app_glosas/glosas")
 API_TISS_PATH = os.getenv("API_TISS_PATH", "/app_glosas/tiss")
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "60"))
+SPU_NOVNC_INTERNAL_URL = os.getenv(
+    "SPU_NOVNC_INTERNAL_URL",
+    "http://spu-novnc:6080",
+).rstrip("/")
+SPU_NOVNC_PASSWORD = os.getenv("SPU_NOVNC_PASSWORD", "")
+SPU_NOVNC_TIMEOUT = float(os.getenv("SPU_NOVNC_TIMEOUT", "10"))
+SPU_RECAPTCHA_POLL_SECONDS = max(
+    2,
+    int(os.getenv("SPU_RECAPTCHA_POLL_SECONDS", "5")),
+)
 DASHBOARD_CACHE_SECONDS = int(os.getenv("DASHBOARD_CACHE_SECONDS", "45"))
 APP_FILTER_CACHE_SECONDS = int(os.getenv("APP_FILTER_CACHE_SECONDS", str(DASHBOARD_CACHE_SECONDS)))
 SOLICITACAO_NOTA_CACHE_SECONDS = int(

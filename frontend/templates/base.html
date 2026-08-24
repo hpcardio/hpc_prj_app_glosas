@@ -7,7 +7,7 @@
   <title>Gestao de Glosas</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20260821-recursos-sem-sublinhado" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20260824-spu-recaptcha" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -257,6 +257,136 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% if request.session.api_user %}
+  <div
+    id="spu-recaptcha-layer"
+    class="spu-recaptcha-layer"
+    data-status-url="{% url 'spu_recaptcha_status' %}"
+    data-viewer-url="{% url 'spu_recaptcha_viewer' %}"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="spu-recaptcha-title"
+  >
+    <section class="spu-recaptcha-dialog">
+      <header class="spu-recaptcha-header">
+        <div>
+          <span class="spu-recaptcha-kicker">Automação SPU</span>
+          <strong id="spu-recaptcha-title">Resolva o reCAPTCHA</strong>
+          <small id="spu-recaptcha-context">A extração continuará automaticamente após a validação.</small>
+        </div>
+        <button type="button" id="spu-recaptcha-minimize">Minimizar</button>
+      </header>
+      <div class="spu-recaptcha-browser">
+        <iframe
+          id="spu-recaptcha-frame"
+          title="Navegador do SPU para resolução do reCAPTCHA"
+          referrerpolicy="same-origin"
+        ></iframe>
+      </div>
+      <footer>
+        <span class="spu-recaptcha-live"><i aria-hidden="true"></i> Airflow aguardando</span>
+        <span>Conclua o desafio e clique em <strong>Entrar</strong> no SPU.</span>
+      </footer>
+    </section>
+  </div>
+  <button
+    type="button"
+    id="spu-recaptcha-restore"
+    class="spu-recaptcha-restore"
+    hidden
+  >
+    <span aria-hidden="true"></span>
+    Resolver reCAPTCHA do SPU
+  </button>
+  <script>
+    (() => {
+      const layer = document.getElementById('spu-recaptcha-layer');
+      const frame = document.getElementById('spu-recaptcha-frame');
+      const restore = document.getElementById('spu-recaptcha-restore');
+      const minimize = document.getElementById('spu-recaptcha-minimize');
+      const context = document.getElementById('spu-recaptcha-context');
+      if (!layer || !frame || !restore || !minimize || !context) return;
+
+      let activeChallenge = '';
+      let minimized = false;
+      let polling = false;
+      let pollDelay = 5000;
+
+      const show = () => {
+        minimized = false;
+        layer.hidden = false;
+        restore.hidden = true;
+      };
+
+      const clear = () => {
+        activeChallenge = '';
+        minimized = false;
+        layer.hidden = true;
+        restore.hidden = true;
+        frame.removeAttribute('src');
+      };
+
+      const applyStatus = (status) => {
+        if (!status.active) {
+          if (activeChallenge) clear();
+          return;
+        }
+
+        const challenge = status.challenge_id || 'spu-active';
+        if (challenge !== activeChallenge) {
+          activeChallenge = challenge;
+          const taskLabel = status.dag_id
+            ? `A DAG ${status.dag_id} está aguardando sua validação.`
+            : 'A extração continuará automaticamente após a validação.';
+          context.textContent = status.configured
+            ? taskLabel
+            : 'O acesso automático ao VNC ainda não foi configurado.';
+          const viewerUrl = new URL(layer.dataset.viewerUrl, window.location.origin);
+          viewerUrl.searchParams.set('challenge', challenge);
+          frame.src = viewerUrl.toString();
+          show();
+          return;
+        }
+
+        layer.hidden = minimized;
+        restore.hidden = !minimized;
+      };
+
+      const poll = async () => {
+        if (polling) return;
+        polling = true;
+        try {
+          const response = await fetch(layer.dataset.statusUrl, {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' }
+          });
+          if (!response.ok) return;
+          const status = await response.json();
+          pollDelay = Math.max(2000, Number(status.poll_seconds || 5) * 1000);
+          applyStatus(status);
+        } catch (_error) {
+          // Uma indisponibilidade transitória não deve fechar um desafio aberto.
+        } finally {
+          polling = false;
+          window.setTimeout(poll, pollDelay);
+        }
+      };
+
+      minimize.addEventListener('click', () => {
+        minimized = true;
+        layer.hidden = true;
+        restore.hidden = false;
+      });
+      restore.addEventListener('click', show);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) poll();
+      });
+      poll();
+    })();
+  </script>
+  {% endif %}
   <div class="confirm-dialog-layer" x-data="{ open: false, message: '', form: null, submitter: null }" x-show="open" x-cloak role="presentation">
     <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
       <div class="confirm-dialog-icon" aria-hidden="true"></div>

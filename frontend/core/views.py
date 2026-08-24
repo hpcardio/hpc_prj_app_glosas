@@ -9,14 +9,15 @@ from math import ceil, log10
 from hashlib import sha256
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
+import requests
 from django.contrib import messages
 from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
-from django.urls import Resolver404, resolve
+from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .access import (
     ROUTE_PERMISSIONS,
@@ -35,6 +36,10 @@ from .services import (
     api_patch,
     api_post,
     api_put,
+)
+from .spu_recaptcha import (
+    SpuNovncUnavailable,
+    get_spu_recaptcha_status,
 )
 
 PATIENTS_PER_PAGE = 10
@@ -78,6 +83,108 @@ NFSE_EXTERNAS_PATH = f"{REQUISICOES_NOTA_PATH}/nfse-externas"
 ACOMPANHAMENTO_PARTICULAR_PATH = (
     f"{REQUISICOES_NOTA_PATH}/acompanhamento-particular"
 )
+
+
+@require_GET
+def spu_recaptcha_status(request):
+    try:
+        status = get_spu_recaptcha_status()
+    except SpuNovncUnavailable:
+        status = {
+            "active": False,
+            "challenge_id": "",
+            "dag_id": "",
+            "task_id": "",
+            "started_at": None,
+            "expires_at": None,
+        }
+        available = False
+    else:
+        available = True
+
+    response = JsonResponse(
+        {
+            **status,
+            "available": available,
+            "configured": bool(settings.SPU_NOVNC_PASSWORD),
+            "poll_seconds": settings.SPU_RECAPTCHA_POLL_SECONDS,
+        }
+    )
+    response["Cache-Control"] = "no-store, private"
+    return response
+
+
+@require_GET
+def spu_recaptcha_viewer(request):
+    try:
+        status = get_spu_recaptcha_status()
+    except SpuNovncUnavailable as exc:
+        return HttpResponse(str(exc), status=503, content_type="text/plain")
+    if not status["active"]:
+        return HttpResponse(
+            "Não há reCAPTCHA do SPU aguardando resolução.",
+            status=409,
+            content_type="text/plain",
+        )
+    if not settings.SPU_NOVNC_PASSWORD:
+        return HttpResponse(
+            "SPU_NOVNC_PASSWORD não foi configurada no Receita Certa.",
+            status=503,
+            content_type="text/plain",
+        )
+
+    novnc_path = reverse(
+        "spu_novnc_asset",
+        kwargs={"asset_path": "vnc.html"},
+    )
+    query = urlencode(
+        {
+            "autoconnect": "true",
+            "resize": "scale",
+            "reconnect": "true",
+            "path": "automacao/spu/vnc/websockify",
+        }
+    )
+    password_fragment = urlencode(
+        {"password": settings.SPU_NOVNC_PASSWORD}
+    )
+    return redirect(f"{novnc_path}?{query}#{password_fragment}")
+
+
+@require_GET
+def spu_novnc_asset(request, asset_path):
+    parts = asset_path.split("/")
+    if not asset_path or any(part in {"", ".", ".."} for part in parts):
+        return HttpResponse(status=404)
+    if asset_path == "websockify":
+        return HttpResponse(status=426)
+
+    try:
+        upstream = requests.get(
+            f"{settings.SPU_NOVNC_INTERNAL_URL}/{asset_path}",
+            params=list(request.GET.lists()),
+            timeout=settings.SPU_NOVNC_TIMEOUT,
+        )
+    except requests.RequestException:
+        return HttpResponse(
+            "O desktop do SPU não está disponível.",
+            status=502,
+            content_type="text/plain",
+        )
+
+    response = HttpResponse(
+        upstream.content,
+        status=upstream.status_code,
+        content_type=upstream.headers.get(
+            "Content-Type",
+            "application/octet-stream",
+        ),
+    )
+    for header in ("Cache-Control", "ETag", "Last-Modified"):
+        if value := upstream.headers.get(header):
+            response[header] = value
+    upstream.close()
+    return response
 ACOMPANHAMENTO_PARTICULAR_CALENDARIO_SESSION_KEY = (
     "acompanhamento_particular_calendario"
 )

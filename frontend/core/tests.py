@@ -5,7 +5,7 @@ from unittest.mock import Mock, call, patch
 
 from django.contrib.staticfiles import finders
 from django.core.cache import cache
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 
 from core.access import SCREEN_KEYS
 from core.services import ApiError
@@ -955,6 +955,100 @@ class DashboardIndicadoresTests(TestCase):
         self.assertEqual(indicadores['mensal'][0]['taxa_glosa'], 8.3)
         self.assertEqual(indicadores['mensal'][0]['taxa_acato'], 20.0)
         self.assertIn('Motivo B: 1 acato', indicadores['mensal'][0]['motivos_tooltip'])
+
+
+@override_settings(
+    SPU_NOVNC_PASSWORD='vnc12345',
+    SPU_RECAPTCHA_POLL_SECONDS=5,
+)
+class SpuRecaptchaModalTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Usuário SPU',
+            'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+    @patch('core.views.get_spu_recaptcha_status')
+    def test_status_expõe_desafio_ao_usuario_logado(self, get_status):
+        get_status.return_value = {
+            'active': True,
+            'challenge_id': 'desafio-123',
+            'dag_id': 'extracao_processos_virtuais_spu',
+            'task_id': 'carregar_processos',
+            'started_at': '2026-08-24T08:00:00+00:00',
+            'expires_at': '2099-08-24T08:30:00+00:00',
+        }
+
+        response = self.client.get('/automacao/spu/recaptcha/status/')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['active'])
+        self.assertTrue(payload['configured'])
+        self.assertEqual(payload['challenge_id'], 'desafio-123')
+        self.assertEqual(response['Cache-Control'], 'no-store, private')
+
+    @patch('core.views.get_spu_recaptcha_status')
+    def test_tela_conecta_sem_exibir_prompt_de_senha(self, get_status):
+        get_status.return_value = {
+            'active': True,
+            'challenge_id': 'desafio-123',
+        }
+
+        response = self.client.get('/automacao/spu/recaptcha/tela/')
+
+        self.assertEqual(response.status_code, 302)
+        location = response['Location']
+        self.assertIn('/automacao/spu/vnc/vnc.html?', location)
+        self.assertIn('autoconnect=true', location)
+        self.assertIn('path=automacao%2Fspu%2Fvnc%2Fwebsockify', location)
+        self.assertIn('#password=vnc12345', location)
+
+    @patch('core.views.requests.get')
+    def test_assets_novnc_passam_pelo_frontend_autenticado(self, get):
+        upstream = Mock()
+        upstream.content = b'export const client = true;'
+        upstream.status_code = 200
+        upstream.headers = {'Content-Type': 'text/javascript'}
+        get.return_value = upstream
+
+        response = self.client.get('/automacao/spu/vnc/app/ui.js')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'export const client = true;')
+        get.assert_called_once()
+        self.assertEqual(
+            get.call_args.args[0],
+            'http://spu-novnc:6080/app/ui.js',
+        )
+        upstream.close.assert_called_once_with()
+
+    def test_rotas_do_modal_exigem_login(self):
+        session = self.client.session
+        session.flush()
+
+        response = self.client.get('/automacao/spu/recaptcha/status/')
+
+        self.assertRedirects(
+            response,
+            '/login/?next=%2Fautomacao%2Fspu%2Frecaptcha%2Fstatus%2F',
+            fetch_redirect_response=False,
+        )
+
+    def test_template_base_contem_modal_minimizavel(self):
+        template = (
+            Path(__file__).resolve().parent.parent / 'templates' / 'base.html'
+        ).read_text(encoding='utf-8')
+
+        self.assertIn('id="spu-recaptcha-layer"', template)
+        self.assertIn('id="spu-recaptcha-frame"', template)
+        self.assertIn('Resolver reCAPTCHA do SPU', template)
+        self.assertIn("window.setTimeout(poll, pollDelay)", template)
 
 
 class LoginFlowTests(TestCase):
@@ -2091,7 +2185,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260821-recursos-sem-sublinhado',
+            '?v=20260824-spu-recaptcha',
             base_template.read_text(),
         )
 
