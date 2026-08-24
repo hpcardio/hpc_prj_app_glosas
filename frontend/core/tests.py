@@ -1008,6 +1008,7 @@ class SpuRecaptchaModalTests(TestCase):
         self.assertIn('autoconnect=true', location)
         self.assertIn('path=automacao%2Fspu%2Fvnc%2Fwebsockify', location)
         self.assertIn('#password=vnc12345', location)
+        self.assertEqual(response['X-Frame-Options'], 'SAMEORIGIN')
 
     @patch('core.views.requests.get')
     def test_assets_novnc_passam_pelo_frontend_autenticado(self, get):
@@ -1021,6 +1022,7 @@ class SpuRecaptchaModalTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b'export const client = true;')
+        self.assertEqual(response['X-Frame-Options'], 'SAMEORIGIN')
         get.assert_called_once()
         self.assertEqual(
             get.call_args.args[0],
