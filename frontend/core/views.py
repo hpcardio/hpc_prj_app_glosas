@@ -17,6 +17,7 @@ from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .access import (
@@ -114,6 +115,7 @@ def spu_recaptcha_status(request):
     return response
 
 
+@xframe_options_sameorigin
 @require_GET
 def spu_recaptcha_viewer(request):
     try:
@@ -151,6 +153,7 @@ def spu_recaptcha_viewer(request):
     return redirect(f"{novnc_path}?{query}#{password_fragment}")
 
 
+@xframe_options_sameorigin
 @require_GET
 def spu_novnc_asset(request, asset_path):
     parts = asset_path.split("/")
