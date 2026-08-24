@@ -30,6 +30,10 @@ services:
       API_TIMEOUT: ${API_TIMEOUT:-60}
       DASHBOARD_CACHE_SECONDS: ${DASHBOARD_CACHE_SECONDS:-45}
       APP_FILTER_CACHE_SECONDS: ${APP_FILTER_CACHE_SECONDS:-45}
+      SPU_NOVNC_INTERNAL_URL: ${SPU_NOVNC_INTERNAL_URL:-http://spu-novnc:6080}
+      SPU_NOVNC_PASSWORD: ${RECEITA_CERTA_SPU_NOVNC_PASSWORD:-}
+      SPU_NOVNC_TIMEOUT: ${SPU_NOVNC_TIMEOUT:-10}
+      SPU_RECAPTCHA_POLL_SECONDS: ${SPU_RECAPTCHA_POLL_SECONDS:-5}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -60,6 +64,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      default:
+      receita_certa_automation:
 
 volumes:
   frontend_data:
+
+networks:
+  receita_certa_automation:
+    external: true
+    name: "${RECEITA_CERTA_AUTOMATION_NETWORK:-receita_certa_automation}"

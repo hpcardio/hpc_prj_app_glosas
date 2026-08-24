@@ -5,6 +5,21 @@ from . import views
 urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
+    path(
+        "automacao/spu/recaptcha/status/",
+        views.spu_recaptcha_status,
+        name="spu_recaptcha_status",
+    ),
+    path(
+        "automacao/spu/recaptcha/tela/",
+        views.spu_recaptcha_viewer,
+        name="spu_recaptcha_viewer",
+    ),
+    path(
+        "automacao/spu/vnc/<path:asset_path>",
+        views.spu_novnc_asset,
+        name="spu_novnc_asset",
+    ),
     path("acesso-negado/", views.access_denied, name="access_denied"),
     path("esqueci-senha/", views.forgot_password, name="forgot_password"),
     path("redefinir-senha/", views.reset_password, name="reset_password"),
