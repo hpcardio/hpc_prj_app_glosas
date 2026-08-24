@@ -48,6 +48,42 @@ Servicos:
 
 Para uso local sem HTTPS, ajuste temporariamente `SESSION_COOKIE_SECURE=0` e `CSRF_COOKIE_SECURE=0` no `.env`. Em producao com proxy HTTPS, mantenha ambos como `1`.
 
+## Modal de reCAPTCHA do SPU
+
+Quando as DAGs `extracao_processos_virtuais_spu` ou
+`extracao_relatorios_tramitando_spu` encontram a sessão expirada, o Receita
+Certa abre automaticamente um modal na tela do usuário logado. O login e a
+senha do SPU já estarão preenchidos; o usuário resolve o reCAPTCHA e clica em
+**Entrar**. O modal fecha quando a tarefa retoma a extração e também pode ser
+minimizado durante a espera.
+
+O frontend encaminha os arquivos do noVNC e o WebSocket apenas depois de
+validar a sessão do Receita Certa. Para ligar os projetos no mesmo host Docker:
+
+```bash
+docker network create receita_certa_automation
+```
+
+Nos `.env` de `prj_web_nfs` e `prj_glosas`, use a mesma senha VNC de exatamente
+oito caracteres. No frontend, configure:
+
+```bash
+RECEITA_CERTA_AUTOMATION_NETWORK=receita_certa_automation
+SPU_NOVNC_INTERNAL_URL=http://spu-novnc:6080
+RECEITA_CERTA_SPU_NOVNC_PASSWORD=TROQUE12
+SPU_RECAPTCHA_POLL_SECONDS=5
+```
+
+Quando o Airflow estiver em outro host, configure
+`SPU_NOVNC_INTERNAL_URL=http://IP_PRIVADO_DO_AIRFLOW:6080`. No servidor
+Airflow, publique essa porta apenas no IP privado e restrinja no firewall a
+origem ao IP privado do servidor do Receita Certa.
+
+O valor é entregue automaticamente ao cliente no fragmento da URL do iframe;
+por isso o usuário não vê prompt de senha VNC. O frontend roda como ASGI para
+encaminhar o WebSocket. No cenário de mesmo host, a porta 6080 permanece presa
+ao loopback; entre hosts, ela fica limitada à rede privada e ao firewall.
+
 ## Modulos incluidos
 
 - Consulta de contas/atendimentos via API unica
