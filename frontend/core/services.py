@@ -29,13 +29,19 @@ def api_headers(token: str | None = None) -> dict[str, str]:
     return headers
 
 
-def api_request(method: str, path: str, token: str | None = None, **kwargs):
+def api_request(
+    method: str,
+    path: str,
+    token: str | None = None,
+    timeout: int | float | None = None,
+    **kwargs,
+):
     try:
         response = requests.request(
             method,
             f"{settings.API_BASE_URL}{path}",
             headers=api_headers(token),
-            timeout=settings.API_TIMEOUT,
+            timeout=timeout or settings.API_TIMEOUT,
             **kwargs,
         )
     except requests.Timeout as exc:
@@ -55,11 +61,17 @@ def api_request(method: str, path: str, token: str | None = None, **kwargs):
     return response
 
 
-def api_get(path: str, params: dict | None = None, token: str | None = None):
+def api_get(
+    path: str,
+    params: dict | None = None,
+    token: str | None = None,
+    timeout: int | float | None = None,
+):
     response = api_request(
         "GET",
         path,
         token=token,
+        timeout=timeout,
         params={k: v for k, v in (params or {}).items() if v},
     )
     try:

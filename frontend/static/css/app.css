@@ -4871,11 +4871,13 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: var(--ink);
   padding: 14px 16px 14px 12px;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
 .follow-up-glosa-card-header:hover {
   background: #f4f9fb;
+  text-decoration: none;
 }
 
 .follow-up-glosa-remessa {

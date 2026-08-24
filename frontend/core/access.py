@@ -21,6 +21,11 @@ SCREEN_GROUPS = (
                 "route_name": "follow_up_glosas",
             },
             {
+                "key": "recursos_processos",
+                "label": "Recursos",
+                "route_name": "recursos",
+            },
+            {
                 "key": "triagem",
                 "label": "Triagem",
                 "route_name": "conta_atendimento",
@@ -118,7 +123,7 @@ ROUTE_PERMISSIONS = {
     "glosas": "follow_up_glosas",
     "conta_atendimento": "triagem",
     "acompanhamento": "acompanhamento",
-    "recursos": "acompanhamento",
+    "recursos": ("recursos_processos", "follow_up_glosas"),
     "conciliacao_faturamento": "conciliacao_manual",
     "conciliacao_faturamento_remessas": "conciliacao_manual",
     "conciliacao_faturamento_notas": "conciliacao_manual",

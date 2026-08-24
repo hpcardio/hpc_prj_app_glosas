@@ -1,35 +1,33 @@
 {% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
 {% block page_title %}Recursos{% endblock %}
 {% block content %}
-<section class="panel">
-  <form method="post" class="filters">
-    {% csrf_token %}
-    <input name="glosa_id" class="form-control" placeholder="ID da glosa">
-    <input name="numero_processo_recurso" class="form-control" placeholder="Processo recurso">
-    <input name="data_envio" type="date" class="form-control">
-    <input name="valor_recursado" class="form-control" inputmode="numeric" data-money-input autocomplete="off" placeholder="R$ 0,00">
-    <input name="valor_acatado" class="form-control" inputmode="numeric" data-money-input autocomplete="off" placeholder="R$ 0,00">
-    <button class="btn btn-primary">Cadastrar</button>
-  </form>
+<section class="panel filter-panel follow-up-glosa-page">
+  <form class="remessa-filters" method="get"><div class="filter-row">
+    <div class="filter-group"><label>Processo</label><input name="processo_original" value="{{ filtros.processo_original }}" class="form-control" placeholder="Número do processo"></div>
+    <div class="filter-group"><label>Processo do recurso</label><input name="processo_recurso" value="{{ filtros.processo_recurso }}" class="form-control" placeholder="Número do recurso"></div>
+    <div class="filter-group"><label>Paciente</label><input name="paciente" value="{{ filtros.paciente }}" class="form-control" placeholder="Nome parcial"></div>
+    <div class="filter-group"><label>Período</label><input name="periodo" value="{{ filtros.periodo }}" class="form-control" placeholder="MM/AAAA" inputmode="numeric" pattern="(0[1-9]|1[0-2])/\d{4}"></div>
+    <div class="filter-group"><label>Situação</label><select name="situacao" class="form-select"><option value="">Todos</option><option value="sem" {% if filtros.situacao == 'sem' %}selected{% endif %}>Sem processo do recurso</option><option value="com" {% if filtros.situacao == 'com' %}selected{% endif %}>Com processo do recurso</option></select></div>
+    <div class="filter-actions"><button class="btn btn-primary">Filtrar</button><a href="{% url 'recursos' %}" class="btn btn-outline-secondary">Limpar</a></div>
+  </div></form>
 </section>
-<section class="panel">
-  <table class="table table-hover align-middle">
-    <thead><tr><th>ID</th><th>Glosa</th><th>Processo</th><th>Recursado</th><th>Acatado</th><th>Mantido</th><th>Status</th></tr></thead>
-    <tbody>
-      {% for recurso in recursos %}
-      <tr>
-        <td>{{ recurso.id }}</td>
-        <td>{{ recurso.glosa_id }}</td>
-        <td>{{ recurso.numero_processo_recurso }}</td>
-        <td>R$ {{ recurso.valor_recursado }}</td>
-        <td>R$ {{ recurso.valor_acatado }}</td>
-        <td>R$ {{ recurso.valor_mantido }}</td>
-        <td><span class="status">{{ recurso.status }}</span></td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="7">Nenhum recurso cadastrado.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<section class="panel results-summary-panel">
+  <div class="panel-header">
+    <div class="results-heading"><div><span class="panel-title">Processos com glosas</span>{% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} processos exibidos</span>{% endif %}</div><div class="collapse-actions"><a class="collapse-action" href="?{{ return_query }}&expandir=todos">Expandir</a><a class="collapse-action" href="?{{ return_query }}">Colapsar todos</a></div></div>
+    <div class="results-toolbar"><div class="results-totals"><span class="result-total"><span>Sem processo do recurso</span><strong>{{ resumo.quantidade_sem_processo_recurso }}</strong></span><span class="result-total result-total--value"><span>Com processo do recurso</span><strong>{{ resumo.quantidade_com_processo_recurso }}</strong></span></div>
+      {% if pagination.total %}<div class="pagination-control">{% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}<form method="get" class="page-select-form">{% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label>Página</label><select name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for number in pagination.page_options %}<option value="{{ number }}" {% if number == pagination.page %}selected{% endif %}>{{ number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>{% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}</div>{% endif %}
+    </div>
+  </div>
+  <div class="results-list follow-up-glosa-list">
+    {% for processo_card in processos %}<article class="follow-up-glosa-card" x-data="{ open: {{ processo_card.detalhes_carregados|yesno:'true,false' }} }">
+      <div class="follow-up-glosa-card-header-row">{% if processo_card.detalhes_carregados %}<button type="button" class="follow-up-glosa-card-header" @click="open = !open">{% else %}<a class="follow-up-glosa-card-header" href="?{{ return_query }}&detalhar_processo={{ processo_card.processo_original|urlencode }}">{% endif %}<span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span><span class="follow-up-glosa-card-field"><small>PROCESSO</small><strong>{{ processo_card.processo_original }}</strong></span><span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ processo_card.convenio }}</strong></span><span class="follow-up-glosa-card-field"><small>COMP. PROD.</small><strong>{{ processo_card.competencia_producao|default:'-' }}</strong></span><span class="follow-up-glosa-card-field"><small>PROCESSO DO RECURSO</small><strong>{{ processo_card.processo_recurso|default:'Não informado' }}</strong></span><span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR GLOSADO</small><strong>R$ {{ processo_card.valor_glosado|br_currency }}</strong></span><span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TRATADO</small><strong>R$ {{ processo_card.valor_total_tratado|br_currency }}</strong></span>{% if processo_card.detalhes_carregados %}</button>{% else %}</a>{% endif %}</div>
+      {% if processo_card.detalhes_carregados %}<div class="follow-up-glosa-card-body" x-show="open" x-cloak>
+        <form method="post" class="filters" style="margin:12px;grid-template-columns:minmax(240px,1fr) auto">{% csrf_token %}<input type="hidden" name="processo_original" value="{{ processo_card.processo_original }}"><input type="hidden" name="return_query" value="{{ return_query }}"><div class="filter-group"><label>Processo do recurso</label><input name="processo_recurso" value="{{ processo_card.processo_recurso }}" class="form-control" required maxlength="100" placeholder="Informe uma única vez para o processo"></div><button class="btn btn-primary" style="align-self:end">Salvar</button></form>
+        <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Paciente</th><th>Atendimento</th><th>Dt. atendimento</th><th>Dt. alta</th><th>Grupo</th><th>Cód. item</th><th>Descrição</th><th>Valor processado</th><th>Valor glosa</th><th>Valor liberado</th><th>Valor tratado</th></tr></thead><tbody>{% for linha in processo_card.linhas %}<tr><td>{{ linha.paciente }}</td><td>{{ linha.atendimento }}</td><td>{{ linha.dt_atendimento }}</td><td>{{ linha.dt_alta }}</td><td>{{ linha.grupo }}</td><td>{{ linha.codigo_item }}</td><td>{{ linha.descricao }}</td><td>R$ {{ linha.valor_processado|br_currency }}</td><td>R$ {{ linha.valor_glosa|br_currency }}</td><td>R$ {{ linha.valor_liberado|br_currency }}</td><td>R$ {{ linha.valor_tratado|br_currency }}</td></tr>{% empty %}<tr><td colspan="11">Nenhum item glosado encontrado para o processo.</td></tr>{% endfor %}</tbody></table></div>
+      </div>{% endif %}
+    </article>{% empty %}<p class="empty-state">Nenhum processo com glosa encontrado.</p>{% endfor %}
+  </div>
 </section>
 {% endblock %}
