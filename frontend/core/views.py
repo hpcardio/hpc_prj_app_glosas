@@ -69,6 +69,9 @@ FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
 PROCESSOS_RECURSO_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/recursos-processos"
 PROCESSOS_RECURSO_TIMEOUT = 60
+PROCESSOS_RECURSO_CACHE_SECONDS = int(
+    getattr(settings, "RECURSOS_CACHE_SECONDS", 300)
+)
 ASSOCIACOES_REMESSAS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-remessas-ipm"
 )
@@ -5584,18 +5587,32 @@ def build_api_cache_key(namespace, path, params=None):
     return f"api:{namespace}:{digest}"
 
 
-def get_cached_api_payload(namespace, path, params=None, force_refresh=False):
+def get_cached_api_payload(
+    namespace,
+    path,
+    params=None,
+    force_refresh=False,
+    timeout=None,
+    cache_seconds=None,
+):
     cache_key = build_api_cache_key(namespace, path, params)
     if force_refresh:
         cache.delete(cache_key)
 
     payload = cache.get(cache_key)
     if payload is None:
-        payload = api_get(path, params)
+        if timeout is None:
+            payload = api_get(path, params)
+        else:
+            payload = api_get(path, params, timeout=timeout)
         cache.set(
             cache_key,
             payload,
-            getattr(settings, "APP_FILTER_CACHE_SECONDS", 45),
+            (
+                cache_seconds
+                if cache_seconds is not None
+                else getattr(settings, "APP_FILTER_CACHE_SECONDS", 45)
+            ),
         )
     return payload
 
@@ -6160,7 +6177,7 @@ def follow_up_glosas(request):
         response = api_get(
             FOLLOW_UP_GLOSAS_PATH,
             params=api_params,
-            timeout=30,
+            timeout=60,
         )
         cards_api = response.get("cards") or []
         if not detalhar_vinculo:
@@ -6850,10 +6867,8 @@ def recursos(request):
 
     filtros = {
         "processo_original": (request.GET.get("processo_original") or "").strip(),
-        "processo_recurso": (request.GET.get("processo_recurso") or "").strip(),
         "paciente": (request.GET.get("paciente") or "").strip(),
         "periodo": (request.GET.get("periodo") or "").strip(),
-        "situacao": (request.GET.get("situacao") or "").strip(),
     }
     page = as_positive_int(request.GET.get("page"), 1)
     limit = 10
@@ -6869,10 +6884,12 @@ def recursos(request):
                "quantidade_com_processo_recurso": 0,
                "quantidade_sem_processo_recurso": 0}
     try:
-        payload = api_get(
+        payload = get_cached_api_payload(
+            "recursos-processos",
             PROCESSOS_RECURSO_PATH,
             params=params,
             timeout=PROCESSOS_RECURSO_TIMEOUT,
+            cache_seconds=PROCESSOS_RECURSO_CACHE_SECONDS,
         )
     except ApiError as exc:
         messages.error(request, format_api_error(exc, "Recursos"))

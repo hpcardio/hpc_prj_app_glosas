@@ -1969,7 +1969,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(response.context['cards'][0]['pacientes'], [])
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
-            timeout=30,
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 0,
@@ -2085,7 +2085,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
-            timeout=30,
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 10,
@@ -2264,7 +2264,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
-            timeout=30,
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 10,
@@ -2491,7 +2491,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
-            timeout=30,
+            timeout=60,
             params={
                 'limit': 1,
                 'offset': 0,
@@ -2755,6 +2755,7 @@ class FollowUpGlosasTests(TestCase):
 
 class RecursosProcessosTests(TestCase):
     def setUp(self):
+        cache.clear()
         session = self.client.session
         session['api_access_token'] = 'token-seguro'
         session['api_user'] = {
@@ -2809,6 +2810,27 @@ class RecursosProcessosTests(TestCase):
                 'limit': 10,
                 'offset': 0,
             },
+            timeout=60,
+        )
+
+    @patch('core.views.api_get')
+    def test_limpar_reutiliza_listagem_recente(self, api_get):
+        api_get.return_value = {
+            'processos': [],
+            'total': 0,
+            'quantidade_com_processo_recurso': 0,
+            'quantidade_sem_processo_recurso': 0,
+        }
+
+        primeira = self.client.get('/recursos/')
+        segunda = self.client.get('/recursos/')
+
+        self.assertEqual(primeira.status_code, 200)
+        self.assertEqual(segunda.status_code, 200)
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/'
+            'recursos-processos',
+            params={'limit': 10, 'offset': 0},
             timeout=60,
         )
 
