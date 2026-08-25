@@ -6112,6 +6112,9 @@ def follow_up_glosas(request):
         "processo_recurso": (
             request.GET.get("processo_recurso") or ""
         ).strip(),
+        "numero_protocolo": (
+            request.GET.get("numero_protocolo") or ""
+        ).strip(),
         "convenio": (request.GET.get("convenio") or "").strip(),
         "paciente": (request.GET.get("paciente") or "").strip(),
         "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
@@ -6154,7 +6157,11 @@ def follow_up_glosas(request):
                     if value
                 }
             )
-        response = api_get(FOLLOW_UP_GLOSAS_PATH, params=api_params)
+        response = api_get(
+            FOLLOW_UP_GLOSAS_PATH,
+            params=api_params,
+            timeout=30,
+        )
         cards_api = response.get("cards") or []
         if not detalhar_vinculo:
             cards_api = [
