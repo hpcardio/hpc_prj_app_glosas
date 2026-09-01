@@ -1969,6 +1969,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(response.context['cards'][0]['pacientes'], [])
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 0,
@@ -2084,6 +2085,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 10,
@@ -2219,6 +2221,7 @@ class FollowUpGlosasTests(TestCase):
             {
                 'processo_original': 'CONC-12',
                 'processo_recurso': 'REC-71',
+                'numero_protocolo': '5028418',
                 'paciente': 'Maria',
                 'cd_remessa': '987',
                 'convenio': 'IPM',
@@ -2232,7 +2235,8 @@ class FollowUpGlosasTests(TestCase):
         pagination = response.context['pagination']
         query = (
             'processo_original=CONC-12&processo_recurso=REC-71&'
-            'convenio=IPM&paciente=Maria&cd_remessa=987&'
+            'numero_protocolo=5028418&convenio=IPM&paciente=Maria&'
+            'cd_remessa=987&'
             'cd_atendimento=789&tipo_atendimento=Interna%C3%A7%C3%A3o'
         )
         self.assertEqual(pagination['previous_url'], f'?{query}&page=1')
@@ -2241,6 +2245,10 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(
             response,
             '<option value="IPM" selected>IPM</option>',
+        )
+        self.assertContains(
+            response,
+            'name="numero_protocolo" value="5028418"',
         )
         self.assertContains(response, 'Página 2 de 3')
         escaped_query = query.replace('&', '&amp;')
@@ -2256,6 +2264,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 10,
                 'offset': 10,
@@ -2263,6 +2272,7 @@ class FollowUpGlosasTests(TestCase):
                 'agrupar_por_processo': 'true',
                 'processo_original': 'CONC-12',
                 'processo_recurso': 'REC-71',
+                'numero_protocolo': '5028418',
                 'paciente': 'Maria',
                 'cd_remessa': '987',
                 'convenio': 'IPM',
@@ -2481,6 +2491,7 @@ class FollowUpGlosasTests(TestCase):
         )
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
             params={
                 'limit': 1,
                 'offset': 0,
@@ -2741,9 +2752,37 @@ class FollowUpGlosasTests(TestCase):
         )
         self.assertNotContains(response, ':required="modal !== \'acatar\'"')
 
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_item_pendente_nao_aparece_como_recurso_salvo(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        item_context = response.context['cards'][0]['pacientes'][0][
+            'itens'
+        ][0]
+        self.assertFalse(item_context['registro_recusa'].get('id'))
+        self.assertContains(response, "registroRecusaId: ''")
+        self.assertNotContains(
+            response,
+            'class="btn-glosar btn-glosar--filled"',
+        )
+
 
 class RecursosProcessosTests(TestCase):
     def setUp(self):
+        cache.clear()
         session = self.client.session
         session['api_access_token'] = 'token-seguro'
         session['api_user'] = {
@@ -2798,6 +2837,27 @@ class RecursosProcessosTests(TestCase):
                 'limit': 10,
                 'offset': 0,
             },
+            timeout=60,
+        )
+
+    @patch('core.views.api_get')
+    def test_limpar_reutiliza_listagem_recente(self, api_get):
+        api_get.return_value = {
+            'processos': [],
+            'total': 0,
+            'quantidade_com_processo_recurso': 0,
+            'quantidade_sem_processo_recurso': 0,
+        }
+
+        primeira = self.client.get('/recursos/')
+        segunda = self.client.get('/recursos/')
+
+        self.assertEqual(primeira.status_code, 200)
+        self.assertEqual(segunda.status_code, 200)
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/'
+            'recursos-processos',
+            params={'limit': 10, 'offset': 0},
             timeout=60,
         )
 
