@@ -3287,11 +3287,21 @@ def prepare_follow_up_glosas_cards(cards):
                 )
                 registro_recusa = _prepare_registro_glosa(
                     item.get("registro_recusa")
-                    or (registro_original if status_original == "true" else {})
+                    or (
+                        registro_original
+                        if status_original == "true"
+                        and registro_original.get("dt_recurso")
+                        else {}
+                    )
                 )
                 registro_acato = _prepare_registro_glosa(
                     item.get("registro_acato")
-                    or (registro_original if status_original == "not" else {})
+                    or (
+                        registro_original
+                        if status_original == "not"
+                        and registro_original.get("dt_recurso")
+                        else {}
+                    )
                 )
                 registro["dt_pagamento_oculto"] = (
                     registro.get("dt_pagamento_input")
