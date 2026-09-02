@@ -2924,6 +2924,18 @@ class AssociacoesRemessasIpmTests(TestCase):
                             'valor_protocolado': '1000.00',
                             'valor_aprovado': '900.00',
                             'valor_glosado': '100.00',
+                            'registros_pendentes': [
+                                {
+                                    'id_registro': 'registro-1',
+                                    'data_realizacao': '2026-05-20',
+                                    'numero_guia_senha': '389690',
+                                    'codigo_beneficiario': '1106530000',
+                                    'codigo_servico': '90222377',
+                                    'codigo_glosa': '1714',
+                                    'valor_processado': '10.95',
+                                    'valor_glosa': '0.88',
+                                }
+                            ],
                             'associacoes': [],
                             'remessas': [
                                 {
@@ -2952,6 +2964,10 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, 'Associar')
         self.assertContains(response, '<small>NR</small>')
         self.assertContains(response, 'NR-100')
+        self.assertContains(response, 'Registros que compõem a diferença')
+        self.assertContains(response, '389690')
+        self.assertContains(response, '90222377')
+        self.assertContains(response, 'R$ 0,88')
         self.assertContains(response, 'Processos pendentes')
         self.assertContains(response, 'NRs pendentes')
         self.assertContains(response, 'Associações realizadas')

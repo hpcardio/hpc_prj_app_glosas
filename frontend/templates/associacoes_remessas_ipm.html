@@ -98,6 +98,27 @@
             {% if nr.associacoes %}<span class="association-status association-status--linked">Remessa associada</span>{% else %}<span class="association-status">Aguardando associação</span>{% endif %}
           </button>
           <div class="ipm-nr-body" x-show="openNr" x-cloak>
+          {% if nr.registros_pendentes %}
+          <section class="association-pending-records" aria-label="Registros que compõem a diferença do NR {{ nr.nr }}">
+            <div class="association-pending-records__header">
+              <div><strong>Registros que compõem a diferença</strong><small>{{ nr.registros_pendentes|length }} ocorrência{{ nr.registros_pendentes|length|pluralize }}</small></div>
+              <span>Total pendente: <strong>R$ {{ nr.valor_glosado|br_currency }}</strong></span>
+            </div>
+            <div class="association-pending-records__list">
+              {% for registro in nr.registros_pendentes %}
+              <div class="association-pending-record">
+                <span class="follow-up-glosa-card-field"><small>GUIA/SENHA</small><strong>{{ registro.numero_guia_senha|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>DATA REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>SERVIÇO</small><strong>{{ registro.codigo_servico|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>CÓD. GLOSA</small><strong>{{ registro.codigo_glosa|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROCESSADO</small><strong>R$ {{ registro.valor_processado|br_currency }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
+              </div>
+              {% endfor %}
+            </div>
+          </section>
+          {% endif %}
           {% if nr.remessas %}
           <div class="ipm-remittance-list">
           {% for remessa in nr.remessas %}

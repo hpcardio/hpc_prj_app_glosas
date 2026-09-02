@@ -6422,6 +6422,11 @@ def associacoes_remessas_ipm(request):
             processo["data_abertura_formatada"] = format_api_date(
                 processo.get("data_abertura")
             )
+            for nr in processo.get("nrs") or []:
+                for registro in nr.get("registros_pendentes") or []:
+                    registro["data_realizacao_formatada"] = format_api_date(
+                        registro.get("data_realizacao")
+                    )
     except ApiError as exc:
         consulta_indisponivel = is_service_unavailable_error(exc)
         if not consulta_indisponivel:
