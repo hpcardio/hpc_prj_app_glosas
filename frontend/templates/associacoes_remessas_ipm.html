@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load core_extras %}
 {% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
-{% block page_title %}Associações de Remessas{% endblock %}
+{% block page_title %}Associação Manual{% endblock %}
 {% block content %}
 
 <section class="panel filter-panel">
@@ -106,6 +106,7 @@
             <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ remessa.competencia }}</strong></span>
             <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ remessa.nm_convenio|default:"IPM" }}</strong></span>
             <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ remessa.valor_total|br_currency }}</strong></span>
+            {% if remessa.indicada_pelo_portal %}<span class="association-status association-status--linked">Indicada pelos portais</span>{% endif %}
             <div class="ipm-remittance-actions">
               {% if remessa.associacao_id %}
               <form method="post" class="association-edit-form">
