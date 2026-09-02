@@ -106,14 +106,39 @@
             </div>
             <div class="association-pending-records__list">
               {% for registro in nr.registros_pendentes %}
-              <div class="association-pending-record">
-                <span class="follow-up-glosa-card-field"><small>GUIA/SENHA</small><strong>{{ registro.numero_guia_senha|default:"-" }}</strong></span>
-                <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"-" }}</strong></span>
-                <span class="follow-up-glosa-card-field"><small>DATA REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"-" }}</strong></span>
-                <span class="follow-up-glosa-card-field"><small>SERVIÇO</small><strong>{{ registro.codigo_servico|default:"-" }}</strong></span>
-                <span class="follow-up-glosa-card-field"><small>CÓD. GLOSA</small><strong>{{ registro.codigo_glosa|default:"-" }}</strong></span>
-                <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROCESSADO</small><strong>R$ {{ registro.valor_processado|br_currency }}</strong></span>
-                <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
+              <div class="association-pending-record-wrap">
+                <div class="association-pending-record">
+                  <span class="follow-up-glosa-card-field"><small>GUIA/SENHA PORTAL</small><strong>{{ registro.numero_guia_senha|default:"-" }}</strong></span>
+                  <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"-" }}</strong></span>
+                  <span class="follow-up-glosa-card-field"><small>DATA REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"-" }}</strong></span>
+                  <span class="follow-up-glosa-card-field"><small>SERVIÇO PORTAL</small><strong>{{ registro.codigo_servico|default:"-" }}</strong></span>
+                  <span class="follow-up-glosa-card-field"><small>CÓD. GLOSA</small><strong>{{ registro.codigo_glosa|default:"-" }}</strong></span>
+                  <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROCESSADO</small><strong>R$ {{ registro.valor_processado|br_currency }}</strong></span>
+                  <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
+                </div>
+                {% if registro.correspondencias_oracle %}
+                <div class="association-oracle-evidence">
+                  <div class="association-oracle-evidence__title">
+                    <strong>Correspondência no Oracle</strong>
+                    {% if registro.correspondencia_unica %}<span class="association-status association-status--linked">Correspondência única</span>{% else %}<span class="association-status">Correspondência ambígua</span>{% endif %}
+                  </div>
+                  {% for item in registro.correspondencias_oracle %}
+                  <div class="association-oracle-evidence__row">
+                    <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ item.cd_remessa }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>PACIENTE</small><strong>{{ item.nm_paciente|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>ATENDIMENTO</small><strong>{{ item.cd_atendimento|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>CONTA / LANÇAMENTO</small><strong>{{ item.conta|default:"-" }} / {{ item.cd_lancamento|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>GUIA ORACLE</small><strong>{{ item.nr_guia|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>DATA ATENDIMENTO</small><strong>{{ item.dt_atendimento_formatada|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>PROCEDIMENTO / TUSS</small><strong>{{ item.cd_pro_fat|default:"-" }}{% if item.cd_tuss %} / {{ item.cd_tuss }}{% endif %}</strong></span>
+                    <span class="follow-up-glosa-card-field association-oracle-description"><small>DESCRIÇÃO</small><strong>{{ item.descricao|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR ORACLE</small><strong>R$ {{ item.valor_item|br_currency }}</strong></span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <div class="association-no-evidence">Nenhuma correspondência de item foi localizada no Oracle. Avalie as remessas manualmente.</div>
+                {% endif %}
               </div>
               {% endfor %}
             </div>

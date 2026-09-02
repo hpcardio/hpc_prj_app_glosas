@@ -4808,6 +4808,54 @@ body:not(.sidebar-collapsed) .indicator-grid {
   padding-top: 8px;
 }
 
+.association-pending-record-wrap {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #efd9b7;
+  padding-top: 8px;
+}
+
+.association-pending-record-wrap .association-pending-record {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.association-oracle-evidence {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #a9d2bb;
+  border-radius: 6px;
+  background: #f2faf6;
+  padding: 10px;
+}
+
+.association-oracle-evidence__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #24734f;
+}
+
+.association-oracle-evidence__row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.6fr) minmax(180px, 1.4fr) repeat(5, minmax(110px, 0.8fr)) minmax(200px, 1.5fr) minmax(110px, 0.8fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.association-oracle-description strong {
+  white-space: normal;
+}
+
+.association-no-evidence {
+  border-radius: 5px;
+  background: #f4f6f7;
+  color: var(--muted);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
 .ipm-remittance-card {
   display: grid;
   grid-template-columns: repeat(3, minmax(110px, 1fr)) minmax(130px, 1fr) minmax(190px, auto);
@@ -4864,7 +4912,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
   .ipm-process-header,
   .ipm-nr-header,
   .ipm-remittance-card,
-  .association-pending-record {
+  .association-pending-record,
+  .association-oracle-evidence__row {
     grid-template-columns: 18px repeat(2, minmax(150px, 1fr));
   }
 

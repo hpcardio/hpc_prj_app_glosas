@@ -2934,6 +2934,28 @@ class AssociacoesRemessasIpmTests(TestCase):
                                     'codigo_glosa': '1714',
                                     'valor_processado': '10.95',
                                     'valor_glosa': '0.88',
+                                    'correspondencia_unica': True,
+                                    'correspondencias_oracle': [
+                                        {
+                                            'cd_remessa': 16425,
+                                            'conta': 343332,
+                                            'cd_lancamento': 9,
+                                            'cd_atendimento': 279139,
+                                            'cd_paciente': 107036,
+                                            'nm_paciente': (
+                                                'PHABYANE FRANCA RIBEIRO'
+                                            ),
+                                            'nr_guia': '363150',
+                                            'cd_pro_fat': '90222377',
+                                            'cd_tuss': '',
+                                            'descricao': (
+                                                'CLORETO SODIO 0,9% '
+                                                'BOLS C/100ML'
+                                            ),
+                                            'dt_atendimento': '2025-12-21',
+                                            'valor_item': '10.95',
+                                        }
+                                    ],
                                 }
                             ],
                             'associacoes': [],
@@ -2968,6 +2990,11 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, '389690')
         self.assertContains(response, '90222377')
         self.assertContains(response, 'R$ 0,88')
+        self.assertContains(response, 'Correspondência no Oracle')
+        self.assertContains(response, 'Correspondência única')
+        self.assertContains(response, 'PHABYANE FRANCA RIBEIRO')
+        self.assertContains(response, '343332 / 9')
+        self.assertContains(response, '#16425')
         self.assertContains(response, 'Processos pendentes')
         self.assertContains(response, 'NRs pendentes')
         self.assertContains(response, 'Associações realizadas')
