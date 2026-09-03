@@ -3011,7 +3011,7 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, '>Colapsar todos</button>')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/associacoes-remessas-ipm',
-            params={'limit': 10, 'offset': 0},
+            params={'limit': 5, 'offset': 0},
         )
         css = Path(finders.find('css/app.css')).read_text()
         self.assertIn(
@@ -3036,8 +3036,8 @@ class AssociacoesRemessasIpmTests(TestCase):
     def test_pagina_processos_preservando_filtros(self, api_get):
         api_get.return_value = {
             'total': 21,
-            'limit': 10,
-            'offset': 10,
+            'limit': 5,
+            'offset': 5,
             'processos': [
                 {
                     'numero_processo': 'P456/2026',
@@ -3053,14 +3053,14 @@ class AssociacoesRemessasIpmTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '11-11 de 21 processos exibidos')
-        self.assertContains(response, 'Página 2 de 3')
+        self.assertContains(response, '6-6 de 21 processos exibidos')
+        self.assertContains(response, 'Página 2 de 5')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/associacoes-remessas-ipm',
             params={
                 'competencia': '06/2026',
-                'limit': 10,
-                'offset': 10,
+                'limit': 5,
+                'offset': 5,
             },
         )
 
