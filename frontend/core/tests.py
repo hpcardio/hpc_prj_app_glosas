@@ -2189,7 +2189,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-zoom-100',
+            '?v=20260903-associacao-manual-compacta',
             base_template.read_text(),
         )
 
@@ -3047,6 +3047,20 @@ class AssociacoesRemessasIpmTests(TestCase):
             '  padding-right: 0;\n'
             '  overflow-x: hidden;\n'
             '  overflow-y: visible;',
+            css,
+        )
+        self.assertIn(
+            '@media (min-width: 1201px) and (max-height: 1100px)',
+            css,
+        )
+        self.assertIn(
+            '.association-detail-panel .association-source-card {\n'
+            '    grid-template-columns: minmax(185px, 0.22fr) minmax(0, 1fr);',
+            css,
+        )
+        self.assertIn(
+            '.association-detail-panel .association-comparison__row {\n'
+            '    font-size: 11px;',
             css,
         )
 
