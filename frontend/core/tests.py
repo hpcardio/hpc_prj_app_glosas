@@ -2189,7 +2189,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-comparacao',
+            '?v=20260903-associacao-manual-fluxo',
             base_template.read_text(),
         )
 
@@ -2986,14 +2986,15 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertNotContains(response, 'Associações de Remessas IPM')
         self.assertContains(response, 'P123/2026')
         self.assertNotContains(response, '#16040')
-        self.assertContains(response, 'Associar item')
+        self.assertContains(response, 'Confirmar associação')
         self.assertContains(response, '<small>NR</small>')
         self.assertContains(response, 'NR-100')
-        self.assertContains(response, 'Registros que compõem a diferença')
+        self.assertContains(response, 'Associação de itens')
+        self.assertContains(response, 'Item pendente')
         self.assertContains(response, '389690')
         self.assertContains(response, '90222377')
         self.assertContains(response, 'R$ 0,88')
-        self.assertContains(response, 'Possíveis lançamentos de destino no Oracle')
+        self.assertContains(response, 'Escolha o lançamento Oracle')
         self.assertContains(response, 'PHABYANE FRANCA RIBEIRO')
         self.assertContains(response, '>343332</strong>')
         self.assertContains(response, '>9</strong>')
