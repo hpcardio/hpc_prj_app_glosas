@@ -6434,6 +6434,7 @@ def associacoes_remessas_ipm(request):
                 "limit": limit,
                 "offset": offset,
             },
+            timeout=120,
         )
         processos = payload.get("processos") or []
         total = as_int_or_zero(payload.get("total"))
