@@ -99,14 +99,30 @@
           </button>
           <div class="ipm-nr-body" x-show="openNr" x-cloak>
           {% if nr.registros_pendentes %}
-          <section class="association-pending-records" aria-label="Registros que compõem a diferença do NR {{ nr.nr }}">
+          <section class="association-pending-records" aria-label="Itens pendentes do NR {{ nr.nr }}" x-data="{ selectedRecord: '{{ nr.registros_pendentes.0.id_registro|escapejs }}' }">
             <div class="association-pending-records__header">
-              <div><strong>Registros que compõem a diferença</strong><small>{{ nr.registros_pendentes|length }} ocorrência{{ nr.registros_pendentes|length|pluralize }}</small></div>
+              <div><strong>Associação de itens</strong><small>Escolha um item pendente e confira o lançamento correspondente.</small></div>
               <span>Total pendente: <strong>R$ {{ nr.valor_glosado|br_currency }}</strong></span>
             </div>
-            <div class="association-pending-records__list">
+            <div class="association-workspace">
+              <aside class="association-source-list" aria-label="Itens do portal IPM pendentes de associação">
+                <div class="association-step-heading"><span>1</span><div><strong>Item pendente</strong><small>{{ nr.registros_pendentes|length }} item{{ nr.registros_pendentes|length|pluralize }}</small></div></div>
+                {% for registro in nr.registros_pendentes %}
+                <label class="association-source-option" :class="{ 'is-selected': selectedRecord === '{{ registro.id_registro|escapejs }}' }">
+                  <input type="radio" name="origem_{{ nr.nr }}" value="{{ registro.id_registro }}" x-model="selectedRecord">
+                  <span class="association-source-option__body">
+                    <span><small>PROCEDIMENTO</small><strong>{{ registro.codigo_servico|default:"Não informado" }}</strong></span>
+                    <span><small>GUIA / SENHA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
+                    <span><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"Não informado" }}</strong></span>
+                    <span class="association-source-option__value"><small>GLOSA</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
+                  </span>
+                  {% if registro.associacao %}<span class="association-status association-status--linked">Associado</span>{% endif %}
+                </label>
+                {% endfor %}
+              </aside>
+              <div class="association-detail-panel">
               {% for registro in nr.registros_pendentes %}
-              <div class="association-pending-record-wrap {% if registro.associacao %}association-pending-record-wrap--linked{% endif %}">
+              <div class="association-pending-record-wrap {% if registro.associacao %}association-pending-record-wrap--linked{% endif %}" x-show="selectedRecord === '{{ registro.id_registro|escapejs }}'" x-cloak>
                 <form method="post" class="association-item-form">
                   {% csrf_token %}
                   <input type="hidden" name="acao" value="{% if registro.associacao %}editar{% else %}associar{% endif %}">
@@ -115,12 +131,9 @@
                   <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
                   <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
                   <input type="hidden" name="page" value="{{ pagination.page }}">
+                  <input type="hidden" name="confirmar_origem" value="1">
                 <div class="association-source-card">
-                  <label class="association-source-select">
-                    <input type="checkbox" name="confirmar_origem" value="1" required {% if registro.associacao %}checked{% endif %} aria-label="Selecionar item glosado {{ registro.codigo_servico }}">
-                    <span><small>ITEM DE ORIGEM</small><strong>Glosa informada pelo portal IPM</strong></span>
-                    {% if registro.associacao %}<span class="association-status association-status--linked">Associado</span>{% else %}<span class="association-status">Selecione para associar</span>{% endif %}
-                  </label>
+                  <div class="association-step-heading"><span>2</span><div><strong>Confira os dados</strong><small>Item selecionado no portal IPM</small></div></div>
                   <div class="association-source-grid">
                     <span class="follow-up-glosa-card-field"><small>GUIA / SENHA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO / CARTEIRA</small><strong>{{ registro.codigo_beneficiario|default:"Não informado" }}</strong></span>
@@ -134,21 +147,21 @@
                 {% if registro.correspondencias_oracle %}
                 <div class="association-oracle-evidence">
                   <div class="association-oracle-evidence__title">
-                    <div><strong>Possíveis lançamentos de destino no Oracle</strong><small>Compare cada critério antes de selecionar o lançamento.</small></div>
+                    <div class="association-step-heading"><span>3</span><div><strong>Escolha o lançamento Oracle</strong><small>Use a comparação abaixo para decidir.</small></div></div>
                     <span>{{ registro.correspondencias_oracle|length }} candidato{{ registro.correspondencias_oracle|length|pluralize }}</span>
                   </div>
                   {% for item in registro.correspondencias_oracle %}
                   <label class="association-oracle-evidence__row association-candidate-item">
                     <span class="association-candidate-heading">
                       <input type="radio" name="alvo" value="{{ item.cd_remessa }}|{{ item.conta }}|{{ item.cd_lancamento }}" required {% if registro.associacao.cd_remessa == item.cd_remessa and registro.associacao.conta == item.conta and registro.associacao.cd_lancamento == item.cd_lancamento %}checked{% endif %}>
-                      <span><small>LANÇAMENTO DE DESTINO</small><strong>Selecionar remessa #{{ item.cd_remessa }}</strong></span>
+                      <span><small>REMESSA #{{ item.cd_remessa }}</small><strong>{{ item.nm_paciente|default:"Paciente não informado" }}</strong></span>
                       <span class="association-compatibility">{{ item.comparacoes_coincidentes }} de {{ item.comparacoes_total }} critérios coincidem</span>
                     </span>
                     <span class="association-candidate-context">
-                      <span class="follow-up-glosa-card-field"><small>PACIENTE</small><strong>{{ item.nm_paciente|default:"Não informado" }}</strong></span>
                       <span class="follow-up-glosa-card-field"><small>ATENDIMENTO</small><strong>{{ item.cd_atendimento|default:"Não informado" }}</strong></span>
                       <span class="follow-up-glosa-card-field"><small>CONTA</small><strong>{{ item.conta|default:"Não informado" }}</strong></span>
                       <span class="follow-up-glosa-card-field"><small>LANÇAMENTO</small><strong>{{ item.cd_lancamento|default:"Não informado" }}</strong></span>
+                      <span class="follow-up-glosa-card-field"><small>VALOR</small><strong>R$ {{ item.valor_item|br_currency }}</strong></span>
                     </span>
                     <span class="association-comparison" role="table" aria-label="Comparação entre portal IPM e Oracle">
                       <span class="association-comparison__header" role="row"><strong>CRITÉRIO</strong><strong>PORTAL IPM</strong><strong>ORACLE</strong><strong>RESULTADO</strong></span>
@@ -168,8 +181,8 @@
                   </label>
                   {% endfor %}
                   <div class="association-item-actions">
-                    <button class="btn btn-primary btn-sm">{% if registro.associacao %}Atualizar associação{% else %}Associar item{% endif %}</button>
-                    <span>Confirme o item de origem e selecione um único lançamento de destino. Depois de associado, o item passa a compor o Follow-Up.</span>
+                    <span>O item associado passará a compor o Follow-Up de Glosas.</span>
+                    <button class="btn btn-primary btn-sm">{% if registro.associacao %}Atualizar associação{% else %}Confirmar associação{% endif %}</button>
                   </div>
                 </div>
                 {% else %}
@@ -189,6 +202,7 @@
                 {% endif %}
               </div>
               {% endfor %}
+              </div>
             </div>
           </section>
           {% endif %}
