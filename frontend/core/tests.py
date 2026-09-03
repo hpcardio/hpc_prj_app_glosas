@@ -2189,7 +2189,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-fluxo',
+            '?v=20260903-associacao-manual-zoom-100',
             base_template.read_text(),
         )
 
@@ -3025,21 +3025,28 @@ class AssociacoesRemessasIpmTests(TestCase):
             timeout=120,
         )
         css = Path(finders.find('css/app.css')).read_text()
+        self.assertIn('content--natural-scroll', response.content.decode())
         self.assertIn(
-            '.ipm-association-page {\n'
+            '.content.content--natural-scroll {\n'
+            '  overflow-x: hidden;\n'
+            '  overflow-y: auto;',
+            css,
+        )
+        self.assertIn(
+            '.results-summary-panel.ipm-association-page {\n'
             '  display: flex;\n'
-            '  flex: 1 1 auto;',
+            '  flex: 0 0 auto;',
             css,
         )
         self.assertIn(
             '.ipm-association-list {\n'
-            '  flex: 1 1 0;\n'
-            '  min-height: 0;\n'
+            '  flex: 0 0 auto;\n'
+            '  min-height: auto;\n'
             '  align-content: start;\n'
             '  grid-auto-rows: max-content;\n'
-            '  padding-right: 4px;\n'
+            '  padding-right: 0;\n'
             '  overflow-x: hidden;\n'
-            '  overflow-y: auto;',
+            '  overflow-y: visible;',
             css,
         )
 
