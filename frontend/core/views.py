@@ -6316,8 +6316,18 @@ def follow_up_glosas(request):
     detalhar_vinculo = as_int_or_zero(
         request.GET.get("detalhar_vinculo")
     )
+    detalhar_processo = (
+        request.GET.get("detalhar_processo") or ""
+    ).strip()
+    detalhar_remessa = as_int_or_zero(
+        request.GET.get("detalhar_remessa")
+    )
+    detalhar_card = bool(
+        detalhar_vinculo
+        or (detalhar_processo and detalhar_remessa)
+    )
     page = as_positive_int(request.GET.get("page"), 1)
-    limit = 1 if detalhar_vinculo else 10
+    limit = 1 if detalhar_card else 10
     offset = (page - 1) * limit
     cards = []
     total = 0
@@ -6332,10 +6342,16 @@ def follow_up_glosas(request):
         api_params = {
             "limit": limit,
             "offset": offset,
-            "incluir_detalhes": "true" if detalhar_vinculo else "false",
+            "incluir_detalhes": "true" if detalhar_card else "false",
         }
         if detalhar_vinculo:
             api_params["conciliacao_remessa_id"] = detalhar_vinculo
+        elif detalhar_card:
+            api_params.update({
+                "agrupar_por_processo": "true",
+                "processo_original": detalhar_processo,
+                "cd_remessa": detalhar_remessa,
+            })
         else:
             api_params["agrupar_por_processo"] = "true"
             api_params.update(
@@ -6351,7 +6367,7 @@ def follow_up_glosas(request):
             timeout=60,
         )
         cards_api = response.get("cards") or []
-        if not detalhar_vinculo:
+        if not detalhar_card:
             cards_api = [
                 {
                     **card,
@@ -6366,8 +6382,7 @@ def follow_up_glosas(request):
         cards = prepare_follow_up_glosas_cards(cards_api)
         for card in cards:
             card["detalhes_carregados"] = (
-                bool(detalhar_vinculo)
-                or not card.get("conciliacao_remessa_id")
+                detalhar_card or bool(card.get("pacientes"))
             )
         total = as_int_or_zero(response.get("total"))
         limit = as_positive_int(response.get("limit"), limit)

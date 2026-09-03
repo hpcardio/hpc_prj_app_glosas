@@ -1995,7 +1995,13 @@ class FollowUpGlosasTests(TestCase):
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
 
-        response = self.client.get('/follow-up-glosas/')
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {
+                'detalhar_processo': 'P249767/2026',
+                'detalhar_remessa': '987',
+            },
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'P249767/2026')
@@ -2015,6 +2021,47 @@ class FollowUpGlosasTests(TestCase):
             'cogestao-987',
         )
         self.assertTrue(
+            response.context['cards'][0]['detalhes_carregados']
+        )
+        api_get.assert_called_once_with(
+            '/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes',
+            timeout=60,
+            params={
+                'limit': 1,
+                'offset': 0,
+                'incluir_detalhes': 'true',
+                'agrupar_por_processo': 'true',
+                'processo_original': 'P249767/2026',
+                'cd_remessa': 987,
+            },
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_card_cogestao_carrega_detalhes_por_processo_e_remessa(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['processo']['numero_processo'] = 'P058752/2026'
+        card['cd_remessa'] = 16425
+        card['pacientes'] = []
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get('/follow-up-glosas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'hx-get="/follow-up-glosas/?detalhar_processo='
+            'P058752/2026&amp;detalhar_remessa=16425"',
+        )
+        self.assertContains(response, 'Carregando detalhamento da remessa...')
+        self.assertFalse(
             response.context['cards'][0]['detalhes_carregados']
         )
 

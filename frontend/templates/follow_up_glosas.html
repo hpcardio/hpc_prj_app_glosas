@@ -215,6 +215,12 @@
                 hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-swap="outerHTML"
+                {% elif not card.detalhes_carregados %}
+                hx-get="{% url 'follow_up_glosas' %}?detalhar_processo={{ processo_card.processo.numero_processo|urlencode }}&amp;detalhar_remessa={{ card.cd_remessa }}"
+                hx-trigger="follow-up-load once"
+                hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
+                hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
+                hx-swap="outerHTML"
                 {% endif %}
               >
                 <span class="follow-up-glosa-chevron" :class="{ 'is-open': remessaOpen }">&#9654;</span>
