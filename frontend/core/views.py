@@ -78,6 +78,30 @@ ASSOCIACOES_REMESSAS_IPM_PATH = (
 ASSOCIACOES_ITENS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-itens-ipm"
 )
+ASSOCIACAO_ITEM_CRITERIOS = {
+    "competencia_guia_servico_carteira": (
+        "Competência, guia/senha, procedimento e carteira"
+    ),
+    "atendimento_guia_servico_carteira_valor": (
+        "Atendimento, guia/senha, procedimento, carteira e valor"
+    ),
+    "lancamento_dia_coalesce_servico_carteira": (
+        "Data do lançamento, procedimento e carteira"
+    ),
+    "competencia_servico_carteira": (
+        "Competência, procedimento e carteira"
+    ),
+    "competencia_tuss_carteira": "Competência, TUSS e carteira",
+    "lancamento_coalesce_servico_carteira": (
+        "Competência do lançamento, procedimento e carteira"
+    ),
+    "atendimento_guia_coalesce_servico_valor": (
+        "Atendimento, guia/senha, procedimento e valor"
+    ),
+    "lancamento_pro_fat_carteira_valor": (
+        "Competência do lançamento, procedimento, carteira e valor"
+    ),
+}
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
 REQUISICOES_NOTA_PATH = "/app_glosas/requisicoes"
@@ -3055,6 +3079,140 @@ def normalize_glosa_match_text(value):
     if text in {"-", "None", "none", "NULL", "null"}:
         return ""
     return text
+
+
+def _normalize_association_code(value):
+    normalized = "".join(
+        character
+        for character in normalize_glosa_match_text(value).upper()
+        if character.isalnum()
+    )
+    return normalized.lstrip("0") or normalized
+
+
+def _normalize_association_date(value):
+    if isinstance(value, (date, datetime)):
+        return value.strftime("%Y-%m-%d")
+    return normalize_glosa_match_text(value)[:10]
+
+
+def _normalize_association_money(value):
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _association_comparison(
+    label, portal_value, oracle_value, portal_raw, oracle_raw_values,
+    normalizer,
+):
+    portal_normalized = normalizer(portal_raw)
+    oracle_normalized = {
+        normalized
+        for raw_value in oracle_raw_values
+        if (normalized := normalizer(raw_value)) not in (None, "")
+    }
+    if portal_normalized in (None, "") or not oracle_normalized:
+        status = "missing"
+        status_label = "Não informado"
+    elif portal_normalized in oracle_normalized:
+        status = "match"
+        status_label = "Coincide"
+    else:
+        status = "different"
+        status_label = "Diverge"
+    return {
+        "label": label,
+        "portal": portal_value or "Não informado",
+        "oracle": oracle_value or "Não informado",
+        "status": status,
+        "status_label": status_label,
+    }
+
+
+def build_association_item_comparison(registro, item):
+    guia_oracle = " · ".join(
+        value
+        for value in (
+            f"Guia {item.get('nr_guia')}" if item.get("nr_guia") else "",
+            f"Senha {item.get('cd_senha')}" if item.get("cd_senha") else "",
+        )
+        if value
+    )
+    datas_oracle = " · ".join(
+        value
+        for value in (
+            (
+                f"Atendimento {item.get('dt_atendimento_formatada')}"
+                if item.get("dt_atendimento_formatada")
+                else ""
+            ),
+            (
+                f"Lançamento {item.get('dt_lancamento_formatada')}"
+                if item.get("dt_lancamento_formatada")
+                else ""
+            ),
+        )
+        if value
+    )
+    procedimento_oracle = " / ".join(
+        str(value)
+        for value in (item.get("cd_pro_fat"), item.get("cd_tuss"))
+        if normalize_glosa_match_text(value)
+    )
+    comparacoes = [
+        _association_comparison(
+            "Guia / senha",
+            registro.get("numero_guia_senha"),
+            guia_oracle,
+            registro.get("numero_guia_senha"),
+            (item.get("nr_guia"), item.get("cd_senha")),
+            _normalize_association_code,
+        ),
+        _association_comparison(
+            "Beneficiário / carteira",
+            registro.get("codigo_beneficiario"),
+            item.get("nr_carteira"),
+            registro.get("codigo_beneficiario"),
+            (item.get("nr_carteira"),),
+            _normalize_association_code,
+        ),
+        _association_comparison(
+            "Data",
+            registro.get("data_realizacao_formatada"),
+            datas_oracle,
+            registro.get("data_realizacao"),
+            (item.get("dt_atendimento"), item.get("dt_lancamento")),
+            _normalize_association_date,
+        ),
+        _association_comparison(
+            "Procedimento / TUSS",
+            registro.get("codigo_servico"),
+            procedimento_oracle,
+            registro.get("codigo_servico"),
+            (item.get("cd_pro_fat"), item.get("cd_tuss")),
+            _normalize_association_code,
+        ),
+        _association_comparison(
+            "Valor processado",
+            format_brl_input(registro.get("valor_processado")),
+            format_brl_input(item.get("valor_item")),
+            registro.get("valor_processado"),
+            (item.get("valor_item"),),
+            _normalize_association_money,
+        ),
+    ]
+    item["comparacoes"] = comparacoes
+    item["comparacoes_coincidentes"] = sum(
+        comparison["status"] == "match" for comparison in comparacoes
+    )
+    item["comparacoes_total"] = len(comparacoes)
+    item["criterio_busca"] = ASSOCIACAO_ITEM_CRITERIOS.get(
+        item.get("criterio_correspondencia"),
+        "Combinação segura de dados assistenciais e financeiros",
+    )
+    return item
 
 
 def _glosa_match_key(item):
@@ -6462,6 +6620,9 @@ def associacoes_remessas_ipm(request):
                             format_api_date(
                                 correspondencia.get("dt_lancamento")
                             )
+                        )
+                        build_association_item_comparison(
+                            registro, correspondencia
                         )
     except ApiError as exc:
         consulta_indisponivel = is_service_unavailable_error(exc)

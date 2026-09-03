@@ -2189,7 +2189,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-itens',
+            '?v=20260903-associacao-manual-comparacao',
             base_template.read_text(),
         )
 
@@ -2993,11 +2993,20 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, '389690')
         self.assertContains(response, '90222377')
         self.assertContains(response, 'R$ 0,88')
-        self.assertContains(response, 'Possíveis itens no Oracle')
+        self.assertContains(response, 'Possíveis lançamentos de destino no Oracle')
         self.assertContains(response, 'PHABYANE FRANCA RIBEIRO')
-        self.assertContains(response, '343332 / 9')
+        self.assertContains(response, '>343332</strong>')
+        self.assertContains(response, '>9</strong>')
         self.assertContains(response, '#16425')
-        self.assertContains(response, '389690 / 1106530000')
+        self.assertContains(response, 'Comparação entre portal IPM e Oracle')
+        self.assertContains(response, 'Beneficiário / carteira')
+        self.assertContains(response, '4 de 5 critérios coincidem')
+        self.assertContains(response, 'Coincide', count=4)
+        self.assertContains(response, 'Diverge', count=1)
+        self.assertContains(
+            response,
+            'Combinação segura de dados assistenciais e financeiros',
+        )
         self.assertContains(response, 'name="confirmar_origem"')
         self.assertContains(
             response,
