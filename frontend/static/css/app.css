@@ -5397,6 +5397,63 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 }
 
+@media (min-width: 1201px) and (max-height: 1100px) {
+  .association-detail-panel .association-source-card {
+    grid-template-columns: minmax(185px, 0.22fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .association-detail-panel .association-source-grid {
+    border-top: 0;
+    border-left: 1px solid #efdbbb;
+    padding-top: 0;
+    padding-left: 10px;
+  }
+
+  .association-detail-panel .association-oracle-evidence__row.association-candidate-item {
+    grid-template-columns: minmax(270px, 0.75fr) minmax(0, 1.5fr);
+    gap: 8px 12px;
+    padding: 9px;
+  }
+
+  .association-detail-panel .association-candidate-context {
+    grid-template-columns: repeat(4, minmax(100px, 1fr));
+    border-top: 0;
+    border-left: 1px solid #d9e9df;
+    padding-top: 0;
+    padding-left: 12px;
+  }
+
+  .association-detail-panel .association-comparison,
+  .association-detail-panel .association-candidate-details {
+    grid-column: 1 / -1;
+  }
+
+  .association-detail-panel .association-comparison__header,
+  .association-detail-panel .association-comparison__row {
+    min-height: 27px;
+    gap: 8px;
+    padding: 4px 8px;
+  }
+
+  .association-detail-panel .association-comparison__row {
+    font-size: 11px;
+  }
+
+  .association-detail-panel .association-comparison__status {
+    padding: 2px 6px;
+  }
+
+  .association-detail-panel .association-candidate-details {
+    padding-top: 7px;
+  }
+
+  .association-detail-panel .association-item-actions {
+    padding-top: 7px;
+  }
+}
+
 @media (max-width: 1200px) {
   .ipm-process-header,
   .ipm-nr-header,
