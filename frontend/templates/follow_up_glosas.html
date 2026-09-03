@@ -453,7 +453,17 @@
             </template>
           </section>
           {% empty %}
-            <p class="empty-state">Ainda não há detalhamento no portal SPU Virtual do IPM.</p>
+            {% if card.conciliacao_remessa_id %}
+            <p class="empty-state">Não foram encontrados itens vinculados para esta remessa.</p>
+            {% else %}
+            <div class="empty-state">
+              <p>Os dados do portal IPM ainda não estão vinculados a lançamentos do MV.</p>
+              <a
+                class="btn btn-outline-primary"
+                href="{% url 'associacoes_remessas_ipm' %}?numero_processo={{ processo_card.processo.numero_processo|urlencode }}"
+              >Abrir Associação Manual</a>
+            </div>
+            {% endif %}
           {% endfor %}
           {% else %}
             <p class="follow-up-glosa-loading" role="status">Carregando detalhamento da remessa...</p>

@@ -2001,7 +2001,13 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'P249767/2026')
         self.assertContains(
             response,
-            'Ainda não há detalhamento no portal SPU Virtual do IPM.',
+            'Os dados do portal IPM ainda não estão vinculados '
+            'a lançamentos do MV.',
+        )
+        self.assertContains(response, 'Abrir Associação Manual')
+        self.assertContains(
+            response,
+            '/associacoes-remessas-ipm/?numero_processo=P249767/2026',
         )
         self.assertNotContains(response, 'detalhar_vinculo=')
         self.assertEqual(
@@ -2042,7 +2048,8 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'Maria da Silva')
         self.assertNotContains(
             response,
-            'Ainda não há detalhamento no portal SPU Virtual do IPM.',
+            'Os dados do portal IPM ainda não estão vinculados '
+            'a lançamentos do MV.',
         )
         self.assertContains(response, '>+RECUSAR</button>')
         self.assertContains(response, '>+ACATO</button>')
