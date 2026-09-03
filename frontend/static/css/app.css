@@ -4690,24 +4690,28 @@ body:not(.sidebar-collapsed) .indicator-grid {
   grid-template-columns: minmax(180px, 0.4fr) minmax(280px, 1fr) auto;
 }
 
-.ipm-association-page {
+.content.content--natural-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.results-summary-panel.ipm-association-page {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
+  min-height: auto;
+  overflow: visible;
 }
 
 .ipm-association-list {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: auto;
   align-content: start;
   grid-auto-rows: max-content;
-  padding-right: 4px;
+  padding-right: 0;
   overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow-y: visible;
 }
 
 .ipm-association-page > .pagination-footer {
@@ -5320,6 +5324,77 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: var(--muted);
   padding: 14px;
   text-align: center;
+}
+
+@media (max-height: 1100px) {
+  .content--natural-scroll {
+    gap: 8px;
+    padding-block: 8px;
+  }
+
+  .content--natural-scroll .topbar {
+    min-height: 46px;
+  }
+
+  .content--natural-scroll .topbar h1 {
+    font-size: 22px;
+  }
+
+  .content--natural-scroll .filter-panel {
+    padding-block: 8px;
+  }
+
+  .ipm-association-page .panel-header {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .ipm-association-page .results-toolbar {
+    padding: 6px;
+  }
+
+  .ipm-association-page .result-total {
+    min-height: 42px;
+  }
+
+  .ipm-process-header {
+    padding-block: 10px;
+  }
+
+  .ipm-process-body,
+  .ipm-nr-body {
+    padding: 8px;
+  }
+
+  .ipm-nr-header {
+    padding-block: 8px;
+  }
+
+  .association-pending-records {
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .association-source-list,
+  .association-detail-panel {
+    padding: 10px;
+  }
+
+  .association-detail-panel .association-source-card {
+    padding-bottom: 10px;
+  }
+
+  .association-source-grid,
+  .association-candidate-context,
+  .association-candidate-details {
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .association-comparison__header,
+  .association-comparison__row {
+    padding-block: 6px;
+  }
 }
 
 @media (max-width: 1200px) {
