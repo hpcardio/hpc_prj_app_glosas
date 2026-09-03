@@ -2189,7 +2189,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260824-spu-recaptcha',
+            '?v=20260903-associacao-manual-itens',
             base_template.read_text(),
         )
 
@@ -2897,7 +2897,7 @@ class AssociacoesRemessasIpmTests(TestCase):
         session.save()
 
     @patch('core.views.api_get')
-    def test_renderiza_processo_e_remessas_oracle(self, api_get):
+    def test_renderiza_selecao_de_glosa_e_item_oracle(self, api_get):
         api_get.return_value = {
             'total': 1,
             'limit': 10,
@@ -2924,6 +2924,7 @@ class AssociacoesRemessasIpmTests(TestCase):
                             'valor_protocolado': '1000.00',
                             'valor_aprovado': '900.00',
                             'valor_glosado': '100.00',
+                            'associacoes_itens': 0,
                             'registros_pendentes': [
                                 {
                                     'id_registro': 'registro-1',
@@ -2946,6 +2947,8 @@ class AssociacoesRemessasIpmTests(TestCase):
                                                 'PHABYANE FRANCA RIBEIRO'
                                             ),
                                             'nr_guia': '363150',
+                                            'cd_senha': '389690',
+                                            'nr_carteira': '1106530000',
                                             'cd_pro_fat': '90222377',
                                             'cd_tuss': '',
                                             'descricao': (
@@ -2953,6 +2956,7 @@ class AssociacoesRemessasIpmTests(TestCase):
                                                 'BOLS C/100ML'
                                             ),
                                             'dt_atendimento': '2025-12-21',
+                                            'dt_lancamento': '2025-12-21',
                                             'valor_item': '10.95',
                                         }
                                     ],
@@ -2981,20 +2985,24 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, '<h1>Associação Manual</h1>')
         self.assertNotContains(response, 'Associações de Remessas IPM')
         self.assertContains(response, 'P123/2026')
-        self.assertContains(response, '#16040')
-        self.assertContains(response, 'Indicada pelos portais')
-        self.assertContains(response, 'Associar')
+        self.assertNotContains(response, '#16040')
+        self.assertContains(response, 'Associar item')
         self.assertContains(response, '<small>NR</small>')
         self.assertContains(response, 'NR-100')
         self.assertContains(response, 'Registros que compõem a diferença')
         self.assertContains(response, '389690')
         self.assertContains(response, '90222377')
         self.assertContains(response, 'R$ 0,88')
-        self.assertContains(response, 'Correspondência no Oracle')
-        self.assertContains(response, 'Correspondência única')
+        self.assertContains(response, 'Possíveis itens no Oracle')
         self.assertContains(response, 'PHABYANE FRANCA RIBEIRO')
         self.assertContains(response, '343332 / 9')
         self.assertContains(response, '#16425')
+        self.assertContains(response, '389690 / 1106530000')
+        self.assertContains(response, 'name="confirmar_origem"')
+        self.assertContains(
+            response,
+            'name="alvo" value="16425|343332|9"',
+        )
         self.assertContains(response, 'Processos pendentes')
         self.assertContains(response, 'NRs pendentes')
         self.assertContains(response, 'Associações realizadas')
@@ -3057,26 +3065,25 @@ class AssociacoesRemessasIpmTests(TestCase):
         )
 
     @patch('core.views.api_post')
-    def test_associa_remessa_ao_processo(self, api_post):
+    def test_associa_item_glosado_ao_lancamento_oracle(self, api_post):
         response = self.client.post(
             '/associacoes-remessas-ipm/',
             {
                 'acao': 'associar',
-                'numero_processo': 'P123/2026',
-                'competencia_producao': '05/2026',
-                'nr': 'NR-100',
-                'cd_remessa': '16040',
+                'glosa_id_registro': 'registro-1',
+                'alvo': '16425|343332|9',
+                'confirmar_origem': '1',
             },
         )
 
         self.assertEqual(response.status_code, 302)
         api_post.assert_called_once_with(
-            '/app_glosas/financeiro/associacoes-remessas-ipm',
+            '/app_glosas/financeiro/associacoes-itens-ipm',
             {
-                'numero_processo': 'P123/2026',
-                'competencia_producao': '05/2026',
-                'nr': 'NR-100',
-                'cd_remessa': 16040,
+                'glosa_id_registro': 'registro-1',
+                'cd_remessa': 16425,
+                'conta': 343332,
+                'cd_lancamento': 9,
             },
         )
 
@@ -3087,14 +3094,19 @@ class AssociacoesRemessasIpmTests(TestCase):
             {
                 'acao': 'editar',
                 'associacao_id': '9',
-                'cd_remessa': '16041',
+                'glosa_id_registro': 'registro-1',
+                'alvo': '16426|343333|10',
             },
         )
 
         self.assertEqual(response.status_code, 302)
         api_put.assert_called_once_with(
-            '/app_glosas/financeiro/associacoes-remessas-ipm/9',
-            {'cd_remessa': 16041},
+            '/app_glosas/financeiro/associacoes-itens-ipm/9',
+            {
+                'cd_remessa': 16426,
+                'conta': 343333,
+                'cd_lancamento': 10,
+            },
         )
 
     @patch('core.views.api_delete')
@@ -3106,7 +3118,7 @@ class AssociacoesRemessasIpmTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         api_delete.assert_called_once_with(
-            '/app_glosas/financeiro/associacoes-remessas-ipm/9'
+            '/app_glosas/financeiro/associacoes-itens-ipm/9'
         )
 
 

@@ -95,7 +95,7 @@
             <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROTOCOLADO</small><strong>R$ {{ nr.valor_protocolado|br_currency }}</strong></span>
             <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>APROVADO</small><strong>R$ {{ nr.valor_aprovado|br_currency }}</strong></span>
             <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ nr.valor_glosado|br_currency }}</strong></span>
-            {% if nr.associacoes %}<span class="association-status association-status--linked">Remessa associada</span>{% else %}<span class="association-status">Aguardando associação</span>{% endif %}
+            {% if nr.associacoes_itens %}<span class="association-status association-status--linked">{{ nr.associacoes_itens }} item(ns) associado(s)</span>{% else %}<span class="association-status">Aguardando associação</span>{% endif %}
           </button>
           <div class="ipm-nr-body" x-show="openNr" x-cloak>
           {% if nr.registros_pendentes %}
@@ -106,8 +106,17 @@
             </div>
             <div class="association-pending-records__list">
               {% for registro in nr.registros_pendentes %}
-              <div class="association-pending-record-wrap">
-                <div class="association-pending-record">
+              <div class="association-pending-record-wrap {% if registro.associacao %}association-pending-record-wrap--linked{% endif %}">
+                <form method="post" class="association-item-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao" value="{% if registro.associacao %}editar{% else %}associar{% endif %}">
+                  <input type="hidden" name="associacao_id" value="{{ registro.associacao.id|default:'' }}">
+                  <input type="hidden" name="glosa_id_registro" value="{{ registro.id_registro }}">
+                  <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
+                  <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                  <input type="hidden" name="page" value="{{ pagination.page }}">
+                <label class="association-pending-record">
+                  <input type="checkbox" name="confirmar_origem" value="1" required {% if registro.associacao %}checked{% endif %} aria-label="Selecionar item glosado {{ registro.codigo_servico }}">
                   <span class="follow-up-glosa-card-field"><small>GUIA/SENHA PORTAL</small><strong>{{ registro.numero_guia_senha|default:"-" }}</strong></span>
                   <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"-" }}</strong></span>
                   <span class="follow-up-glosa-card-field"><small>DATA REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"-" }}</strong></span>
@@ -115,89 +124,53 @@
                   <span class="follow-up-glosa-card-field"><small>CÓD. GLOSA</small><strong>{{ registro.codigo_glosa|default:"-" }}</strong></span>
                   <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROCESSADO</small><strong>R$ {{ registro.valor_processado|br_currency }}</strong></span>
                   <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
-                </div>
+                  {% if registro.associacao %}<span class="association-status association-status--linked">Associado</span>{% endif %}
+                </label>
                 {% if registro.correspondencias_oracle %}
                 <div class="association-oracle-evidence">
                   <div class="association-oracle-evidence__title">
-                    <strong>Correspondência no Oracle</strong>
-                    {% if registro.correspondencia_unica %}<span class="association-status association-status--linked">Correspondência única</span>{% else %}<span class="association-status">Correspondência ambígua</span>{% endif %}
+                    <strong>Possíveis itens no Oracle</strong>
+                    <small>Selecione o lançamento correspondente pela guia, procedimento e beneficiário/carteira.</small>
                   </div>
                   {% for item in registro.correspondencias_oracle %}
-                  <div class="association-oracle-evidence__row">
+                  <label class="association-oracle-evidence__row association-candidate-item">
+                    <input type="radio" name="alvo" value="{{ item.cd_remessa }}|{{ item.conta }}|{{ item.cd_lancamento }}" required {% if registro.associacao.cd_remessa == item.cd_remessa and registro.associacao.conta == item.conta and registro.associacao.cd_lancamento == item.cd_lancamento %}checked{% endif %}>
                     <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ item.cd_remessa }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>PACIENTE</small><strong>{{ item.nm_paciente|default:"-" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>ATENDIMENTO</small><strong>{{ item.cd_atendimento|default:"-" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>CONTA / LANÇAMENTO</small><strong>{{ item.conta|default:"-" }} / {{ item.cd_lancamento|default:"-" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>GUIA ORACLE</small><strong>{{ item.nr_guia|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>DATA ATENDIMENTO</small><strong>{{ item.dt_atendimento_formatada|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>SENHA / CARTEIRA</small><strong>{{ item.cd_senha|default:"-" }} / {{ item.nr_carteira|default:"-" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>DATA ATEND. / LANÇ.</small><strong>{{ item.dt_atendimento_formatada|default:"-" }} / {{ item.dt_lancamento_formatada|default:"-" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>PROCEDIMENTO / TUSS</small><strong>{{ item.cd_pro_fat|default:"-" }}{% if item.cd_tuss %} / {{ item.cd_tuss }}{% endif %}</strong></span>
                     <span class="follow-up-glosa-card-field association-oracle-description"><small>DESCRIÇÃO</small><strong>{{ item.descricao|default:"-" }}</strong></span>
                     <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR ORACLE</small><strong>R$ {{ item.valor_item|br_currency }}</strong></span>
-                  </div>
+                  </label>
                   {% endfor %}
+                  <div class="association-item-actions">
+                    <button class="btn btn-primary btn-sm">{% if registro.associacao %}Atualizar associação{% else %}Associar item{% endif %}</button>
+                    <span>Depois de associado, o item passa a compor o Follow-Up de Glosas.</span>
+                  </div>
                 </div>
                 {% else %}
-                <div class="association-no-evidence">Nenhuma correspondência de item foi localizada no Oracle. Avalie as remessas manualmente.</div>
+                <div class="association-no-evidence">Nenhum lançamento Oracle disponível corresponde simultaneamente aos dados de guia, procedimento e beneficiário/carteira.</div>
+                {% endif %}
+                </form>
+                {% if registro.associacao %}
+                <form method="post" class="association-delete-form" onsubmit="return confirm('Excluir a associação deste item? Ele deixará de constar no Follow-Up.')">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao" value="excluir">
+                  <input type="hidden" name="associacao_id" value="{{ registro.associacao.id }}">
+                  <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
+                  <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
+                  <input type="hidden" name="page" value="{{ pagination.page }}">
+                  <button class="btn btn-outline-danger btn-sm">Excluir associação</button>
+                </form>
                 {% endif %}
               </div>
               {% endfor %}
             </div>
           </section>
-          {% endif %}
-          {% if nr.remessas %}
-          <div class="ipm-remittance-list">
-          {% for remessa in nr.remessas %}
-          <div class="ipm-remittance-card {% if remessa.associacao_id %}ipm-remittance-card--selected{% endif %}">
-            <span class="follow-up-glosa-card-field"><small>REMESSA ORACLE</small><strong>#{{ remessa.cd_remessa }}</strong></span>
-            <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ remessa.competencia }}</strong></span>
-            <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ remessa.nm_convenio|default:"IPM" }}</strong></span>
-            <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ remessa.valor_total|br_currency }}</strong></span>
-            {% if remessa.indicada_pelo_portal %}<span class="association-status association-status--linked">Indicada pelos portais</span>{% endif %}
-            <div class="ipm-remittance-actions">
-              {% if remessa.associacao_id %}
-              <form method="post" class="association-edit-form">
-                {% csrf_token %}
-                <input type="hidden" name="acao" value="editar">
-                <input type="hidden" name="associacao_id" value="{{ remessa.associacao_id }}">
-                <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
-                <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
-                <input type="hidden" name="page" value="{{ pagination.page }}">
-                <select name="cd_remessa" class="form-select form-select-sm" aria-label="Alterar remessa associada">
-                  {% for opcao in nr.remessas %}
-                  <option value="{{ opcao.cd_remessa }}" {% if opcao.cd_remessa == remessa.cd_remessa %}selected{% endif %}>#{{ opcao.cd_remessa }} · R$ {{ opcao.valor_total|br_currency }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-outline-secondary btn-sm">Editar</button>
-              </form>
-              <form method="post" onsubmit="return confirm('Excluir esta associação manual?')">
-                {% csrf_token %}
-                <input type="hidden" name="acao" value="excluir">
-                <input type="hidden" name="associacao_id" value="{{ remessa.associacao_id }}">
-                <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
-                <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
-                <input type="hidden" name="page" value="{{ pagination.page }}">
-                <button class="btn btn-outline-danger btn-sm">Excluir</button>
-              </form>
-              {% else %}
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="acao" value="associar">
-                <input type="hidden" name="numero_processo" value="{{ processo.numero_processo }}">
-                <input type="hidden" name="competencia_producao" value="{{ processo.competencia_producao }}">
-                <input type="hidden" name="nr" value="{{ nr.nr }}">
-                <input type="hidden" name="cd_remessa" value="{{ remessa.cd_remessa }}">
-                <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
-                <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
-                <input type="hidden" name="page" value="{{ pagination.page }}">
-                <button class="btn btn-primary btn-sm">Associar</button>
-              </form>
-              {% endif %}
-            </div>
-          </div>
-          {% endfor %}
-          </div>
-          {% else %}
-          <div class="association-no-remittance">Nenhuma remessa Oracle livre foi encontrada para {{ processo.competencia_producao }} e o convênio {{ processo.convenio }}.</div>
           {% endif %}
           </div>
         </article>
