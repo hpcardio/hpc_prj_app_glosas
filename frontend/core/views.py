@@ -75,6 +75,9 @@ PROCESSOS_RECURSO_CACHE_SECONDS = int(
 ASSOCIACOES_REMESSAS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-remessas-ipm"
 )
+ASSOCIACOES_ITENS_IPM_PATH = (
+    "/app_glosas/financeiro/associacoes-itens-ipm"
+)
 CONTAS_BANCARIAS_PATH = "/app_glosas/financeiro/contas-bancarias"
 LANCAMENTOS_EXTRATO_PATH = "/app_glosas/financeiro/lancamentos-extrato"
 REQUISICOES_NOTA_PATH = "/app_glosas/requisicoes"
@@ -6342,31 +6345,50 @@ def associacoes_remessas_ipm(request):
         try:
             if acao == "excluir":
                 api_delete(
-                    f"{ASSOCIACOES_REMESSAS_IPM_PATH}/{associacao_id}"
+                    f"{ASSOCIACOES_ITENS_IPM_PATH}/{associacao_id}"
                 )
-                messages.success(request, "Associação manual excluída.")
+                messages.success(request, "Associação do item excluída.")
             else:
-                payload = {
-                    "numero_processo": request.POST.get(
-                        "numero_processo", ""
-                    ),
-                    "competencia_producao": request.POST.get(
-                        "competencia_producao", ""
-                    ),
-                    "nr": request.POST.get("nr", ""),
-                    "cd_remessa": as_int_or_zero(
+                alvo = (request.POST.get("alvo") or "").split("|")
+                if len(alvo) == 3:
+                    cd_remessa, conta, cd_lancamento = (
+                        as_int_or_zero(valor) for valor in alvo
+                    )
+                else:
+                    cd_remessa = as_int_or_zero(
                         request.POST.get("cd_remessa")
+                    )
+                    conta = as_int_or_zero(request.POST.get("conta"))
+                    cd_lancamento = as_int_or_zero(
+                        request.POST.get("cd_lancamento")
+                    )
+                payload = {
+                    "glosa_id_registro": request.POST.get(
+                        "glosa_id_registro", ""
                     ),
+                    "cd_remessa": cd_remessa,
+                    "conta": conta,
+                    "cd_lancamento": cd_lancamento,
                 }
                 if associacao_id:
                     api_put(
-                        f"{ASSOCIACOES_REMESSAS_IPM_PATH}/{associacao_id}",
-                        {"cd_remessa": payload["cd_remessa"]},
+                        f"{ASSOCIACOES_ITENS_IPM_PATH}/{associacao_id}",
+                        {
+                            key: payload[key]
+                            for key in (
+                                "cd_remessa",
+                                "conta",
+                                "cd_lancamento",
+                            )
+                        },
                     )
-                    messages.success(request, "Associação manual atualizada.")
+                    messages.success(request, "Associação do item atualizada.")
                 else:
-                    api_post(ASSOCIACOES_REMESSAS_IPM_PATH, payload)
-                    messages.success(request, "Remessa associada ao NR.")
+                    api_post(ASSOCIACOES_ITENS_IPM_PATH, payload)
+                    messages.success(
+                        request,
+                        "Item associado e disponibilizado no Follow-Up.",
+                    )
             clear_filter_caches()
             query = {}
             if request.POST.get("competencia"):
@@ -6433,6 +6455,11 @@ def associacoes_remessas_ipm(request):
                         correspondencia["dt_atendimento_formatada"] = (
                             format_api_date(
                                 correspondencia.get("dt_atendimento")
+                            )
+                        )
+                        correspondencia["dt_lancamento_formatada"] = (
+                            format_api_date(
+                                correspondencia.get("dt_lancamento")
                             )
                         )
     except ApiError as exc:

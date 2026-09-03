@@ -4801,11 +4801,35 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .association-pending-record {
   display: grid;
-  grid-template-columns: repeat(5, minmax(105px, 1fr)) repeat(2, minmax(105px, 0.8fr));
+  grid-template-columns: 22px repeat(5, minmax(105px, 1fr)) repeat(2, minmax(105px, 0.8fr)) auto;
   align-items: center;
   gap: 10px;
   border-top: 1px solid #efd9b7;
   padding-top: 8px;
+}
+
+.association-pending-record-wrap--linked {
+  border: 1px solid #91c7aa;
+  border-radius: 7px;
+  background: #f4fbf7;
+  padding: 10px;
+}
+
+.association-item-form {
+  display: grid;
+  gap: 8px;
+}
+
+.association-pending-record,
+.association-candidate-item {
+  cursor: pointer;
+}
+
+.association-pending-record input,
+.association-candidate-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: #14738b;
 }
 
 .association-pending-record-wrap {
@@ -4837,11 +4861,44 @@ body:not(.sidebar-collapsed) .indicator-grid {
   color: #24734f;
 }
 
+.association-oracle-evidence__title small {
+  color: #466d5b;
+}
+
 .association-oracle-evidence__row {
   display: grid;
   grid-template-columns: minmax(90px, 0.6fr) minmax(180px, 1.4fr) repeat(5, minmax(110px, 0.8fr)) minmax(200px, 1.5fr) minmax(110px, 0.8fr);
   align-items: center;
   gap: 10px;
+}
+
+.association-candidate-item {
+  grid-template-columns: 22px minmax(80px, 0.5fr) minmax(170px, 1.2fr) repeat(5, minmax(105px, 0.8fr)) minmax(190px, 1.4fr) minmax(100px, 0.7fr);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 8px;
+}
+
+.association-candidate-item:hover,
+.association-candidate-item:has(input:checked) {
+  border-color: #59a77e;
+  background: #e7f6ed;
+}
+
+.association-item-actions,
+.association-delete-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.association-item-actions span {
+  color: #466d5b;
+  font-size: 11px;
+}
+
+.association-delete-form {
+  justify-content: flex-end;
 }
 
 .association-oracle-description strong {
