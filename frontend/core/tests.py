@@ -3012,6 +3012,7 @@ class AssociacoesRemessasIpmTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/associacoes-remessas-ipm',
             params={'limit': 5, 'offset': 0},
+            timeout=120,
         )
         css = Path(finders.find('css/app.css')).read_text()
         self.assertIn(
@@ -3062,6 +3063,7 @@ class AssociacoesRemessasIpmTests(TestCase):
                 'limit': 5,
                 'offset': 5,
             },
+            timeout=120,
         )
 
     @patch('core.views.api_post')
