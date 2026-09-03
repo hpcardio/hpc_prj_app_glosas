@@ -5405,10 +5405,16 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 
   .association-detail-panel .association-source-grid {
+    grid-template-columns: repeat(5, minmax(100px, 1fr)) repeat(2, minmax(90px, 0.8fr));
+    align-items: start;
     border-top: 0;
     border-left: 1px solid #efdbbb;
     padding-top: 0;
     padding-left: 10px;
+  }
+
+  .association-detail-panel .association-source-grid .follow-up-glosa-card-value {
+    text-align: left;
   }
 
   .association-detail-panel .association-oracle-evidence__row.association-candidate-item {

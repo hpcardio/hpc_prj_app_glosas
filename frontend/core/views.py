@@ -3135,7 +3135,7 @@ def build_association_item_comparison(registro, item):
     guia_oracle = " · ".join(
         value
         for value in (
-            f"Guia {item.get('nr_guia')}" if item.get("nr_guia") else "",
+            str(item.get("nr_guia")) if item.get("nr_guia") else "",
             f"Senha {item.get('cd_senha')}" if item.get("cd_senha") else "",
         )
         if value
@@ -3163,7 +3163,7 @@ def build_association_item_comparison(registro, item):
     )
     comparacoes = [
         _association_comparison(
-            "Guia / senha",
+            "Guia",
             registro.get("numero_guia_senha"),
             guia_oracle,
             registro.get("numero_guia_senha"),

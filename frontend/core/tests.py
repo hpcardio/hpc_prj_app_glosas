@@ -2189,7 +2189,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-compacta',
+            '?v=20260903-associacao-manual-mv-alinhada',
             base_template.read_text(),
         )
 
@@ -2994,12 +2994,18 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertContains(response, '389690')
         self.assertContains(response, '90222377')
         self.assertContains(response, 'R$ 0,88')
-        self.assertContains(response, 'Escolha o lançamento Oracle')
+        self.assertContains(response, 'Escolha o lançamento MV')
         self.assertContains(response, 'PHABYANE FRANCA RIBEIRO')
         self.assertContains(response, '>343332</strong>')
         self.assertContains(response, '>9</strong>')
         self.assertContains(response, '#16425')
-        self.assertContains(response, 'Comparação entre portal IPM e Oracle')
+        self.assertContains(response, 'Comparação entre portal IPM e MV')
+        self.assertContains(response, '>Guia</strong>')
+        self.assertNotContains(response, 'GUIA / SENHA')
+        self.assertNotContains(response, 'Guia / senha')
+        self.assertNotContains(response, 'Guia 363150')
+        self.assertContains(response, '>363150 · Senha 389690</span>')
+        self.assertNotContains(response, 'Oracle')
         self.assertContains(response, 'Beneficiário / carteira')
         self.assertContains(response, '4 de 5 critérios coincidem')
         self.assertContains(response, 'Coincide', count=4)
@@ -3056,6 +3062,11 @@ class AssociacoesRemessasIpmTests(TestCase):
         self.assertIn(
             '.association-detail-panel .association-source-card {\n'
             '    grid-template-columns: minmax(185px, 0.22fr) minmax(0, 1fr);',
+            css,
+        )
+        self.assertIn(
+            'grid-template-columns: repeat(5, minmax(100px, 1fr)) '
+            'repeat(2, minmax(90px, 0.8fr));',
             css,
         )
         self.assertIn(
