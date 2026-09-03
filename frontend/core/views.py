@@ -6416,7 +6416,7 @@ def associacoes_remessas_ipm(request):
     }
     processos = []
     page = as_positive_int(request.GET.get("page"), 1)
-    limit = 10
+    limit = 5
     offset = (page - 1) * limit
     total = 0
     resumo = {
