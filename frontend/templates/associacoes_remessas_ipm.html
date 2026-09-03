@@ -115,41 +115,61 @@
                   <input type="hidden" name="competencia" value="{{ filtros.competencia }}">
                   <input type="hidden" name="numero_processo_filtro" value="{{ filtros.numero_processo }}">
                   <input type="hidden" name="page" value="{{ pagination.page }}">
-                <label class="association-pending-record">
-                  <input type="checkbox" name="confirmar_origem" value="1" required {% if registro.associacao %}checked{% endif %} aria-label="Selecionar item glosado {{ registro.codigo_servico }}">
-                  <span class="follow-up-glosa-card-field"><small>GUIA/SENHA PORTAL</small><strong>{{ registro.numero_guia_senha|default:"-" }}</strong></span>
-                  <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"-" }}</strong></span>
-                  <span class="follow-up-glosa-card-field"><small>DATA REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"-" }}</strong></span>
-                  <span class="follow-up-glosa-card-field"><small>SERVIÇO PORTAL</small><strong>{{ registro.codigo_servico|default:"-" }}</strong></span>
-                  <span class="follow-up-glosa-card-field"><small>CÓD. GLOSA</small><strong>{{ registro.codigo_glosa|default:"-" }}</strong></span>
-                  <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PROCESSADO</small><strong>R$ {{ registro.valor_processado|br_currency }}</strong></span>
-                  <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
-                  {% if registro.associacao %}<span class="association-status association-status--linked">Associado</span>{% endif %}
-                </label>
+                <div class="association-source-card">
+                  <label class="association-source-select">
+                    <input type="checkbox" name="confirmar_origem" value="1" required {% if registro.associacao %}checked{% endif %} aria-label="Selecionar item glosado {{ registro.codigo_servico }}">
+                    <span><small>ITEM DE ORIGEM</small><strong>Glosa informada pelo portal IPM</strong></span>
+                    {% if registro.associacao %}<span class="association-status association-status--linked">Associado</span>{% else %}<span class="association-status">Selecione para associar</span>{% endif %}
+                  </label>
+                  <div class="association-source-grid">
+                    <span class="follow-up-glosa-card-field"><small>GUIA / SENHA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO / CARTEIRA</small><strong>{{ registro.codigo_beneficiario|default:"Não informado" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>DATA DE REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"Não informado" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>PROCEDIMENTO / SERVIÇO</small><strong>{{ registro.codigo_servico|default:"Não informado" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>CÓDIGO DA GLOSA</small><strong>{{ registro.codigo_glosa|default:"Não informado" }}</strong></span>
+                    <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR PROCESSADO</small><strong>R$ {{ registro.valor_processado|br_currency }}</strong></span>
+                    <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
+                  </div>
+                </div>
                 {% if registro.correspondencias_oracle %}
                 <div class="association-oracle-evidence">
                   <div class="association-oracle-evidence__title">
-                    <strong>Possíveis itens no Oracle</strong>
-                    <small>Selecione o lançamento correspondente pela guia, procedimento e beneficiário/carteira.</small>
+                    <div><strong>Possíveis lançamentos de destino no Oracle</strong><small>Compare cada critério antes de selecionar o lançamento.</small></div>
+                    <span>{{ registro.correspondencias_oracle|length }} candidato{{ registro.correspondencias_oracle|length|pluralize }}</span>
                   </div>
                   {% for item in registro.correspondencias_oracle %}
                   <label class="association-oracle-evidence__row association-candidate-item">
-                    <input type="radio" name="alvo" value="{{ item.cd_remessa }}|{{ item.conta }}|{{ item.cd_lancamento }}" required {% if registro.associacao.cd_remessa == item.cd_remessa and registro.associacao.conta == item.conta and registro.associacao.cd_lancamento == item.cd_lancamento %}checked{% endif %}>
-                    <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ item.cd_remessa }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>PACIENTE</small><strong>{{ item.nm_paciente|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>ATENDIMENTO</small><strong>{{ item.cd_atendimento|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>CONTA / LANÇAMENTO</small><strong>{{ item.conta|default:"-" }} / {{ item.cd_lancamento|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>GUIA ORACLE</small><strong>{{ item.nr_guia|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>SENHA / CARTEIRA</small><strong>{{ item.cd_senha|default:"-" }} / {{ item.nr_carteira|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>DATA ATEND. / LANÇ.</small><strong>{{ item.dt_atendimento_formatada|default:"-" }} / {{ item.dt_lancamento_formatada|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field"><small>PROCEDIMENTO / TUSS</small><strong>{{ item.cd_pro_fat|default:"-" }}{% if item.cd_tuss %} / {{ item.cd_tuss }}{% endif %}</strong></span>
-                    <span class="follow-up-glosa-card-field association-oracle-description"><small>DESCRIÇÃO</small><strong>{{ item.descricao|default:"-" }}</strong></span>
-                    <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR ORACLE</small><strong>R$ {{ item.valor_item|br_currency }}</strong></span>
+                    <span class="association-candidate-heading">
+                      <input type="radio" name="alvo" value="{{ item.cd_remessa }}|{{ item.conta }}|{{ item.cd_lancamento }}" required {% if registro.associacao.cd_remessa == item.cd_remessa and registro.associacao.conta == item.conta and registro.associacao.cd_lancamento == item.cd_lancamento %}checked{% endif %}>
+                      <span><small>LANÇAMENTO DE DESTINO</small><strong>Selecionar remessa #{{ item.cd_remessa }}</strong></span>
+                      <span class="association-compatibility">{{ item.comparacoes_coincidentes }} de {{ item.comparacoes_total }} critérios coincidem</span>
+                    </span>
+                    <span class="association-candidate-context">
+                      <span class="follow-up-glosa-card-field"><small>PACIENTE</small><strong>{{ item.nm_paciente|default:"Não informado" }}</strong></span>
+                      <span class="follow-up-glosa-card-field"><small>ATENDIMENTO</small><strong>{{ item.cd_atendimento|default:"Não informado" }}</strong></span>
+                      <span class="follow-up-glosa-card-field"><small>CONTA</small><strong>{{ item.conta|default:"Não informado" }}</strong></span>
+                      <span class="follow-up-glosa-card-field"><small>LANÇAMENTO</small><strong>{{ item.cd_lancamento|default:"Não informado" }}</strong></span>
+                    </span>
+                    <span class="association-comparison" role="table" aria-label="Comparação entre portal IPM e Oracle">
+                      <span class="association-comparison__header" role="row"><strong>CRITÉRIO</strong><strong>PORTAL IPM</strong><strong>ORACLE</strong><strong>RESULTADO</strong></span>
+                      {% for comparacao in item.comparacoes %}
+                      <span class="association-comparison__row" role="row">
+                        <strong>{{ comparacao.label }}</strong>
+                        <span>{{ comparacao.portal }}</span>
+                        <span>{{ comparacao.oracle }}</span>
+                        <span class="association-comparison__status association-comparison__status--{{ comparacao.status }}">{% if comparacao.status == "match" %}&#10003;{% elif comparacao.status == "different" %}!{% else %}&mdash;{% endif %} {{ comparacao.status_label }}</span>
+                      </span>
+                      {% endfor %}
+                    </span>
+                    <span class="association-candidate-details">
+                      <span><small>DESCRIÇÃO DO LANÇAMENTO</small><strong>{{ item.descricao|default:"Não informado" }}</strong></span>
+                      <span><small>CRITÉRIO USADO PARA LOCALIZAR</small><strong>{{ item.criterio_busca }}</strong></span>
+                    </span>
                   </label>
                   {% endfor %}
                   <div class="association-item-actions">
                     <button class="btn btn-primary btn-sm">{% if registro.associacao %}Atualizar associação{% else %}Associar item{% endif %}</button>
-                    <span>Depois de associado, o item passa a compor o Follow-Up de Glosas.</span>
+                    <span>Confirme o item de origem e selecione um único lançamento de destino. Depois de associado, o item passa a compor o Follow-Up.</span>
                   </div>
                 </div>
                 {% else %}
