@@ -113,7 +113,7 @@
                   <input type="radio" name="origem_{{ nr.nr }}" value="{{ registro.id_registro }}" x-model="selectedRecord">
                   <span class="association-source-option__body">
                     <span><small>PROCEDIMENTO</small><strong>{{ registro.codigo_servico|default:"Não informado" }}</strong></span>
-                    <span><small>GUIA / SENHA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
+                    <span><small>GUIA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
                     <span><small>BENEFICIÁRIO</small><strong>{{ registro.codigo_beneficiario|default:"Não informado" }}</strong></span>
                     <span class="association-source-option__value"><small>GLOSA</small><strong>R$ {{ registro.valor_glosa|br_currency }}</strong></span>
                   </span>
@@ -136,7 +136,7 @@
                 <div class="association-source-card">
                   <div class="association-step-heading"><span>2</span><div><strong>Confira os dados</strong><small>Item selecionado no portal IPM</small></div></div>
                   <div class="association-source-grid">
-                    <span class="follow-up-glosa-card-field"><small>GUIA / SENHA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
+                    <span class="follow-up-glosa-card-field"><small>GUIA</small><strong>{{ registro.numero_guia_senha|default:"Não informado" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>BENEFICIÁRIO / CARTEIRA</small><strong>{{ registro.codigo_beneficiario|default:"Não informado" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>DATA DE REALIZAÇÃO</small><strong>{{ registro.data_realizacao_formatada|default:"Não informado" }}</strong></span>
                     <span class="follow-up-glosa-card-field"><small>PROCEDIMENTO / SERVIÇO</small><strong>{{ registro.codigo_servico|default:"Não informado" }}</strong></span>
@@ -148,7 +148,7 @@
                 {% if registro.correspondencias_oracle %}
                 <div class="association-oracle-evidence">
                   <div class="association-oracle-evidence__title">
-                    <div class="association-step-heading"><span>3</span><div><strong>Escolha o lançamento Oracle</strong><small>Use a comparação abaixo para decidir.</small></div></div>
+                    <div class="association-step-heading"><span>3</span><div><strong>Escolha o lançamento MV</strong><small>Use a comparação abaixo para decidir.</small></div></div>
                     <span>{{ registro.correspondencias_oracle|length }} candidato{{ registro.correspondencias_oracle|length|pluralize }}</span>
                   </div>
                   {% for item in registro.correspondencias_oracle %}
@@ -164,8 +164,8 @@
                       <span class="follow-up-glosa-card-field"><small>LANÇAMENTO</small><strong>{{ item.cd_lancamento|default:"Não informado" }}</strong></span>
                       <span class="follow-up-glosa-card-field"><small>VALOR</small><strong>R$ {{ item.valor_item|br_currency }}</strong></span>
                     </span>
-                    <span class="association-comparison" role="table" aria-label="Comparação entre portal IPM e Oracle">
-                      <span class="association-comparison__header" role="row"><strong>CRITÉRIO</strong><strong>PORTAL IPM</strong><strong>ORACLE</strong><strong>RESULTADO</strong></span>
+                    <span class="association-comparison" role="table" aria-label="Comparação entre portal IPM e MV">
+                      <span class="association-comparison__header" role="row"><strong>CRITÉRIO</strong><strong>PORTAL IPM</strong><strong>MV</strong><strong>RESULTADO</strong></span>
                       {% for comparacao in item.comparacoes %}
                       <span class="association-comparison__row" role="row">
                         <strong>{{ comparacao.label }}</strong>
@@ -187,7 +187,7 @@
                   </div>
                 </div>
                 {% else %}
-                <div class="association-no-evidence">Nenhum lançamento Oracle disponível corresponde simultaneamente aos dados de guia, procedimento e beneficiário/carteira.</div>
+                <div class="association-no-evidence">Nenhum lançamento MV disponível corresponde simultaneamente aos dados de guia, procedimento e beneficiário/carteira.</div>
                 {% endif %}
                 </form>
                 {% if registro.associacao %}
