@@ -1141,6 +1141,8 @@ class ContasPagarTests(TestCase):
                     'numero_documento': 'NF-10',
                     'numero_parcela': 1,
                     'descricao_conta': 'Medicamentos',
+                    'data_lancamento': '2026-05-20',
+                    'data_emissao': '2026-05-18',
                     'data_vencimento': '2026-06-09',
                     'tipo_quitacao': 'parcialmente pago',
                     'valor_total': '650000.00',
@@ -1214,6 +1216,10 @@ class ContasPagarTests(TestCase):
         self.assertNotContains(response, 'HONRADO NO ORACLE')
         self.assertNotContains(response, 'HONRADO INFORMADO')
         self.assertContains(response, 'DESCRIÇÃO')
+        self.assertContains(response, 'EMISSÃO')
+        self.assertContains(response, '18/05/2026')
+        self.assertContains(response, 'LANÇAMENTO')
+        self.assertContains(response, '20/05/2026')
         self.assertContains(response, 'value="pagamento_salvar"')
         self.assertContains(response, 'Salvar pagamento')
         self.assertContains(response, 'payables-record-card')
@@ -1311,6 +1317,10 @@ class ContasPagarTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'value="2026-06-01"')
         self.assertContains(response, 'value="2026-06-30"')
+        self.assertContains(response, 'Período de vencimento aplicado')
+        self.assertContains(response, '01/06/2026 a 30/06/2026')
+        self.assertContains(response, 'DÍVIDA VENCIDA NO PERÍODO')
+        self.assertNotContains(response, 'BASE DA DÍVIDA VENCIDA')
         self.assertEqual(
             api_get.call_args.kwargs['params']['data_inicio'],
             '2026-06-01',

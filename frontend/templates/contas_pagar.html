@@ -31,9 +31,19 @@
     <div class="filter-actions"><button class="btn btn-primary" type="submit">Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
   </form>
 
-  <div class="payables-kpis">
+  {% if filtros.data_inicio or filtros.data_fim %}
+  <div class="payables-active-period" role="status">
+    <span>Período de vencimento aplicado</span>
+    <strong>{% if filtros.data_inicio %}{{ filtros.data_inicio|api_date }}{% else %}início da base{% endif %} a {% if filtros.data_fim %}{{ filtros.data_fim|api_date }}{% else %}data mais recente{% endif %}</strong>
+    <small>Indicadores, fornecedores e títulos abaixo consideram somente este intervalo.</small>
+  </div>
+  {% endif %}
+
+  <div class="payables-kpis{% if filtros.data_inicio or filtros.data_fim %} is-period-filtered{% endif %}">
+    {% if not filtros.data_inicio and not filtros.data_fim %}
     <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V8l8-4 8 4v11"></path><path d="M8 12h8M8 16h8"></path></svg></span><small>BASE DA DÍVIDA VENCIDA</small></div><strong>R$ {{ resumo.valor_vencido_inicial|br_currency }}</strong><span>Valor vencido registrado no início do acompanhamento.</span></article>
-    <article class="is-alert"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v6l4 2"></path></svg></span><small>DÍVIDA VENCIDA ATUAL</small></div><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>Total ainda vencido em {{ resumo.fornecedores_vencidos }} fornecedores.</span></article>
+    {% endif %}
+    <article class="is-alert"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v6l4 2"></path></svg></span><small>{% if filtros.data_inicio or filtros.data_fim %}DÍVIDA VENCIDA NO PERÍODO{% else %}DÍVIDA VENCIDA ATUAL{% endif %}</small></div><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>Total ainda vencido em {{ resumo.fornecedores_vencidos }} fornecedores{% if filtros.data_inicio or filtros.data_fim %} no intervalo selecionado{% endif %}.</span></article>
     <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4v3M19 4v3M4 9h16v11H4z"></path><path d="m9 14 2 2 4-4"></path></svg></span><small>NOVOS ATRASOS · 7 DIAS</small></div><strong>R$ {{ resumo.novos_vencidos_7d|br_currency }}</strong><span>Títulos que venceram nos últimos sete dias.</span></article>
     <article class="is-primary"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><small>PAGAMENTO IMEDIATO PREVISTO</small></div><strong>R$ {{ resumo.pagamento_imediato|br_currency }}</strong><span>Caixa informado para desembolso prioritário.</span></article>
     <article><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h11a4 4 0 0 1 0 8H9"></path><path d="m7 12-3 3 3 3M16 5l2-2 2 2"></path></svg></span><small>SALDO PARA NEGOCIAÇÃO</small></div><strong>R$ {{ resumo.saldo_negociar|br_currency }}</strong><span>Valor aberto após o pagamento imediato.</span></article>
@@ -49,10 +59,10 @@
       <span class="panel-title">Regra de decisão</span>
       <ol><li>Proteger o que é crítico</li><li>Entre os críticos, priorizar o mais antigo</li><li>Negociar o saldo</li><li>Tratar os não críticos</li><li>Evitar novos vencidos</li></ol>
     </article>
-    <article class="panel payables-trend-card">
+    {% if not filtros.data_inicio and not filtros.data_fim %}<article class="panel payables-trend-card">
       <span class="panel-title">Evolução registrada</span>
       <div class="payables-history-scroll"><table><thead><tr><th>Data</th><th>Vencido</th><th>Novos vencidos</th><th>Corrente</th></tr></thead><tbody>{% for item in historico %}<tr><td>{{ item.data_referencia|api_date }}</td><td>R$ {{ item.valor_vencido|br_currency }}</td><td>R$ {{ item.novos_vencidos|br_currency }}</td><td>R$ {{ item.valor_corrente|br_currency }}</td></tr>{% empty %}<tr><td colspan="4">A série histórica começa com a primeira consulta.</td></tr>{% endfor %}</tbody></table></div>
-    </article>
+    </article>{% endif %}
   </section>
   {% endif %}
 
@@ -99,6 +109,8 @@
                   <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
                   <span><small>TÍTULO / PARCELA</small><strong>#{{ titulo.codigo_parcela }} · Parcela {{ titulo.numero_parcela|default:"-" }}</strong></span>
                   <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
+                  <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
+                  <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
                   <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
                   <span><small>VALOR TOTAL</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
                   <span><small>TOTAL HONRADO</small><strong>R$ {{ titulo.valor_total_honrado|br_currency }}</strong></span>
