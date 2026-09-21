@@ -3552,6 +3552,20 @@ def prepare_follow_up_glosas_cards(cards):
                     or str(item.get("cd_pro_fat") or "").strip()
                     or str(item.get("codigo_servico") or "").strip()
                 )
+                identidade_tratativa = "|".join((
+                    str(item.get("demonstrativo_id_registro") or ""),
+                    str(item.get("cd_remessa") or ""),
+                    str(item.get("cd_atendimento") or ""),
+                    str(item.get("cd_reg") or ""),
+                    str(item.get("cd_lancamento") or ""),
+                    str(item.get("motivo_glosa_codigo") or ""),
+                ))
+                item["tratativa_dom_id"] = (
+                    "follow-up-treatment-"
+                    + sha256(
+                        identidade_tratativa.encode("utf-8")
+                    ).hexdigest()[:16]
+                )
                 itens.append(item)
                 atendimento_key = (
                     item.get("cd_atendimento") or 0,
@@ -6299,6 +6313,92 @@ def empresas_emissoras(request):
 @require_http_methods(["GET", "POST"])
 def follow_up_glosas(request):
     if request.method == "POST":
+        itens_selecionados = request.POST.get("itens_selecionados")
+        if itens_selecionados:
+            try:
+                itens = json.loads(itens_selecionados)
+                if not isinstance(itens, list) or len(itens) < 2:
+                    raise ValueError(
+                        "Selecione pelo menos dois itens do paciente."
+                    )
+                if len(itens) > 100:
+                    raise ValueError(
+                        "Selecione no máximo 100 itens por operação."
+                    )
+                pacientes = {
+                    (
+                        str(item.get("cd_paciente") or "").strip(),
+                        str(item.get("nm_paciente") or "").strip().casefold(),
+                    )
+                    for item in itens
+                }
+                if len(pacientes) != 1:
+                    raise ValueError(
+                        "Selecione itens de um único paciente."
+                    )
+
+                is_acatar = request.POST.get("sn_glosado") == "not"
+                resultados = []
+                for item in itens:
+                    dados_item = dict(item)
+                    dados_item.update({
+                        "sn_glosado": (
+                            "not" if is_acatar else "true"
+                        ),
+                        "dt_recurso": request.POST.get("dt_recurso"),
+                        "descricao_glosa": request.POST.get(
+                            "descricao_glosa"
+                        ) or "",
+                    })
+                    payload = build_registro_glosa_payload(dados_item)
+                    registro_id = str(
+                        dados_item.get("registro_glosa_id") or ""
+                    ).strip()
+                    resultados.append(
+                        api_put(
+                            f"{settings.API_REGISTRO_GLOSA_PATH}/"
+                            f"{registro_id}",
+                            payload,
+                        )
+                        if registro_id
+                        else api_post(
+                            settings.API_REGISTRO_GLOSA_PATH,
+                            payload,
+                        )
+                    )
+                clear_filter_caches()
+                quantidade = len(resultados)
+                return modal_action_response(
+                    request,
+                    (
+                        f"{quantidade} itens acatados no Follow-Up de Glosas."
+                        if is_acatar
+                        else f"{quantidade} itens recursados no Follow-Up de Glosas."
+                    ),
+                    "warning" if is_acatar else "success",
+                    api_payload={
+                        "quantidade": quantidade,
+                        "itens": resultados,
+                        "sn_glosado": "not" if is_acatar else "true",
+                    },
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                return modal_action_response(
+                    request,
+                    f"Falha ao salvar seleção: {exc}",
+                    "error",
+                    status=400,
+                )
+            except ApiError as exc:
+                action_name = "acato" if is_acatar else "recurso"
+                return modal_action_response(
+                    request,
+                    f"Falha ao salvar {action_name} dos itens selecionados: "
+                    f"{contextualize_registro_glosa_error(extract_api_error_message(exc), is_acatar)}",
+                    "error",
+                    status=400,
+                )
+
         registro_id = request.POST.get("registro_glosa_id")
         form_action = request.POST.get("form_action") or "salvar"
         try:

@@ -238,9 +238,10 @@
           {% for atendimento in card.atendimentos_paciente %}
           <section
             class="follow-up-glosa-patient"
-            x-data="{ patientOpen: (window.followUpExpandLevel || 0) >= 3 }"
+            x-data="followUpBatchTreatment()"
             @expand-follow-up-level-3.window="patientOpen = true"
             @collapse-all-follow-up.window="patientOpen = false"
+            @follow-up-select-item.stop="toggleSelection($event.detail.formId, $event.detail.checked)"
           >
             <button type="button" class="follow-up-glosa-patient-header" @click="patientOpen = !patientOpen" :aria-expanded="patientOpen">
               <span class="follow-up-glosa-chevron" :class="{ 'is-open': patientOpen }">&#9654;</span>
@@ -255,6 +256,13 @@
               <div class="follow-up-glosa-patient-body">
                 <div class="follow-up-glosa-records-scroll">
                   <h4 class="follow-up-glosa-subsection-title">Itens Glosados</h4>
+                  <div class="follow-up-batch-toolbar">
+                    <span x-text="selectedForms.length ? `${selectedForms.length} item(ns) selecionado(s)` : 'Selecione dois ou mais itens para tratamento conjunto'"></span>
+                    <div>
+                      <button type="button" class="btn-glosar" :disabled="selectedForms.length < 2" @click="openBatch('recursar')">Recursar selecionados</button>
+                      <button type="button" class="btn-acatar" :disabled="selectedForms.length < 2" @click="openBatch('acatar')">Acatar selecionados</button>
+                    </div>
+                  </div>
                   <div class="account-groups">
                   {% for grupo_procedimento in atendimento.grupos_procedimento %}
                   <section class="account-group-section follow-up-glosa-grupo-procedimento">
@@ -340,6 +348,10 @@
                           {% if item.tratativa_disponivel or item.registro_glosa.id %}
                           <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+RECUSAR</button>
                           <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ACATO</button>
+                          <label class="follow-up-item-selector">
+                            <input type="checkbox" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked })">
+                            <span>Selecionar</span>
+                          </label>
                           {% endif %}
                         </div>
 
@@ -347,7 +359,22 @@
                         <div class="glosa-modal" x-show="modal" x-cloak @keydown.escape.window="modal = ''">
                           <div class="glosa-modal-backdrop" @click="modal = ''"></div>
                           <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="follow-up-modal-title-{{ item.registro_glosa_id }}">
-                            <form method="post" class="glosa-modal-form" data-has-registro="{% if item.registro_glosa.id %}true{% else %}false{% endif %}" data-reload-on-success="true" onsubmit="return window.handleGlosaSubmit(this, event);">
+                            <form
+                              id="{{ item.tratativa_dom_id }}"
+                              method="post"
+                              class="glosa-modal-form"
+                              data-has-registro="{% if item.registro_glosa.id %}true{% else %}false{% endif %}"
+                              data-reload-on-success="true"
+                              data-registro-base-id="{{ item.registro_glosa.id|default:'' }}"
+                              data-registro-recusa-id="{{ item.registro_recusa.id|default:'' }}"
+                              data-registro-acato-id="{{ item.registro_acato.id|default:'' }}"
+                              data-item-quantity="{{ item.qt_lancamento }}"
+                              data-item-value="{{ item.vl_total_conta }}"
+                              data-glosa-quantity="{{ item.qtd_glosada|default:item.qt_lancamento }}"
+                              data-glosa-value="{{ item.valor_glosa }}"
+                              data-item-description="{{ item.descricao|default:'Procedimento não informado' }}"
+                              onsubmit="return window.handleGlosaSubmit(this, event);"
+                            >
                               {% csrf_token %}
                               <input type="hidden" name="registro_glosa_id" :value="registroTratadoId">
                               <input type="hidden" name="cd_paciente" value="{{ item.cd_paciente }}">
@@ -420,21 +447,37 @@
                                       <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
                                       <input type="date" name="dt_recurso" class="form-control" x-model="dataTratada" required>
                                     </div>
-                                    <div class="glosa-field">
-                                      <label>Qtd item</label>
-                                      <input type="text" class="form-control form-control-readonly" value="{{ item.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
-                                    </div>
-                                    <div class="glosa-field">
-                                      <label>Valor item</label>
-                                      <input type="text" class="form-control form-control-readonly" value="R$ {{ item.vl_total_conta|br_currency }}" readonly aria-readonly="true">
-                                    </div>
-                                    <div class="glosa-field">
-                                      <label x-text="modal === 'acatar' ? 'Qtd Acatada *' : 'Qtd Recursada *'"></label>
-                                      <input type="number" step="1" min="1" max="{{ item.qt_lancamento }}" data-max-quantity="{{ item.qt_lancamento }}" inputmode="numeric" name="qtd_glosada" class="form-control" x-model="qtdTratada" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
-                                    </div>
-                                    <div class="glosa-field">
-                                      <label x-text="modal === 'acatar' ? 'Valor Acatado *' : 'Valor Recurso *'"></label>
-                                      <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ item.valor_glosa }}" x-model="valorTratado" required @input="valorTratado = $event.target.value; formatValorTratado()">
+                                    <div class="glosa-values-columns glosa-field--full">
+                                      <div class="glosa-values-column">
+                                        <div class="glosa-field">
+                                          <label>Qtd item</label>
+                                          <input type="text" class="form-control form-control-readonly" value="{{ item.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                        </div>
+                                        <div class="glosa-field">
+                                          <label>Valor item</label>
+                                          <input type="text" class="form-control form-control-readonly" value="R$ {{ item.vl_total_conta|br_currency }}" readonly aria-readonly="true">
+                                        </div>
+                                      </div>
+                                      <div class="glosa-values-column">
+                                        <div class="glosa-field">
+                                          <label>Qtd glosada</label>
+                                          <input type="text" class="form-control form-control-readonly" value="{{ item.qtd_glosada|default:item.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                        </div>
+                                        <div class="glosa-field">
+                                          <label>Valor glosado</label>
+                                          <input type="text" class="form-control form-control-readonly" value="R$ {{ item.valor_glosa|br_currency }}" readonly aria-readonly="true">
+                                        </div>
+                                      </div>
+                                      <div class="glosa-values-column glosa-values-column--action">
+                                        <div class="glosa-field">
+                                          <label x-text="modal === 'acatar' ? 'Qtd Acatada *' : 'Qtd Recursada *'"></label>
+                                          <input type="number" step="1" min="1" max="{{ item.qtd_glosada|default:item.qt_lancamento }}" data-max-quantity="{{ item.qtd_glosada|default:item.qt_lancamento }}" inputmode="numeric" name="qtd_glosada" class="form-control" x-model="qtdTratada" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                        </div>
+                                        <div class="glosa-field">
+                                          <label x-text="modal === 'acatar' ? 'Valor Acatado *' : 'Valor Recurso *'"></label>
+                                          <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ item.valor_glosa }}" x-model="valorTratado" required @input="valorTratado = $event.target.value; formatValorTratado()">
+                                        </div>
+                                      </div>
                                     </div>
                                     <div class="glosa-field glosa-field--full">
                                       <label>Descrição</label>
@@ -463,6 +506,97 @@
                   </div>
                 </section>
                 {% endfor %}
+                </div>
+
+                <div class="glosa-modal" x-show="batchModal" x-cloak @keydown.escape.window="closeBatch()">
+                  <div class="glosa-modal-backdrop" @click="closeBatch()"></div>
+                  <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="follow-up-batch-modal-title-{{ card.detalhe_dom_id }}-{{ atendimento.cd_atendimento }}">
+                    <form method="post" class="glosa-modal-form" data-has-registro="false" data-reload-on-success="true" onsubmit="prepareBatchPayload(); return window.handleGlosaSubmit(this, event);">
+                      {% csrf_token %}
+                      <input type="hidden" name="itens_selecionados" :value="JSON.stringify(batchItems)">
+                      <input type="hidden" name="sn_glosado" :value="batchModal === 'acatar' ? 'not' : 'true'">
+                      <input type="hidden" name="data_glosa" :value="minimumTreatmentDate">
+                      <div class="glosa-modal-header">
+                        <div>
+                          <span class="glosa-modal-eyebrow" x-text="batchModal === 'acatar' ? 'Acato múltiplo' : 'Recurso múltiplo'"></span>
+                          <h2 id="follow-up-batch-modal-title-{{ card.detalhe_dom_id }}-{{ atendimento.cd_atendimento }}" x-text="`${selectedForms.length} itens selecionados`"></h2>
+                        </div>
+                        <button type="button" class="glosa-modal-close" @click="closeBatch()" aria-label="Fechar">x</button>
+                      </div>
+                      <div class="glosa-modal-context">
+                        <span>{{ atendimento.nm_paciente }}</span>
+                        <span>{{ atendimento.nm_convenio|default:"Convênio não informado" }}</span>
+                        <span>Atend. {{ atendimento.cd_atendimento|default:"-" }}</span>
+                        <span class="glosa-modal-context-desc">Tratamento conjunto dos itens selecionados</span>
+                      </div>
+                      <div class="glosa-section-stack">
+                        <section class="glosa-section">
+                          <h3 x-text="batchModal === 'acatar' ? 'Tratamento por acato' : 'Processo de recurso'"></h3>
+                          <div class="glosa-section-grid">
+                            <div class="glosa-field glosa-field--full">
+                              <label>Descrição dos registros selecionados</label>
+                              <div class="follow-up-selected-descriptions">
+                                <template x-for="(description, index) in selectedDescriptions" :key="`${index}-${description}`">
+                                  <span x-text="description"></span>
+                                </template>
+                              </div>
+                            </div>
+                            <div class="glosa-field">
+                              <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
+                              <input type="date" name="dt_recurso" class="form-control" :min="minimumTreatmentDate" required>
+                            </div>
+                            <div class="glosa-field glosa-field--wide">
+                              <label>Aplicação</label>
+                              <input class="form-control form-control-readonly" value="Quantidades, valores e motivos serão preservados por item" readonly aria-readonly="true">
+                            </div>
+                            <div class="glosa-values-columns glosa-field--full">
+                              <div class="glosa-values-column">
+                                <div class="glosa-field">
+                                  <label>Qtd item</label>
+                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
+                                </div>
+                                <div class="glosa-field">
+                                  <label>Valor item</label>
+                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
+                                </div>
+                              </div>
+                              <div class="glosa-values-column">
+                                <div class="glosa-field">
+                                  <label>Qtd glosada</label>
+                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.glosaQuantity)" readonly aria-readonly="true">
+                                </div>
+                                <div class="glosa-field">
+                                  <label>Valor glosado</label>
+                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.glosaValue)" readonly aria-readonly="true">
+                                </div>
+                              </div>
+                              <div class="glosa-values-column glosa-values-column--action">
+                                <div class="glosa-field">
+                                  <label x-text="batchModal === 'acatar' ? 'Qtd Acatada' : 'Qtd Recursada'"></label>
+                                  <input type="number" name="qtd_glosada" class="form-control form-control-readonly" :value="batchTotals.glosaQuantity" :data-max-quantity="batchTotals.glosaQuantity" readonly required>
+                                </div>
+                                <div class="glosa-field">
+                                  <label x-text="batchModal === 'acatar' ? 'Valor Acatado' : 'Valor Recurso'"></label>
+                                  <input type="text" name="valor_glosado" class="form-control form-control-readonly" :value="formatCurrency(batchTotals.glosaValue)" :data-max-value="batchTotals.glosaValue" readonly required>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="glosa-field glosa-field--full">
+                              <label>Justificativa comum <span class="required-marker" aria-hidden="true">*</span></label>
+                              <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva a justificativa que será aplicada a todos os registros selecionados" required></textarea>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+                      <div class="glosa-modal-actions">
+                        <button type="button" class="btn btn-outline-secondary" @click="closeBatch()">Cancelar</button>
+                        <button :class="batchModal === 'acatar' ? 'btn-success-outline' : 'btn-danger-outline'" name="form_action" value="salvar">
+                          <span class="submit-label" x-text="batchModal === 'acatar' ? 'Registrar acatos' : 'Registrar recursos'"></span>
+                          <span class="loading-label">Registrando...</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </div>
             </template>
@@ -511,5 +645,91 @@
 </section>
 <script>
   window.followUpExpandLevel = 0;
+  window.followUpBatchTreatment = function () {
+    return {
+      patientOpen: (window.followUpExpandLevel || 0) >= 3,
+      selectedForms: [],
+      batchModal: '',
+      batchItems: [],
+      selectedDescriptions: [],
+      minimumTreatmentDate: '',
+      batchTotals: {
+        itemQuantity: 0,
+        itemValue: 0,
+        glosaQuantity: 0,
+        glosaValue: 0
+      },
+      parseNumber(value) {
+        const text = String(value || '').trim();
+        if (!text) return 0;
+        if (text.includes(',')) {
+          return Number(text.replace(/\./g, '').replace(',', '.')) || 0;
+        }
+        return Number(text) || 0;
+      },
+      formatCurrency(value) {
+        return Number(value || 0).toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        });
+      },
+      formatQuantity(value) {
+        return Number(value || 0).toLocaleString('pt-BR', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        });
+      },
+      toggleSelection(formId, checked) {
+        this.selectedForms = checked
+          ? [...new Set([...this.selectedForms, formId])]
+          : this.selectedForms.filter((current) => current !== formId);
+      },
+      selectedFormElements() {
+        return this.selectedForms
+          .map((formId) => document.getElementById(formId))
+          .filter(Boolean);
+      },
+      prepareBatchPayload() {
+        const acato = this.batchModal === 'acatar';
+        const forms = this.selectedFormElements();
+        this.batchItems = forms.map((form) => {
+          const item = Object.fromEntries(new FormData(form).entries());
+          delete item.csrfmiddlewaretoken;
+          delete item.form_action;
+          item.registro_glosa_id = (
+            acato ? form.dataset.registroAcatoId : form.dataset.registroRecusaId
+          ) || form.dataset.registroBaseId || '';
+          item.qtd_glosada = form.dataset.glosaQuantity;
+          item.valor_glosado = form.dataset.glosaValue;
+          item.sn_glosado = acato ? 'not' : 'true';
+          return item;
+        });
+        const dates = this.batchItems
+          .map((item) => item.data_glosa)
+          .filter(Boolean)
+          .sort();
+        this.minimumTreatmentDate = dates.length ? dates[dates.length - 1] : '';
+      },
+      openBatch(type) {
+        if (this.selectedForms.length < 2) return;
+        this.batchModal = type;
+        this.prepareBatchPayload();
+        const forms = this.selectedFormElements();
+        this.batchTotals = forms.reduce((totals, form) => ({
+          itemQuantity: totals.itemQuantity + this.parseNumber(form.dataset.itemQuantity),
+          itemValue: totals.itemValue + this.parseNumber(form.dataset.itemValue),
+          glosaQuantity: totals.glosaQuantity + this.parseNumber(form.dataset.glosaQuantity),
+          glosaValue: totals.glosaValue + this.parseNumber(form.dataset.glosaValue)
+        }), { itemQuantity: 0, itemValue: 0, glosaQuantity: 0, glosaValue: 0 });
+        this.selectedDescriptions = forms.map(
+          (form) => form.dataset.itemDescription || 'Procedimento não informado'
+        );
+      },
+      closeBatch() {
+        this.batchModal = '';
+        this.batchItems = [];
+      }
+    };
+  };
 </script>
 {% endblock %}

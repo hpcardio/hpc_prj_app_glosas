@@ -1,9 +1,11 @@
 from datetime import date
+import json
 from pathlib import Path
 from threading import Barrier
 from unittest.mock import Mock, call, patch
 
 from django.contrib.staticfiles import finders
+from django.conf import settings
 from django.core.cache import cache
 from django.test import RequestFactory, TestCase, override_settings
 
@@ -2998,6 +3000,11 @@ class FollowUpGlosasTests(TestCase):
             'Processo Origem',
             'Qtd item',
             'Valor item',
+            'Qtd glosada',
+            'Valor glosado',
+            'Recursar selecionados',
+            'Acatar selecionados',
+            'Descrição dos registros selecionados',
             '+RECUSAR',
             '+ACATO',
             'follow-up-glosa-records-scroll',
@@ -3261,6 +3268,183 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['motivo_glosa'], '1016')
         self.assertIsNone(payload['processo_recurso'])
         self.assertEqual(payload['valor_recursado'], 75.0)
+
+    @patch('core.views.api_put')
+    def test_registra_recurso_em_varios_itens_do_mesmo_paciente(
+        self,
+        api_put,
+    ):
+        api_put.side_effect = [
+            {'id': 101, 'sn_glosado': 'true'},
+            {'id': 102, 'sn_glosado': 'true'},
+        ]
+        base = {
+            'cd_paciente': '51',
+            'nm_paciente': 'Maria da Silva',
+            'cd_remessa': '987',
+            'cd_atendimento': '789',
+            'cd_prestador': '4',
+            'nm_prestador': 'Hospital Prontocardio',
+            'cd_convenio': '5',
+            'nm_convenio': 'Convênio Teste',
+            'tp_atendimento': 'Internação',
+            'cd_pro_fat': 'PROC-10',
+            'nr_guia': 'GUIA-20',
+            'dt_atendimento': '2026-07-01T08:00:00',
+            'qt_lancamento': '1',
+            'sn_glosado': 'true',
+            'processo_controle_fatura_gab': 'CONC-12',
+            'data_glosa': '2026-07-10',
+            'motivo_glosa': '1714',
+        }
+        itens = [
+            {
+                **base,
+                'registro_glosa_id': '81',
+                'cd_reg': '456',
+                'cd_lancamento': '3',
+                'demonstrativo_id_registro': 'linha-1',
+                'descricao': 'Primeiro procedimento',
+                'vl_total_conta': '10.50',
+                'qtd_glosada': '1',
+                'valor_glosado': '2.50',
+            },
+            {
+                **base,
+                'registro_glosa_id': '82',
+                'cd_reg': '457',
+                'cd_lancamento': '4',
+                'demonstrativo_id_registro': 'linha-2',
+                'descricao': 'Segundo procedimento',
+                'vl_total_conta': '20.00',
+                'qtd_glosada': '2',
+                'qt_lancamento': '2',
+                'valor_glosado': '4.75',
+            },
+        ]
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'true',
+                'dt_recurso': '2026-07-11',
+                'descricao_glosa': 'Justificativa compartilhada',
+                'form_action': 'salvar',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(api_put.call_count, 2)
+        self.assertEqual(
+            [call.args[0] for call in api_put.call_args_list],
+            [
+                f'{settings.API_REGISTRO_GLOSA_PATH}/81',
+                f'{settings.API_REGISTRO_GLOSA_PATH}/82',
+            ],
+        )
+        payloads = [call.args[1] for call in api_put.call_args_list]
+        self.assertEqual(
+            [payload['qtd_recursado'] for payload in payloads],
+            [1, 2],
+        )
+        self.assertEqual(
+            [payload['valor_recursado'] for payload in payloads],
+            [2.5, 4.75],
+        )
+        self.assertEqual(
+            {payload['descricao_glosa'] for payload in payloads},
+            {'Justificativa compartilhada'},
+        )
+        self.assertEqual(
+            response.json()['message'],
+            '2 itens recursados no Follow-Up de Glosas.',
+        )
+
+    @patch('core.views.api_post')
+    def test_registra_acato_multiplo_em_novos_itens(self, api_post):
+        api_post.side_effect = [
+            {'id': 201, 'sn_glosado': 'not'},
+            {'id': 202, 'sn_glosado': 'not'},
+        ]
+        itens = [
+            {
+                'cd_paciente': '51',
+                'nm_paciente': 'Maria da Silva',
+                'cd_remessa': '987',
+                'cd_atendimento': '789',
+                'cd_reg': str(conta),
+                'cd_lancamento': str(lancamento),
+                'cd_prestador': '4',
+                'cd_convenio': '5',
+                'tp_atendimento': 'Internação',
+                'cd_pro_fat': 'PROC-10',
+                'nm_convenio': 'Convênio Teste',
+                'nm_prestador': 'Hospital Prontocardio',
+                'nr_guia': 'GUIA-20',
+                'dt_atendimento': '2026-07-01T08:00:00',
+                'qt_lancamento': '1',
+                'vl_total_conta': valor,
+                'processo_controle_fatura_gab': 'CONC-12',
+                'data_glosa': '2026-07-10',
+                'motivo_glosa': motivo,
+                'qtd_glosada': '1',
+                'valor_glosado': valor,
+                'descricao': f'Item {lancamento}',
+            }
+            for conta, lancamento, motivo, valor in (
+                (456, 3, '1714', '2.50'),
+                (457, 4, '1305', '4.75'),
+            )
+        ]
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'not',
+                'dt_recurso': '2026-07-11',
+                'descricao_glosa': 'Acato conjunto',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(api_post.call_count, 2)
+        self.assertEqual(
+            [call.args[1]['motivo_glosa'] for call in api_post.call_args_list],
+            ['1714', '1305'],
+        )
+        self.assertTrue(all(
+            call.args[1]['sn_glosado'] == 'not'
+            for call in api_post.call_args_list
+        ))
+        self.assertEqual(
+            response.json()['message'],
+            '2 itens acatados no Follow-Up de Glosas.',
+        )
+
+    @patch('core.views.api_post')
+    def test_selecao_multipla_rejeita_itens_de_pacientes_diferentes(
+        self,
+        api_post,
+    ):
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps([
+                    {'cd_paciente': '1', 'nm_paciente': 'Paciente A'},
+                    {'cd_paciente': '2', 'nm_paciente': 'Paciente B'},
+                ]),
+                'sn_glosado': 'not',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('único paciente', response.json()['message'])
+        api_post.assert_not_called()
 
     @patch('core.views.api_put')
     def test_acatar_registra_tratamento_no_item_existente(self, api_put):
