@@ -575,6 +575,10 @@ class DashboardIndicadoresTests(TestCase):
         )
         self.assertEqual(api_get.call_count, 2)
         self.assertEqual(api_get.call_args_list[1].args[1]['offset'], 100)
+        self.assertEqual(api_get.call_args_list[0].kwargs['timeout'], 60)
+        self.assertEqual(api_get.call_args_list[1].kwargs['timeout'], 60)
+        self.assertEqual(get_dashboard_follow_up_summary(), resumo)
+        self.assertEqual(api_get.call_count, 2)
 
     def test_limite_do_dashboard_comporta_dataset_consolidado(self):
         from .views import DASHBOARD_GLOSAS_LIMIT

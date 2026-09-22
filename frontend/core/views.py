@@ -52,6 +52,8 @@ DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
 DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 DASHBOARD_FOLLOW_UP_CACHE_KEY = "dashboard:follow-up-resumo"
+DASHBOARD_FOLLOW_UP_TIMEOUT = 60
+DASHBOARD_FOLLOW_UP_CACHE_SECONDS = 300
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
@@ -5573,6 +5575,7 @@ def get_dashboard_follow_up_summary(force_refresh=False):
                 "incluir_detalhes": "false",
                 "agrupar_por_processo": "true",
             },
+            timeout=DASHBOARD_FOLLOW_UP_TIMEOUT,
         )
         if resumo is None:
             resumo = dict(pagina) if isinstance(pagina, dict) else {}
@@ -5583,7 +5586,7 @@ def get_dashboard_follow_up_summary(force_refresh=False):
     cache.set(
         DASHBOARD_FOLLOW_UP_CACHE_KEY,
         resumo,
-        getattr(settings, "DASHBOARD_CACHE_SECONDS", 45),
+        DASHBOARD_FOLLOW_UP_CACHE_SECONDS,
     )
     return resumo
 
