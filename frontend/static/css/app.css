@@ -5516,7 +5516,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
 
 .follow-up-glosa-card-header-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 64px;
   align-items: stretch;
   background: #fbfdfe;
 }
@@ -5581,6 +5581,14 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
+}
+
+.follow-up-glosa-pdf-slot {
+  display: flex;
+  width: 64px;
+  min-width: 64px;
+  align-items: stretch;
+  justify-content: flex-end;
 }
 
 .follow-up-glosa-pdf-action:hover {

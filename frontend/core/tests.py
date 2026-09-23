@@ -2824,8 +2824,23 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260921-contas-vencidas-layout',
+            '?v=20260923-follow-up-pdf-alinhado',
             base_template.read_text(),
+        )
+
+    def test_lista_follow_up_reserva_coluna_fixa_para_pdf(self):
+        css = Path(finders.find('css/app.css')).read_text()
+
+        self.assertIn(
+            'grid-template-columns: minmax(0, 1fr) 64px;',
+            css,
+        )
+        self.assertIn(
+            '.follow-up-glosa-pdf-slot {\n'
+            '  display: flex;\n'
+            '  width: 64px;\n'
+            '  min-width: 64px;',
+            css,
         )
 
     @patch('core.views.get_cached_api_payload')
