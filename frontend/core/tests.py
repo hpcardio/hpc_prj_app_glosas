@@ -1206,9 +1206,9 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'Saldo a negociar')
         self.assertContains(response, 'Contas vencidas')
         self.assertContains(response, 'Fornecedores por prioridade')
-        self.assertContains(response, 'DÍVIDA INICIAL')
-        self.assertContains(response, 'TOTAL EM ATRASO')
-        self.assertContains(response, 'NOVOS ATRASOS · 7 DIAS')
+        self.assertContains(response, 'TOTAL A PAGAR')
+        self.assertContains(response, 'DIVIDA VENCIDA')
+        self.assertContains(response, 'NOVA DIVIDA VENCIDA - 7 DIAS')
         self.assertContains(response, 'PAGAR AGORA')
         self.assertContains(response, 'SALDO A NEGOCIAR')
         self.assertContains(response, 'Restante após o pagamento previsto')
@@ -1333,8 +1333,8 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, 'value="2026-06-30"')
         self.assertContains(response, 'Período de vencimento aplicado')
         self.assertContains(response, '01/06/2026 a 30/06/2026')
-        self.assertContains(response, 'TOTAL EM ATRASO NO PERÍODO')
-        self.assertNotContains(response, 'DÍVIDA INICIAL')
+        self.assertContains(response, 'DIVIDA VENCIDA')
+        self.assertNotContains(response, 'TOTAL A PAGAR')
         self.assertEqual(
             api_get.call_args.kwargs['params']['data_inicio'],
             '2026-06-01',
