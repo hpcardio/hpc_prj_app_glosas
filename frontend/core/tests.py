@@ -1,9 +1,11 @@
 from datetime import date
+import json
 from pathlib import Path
 from threading import Barrier
 from unittest.mock import Mock, call, patch
 
 from django.contrib.staticfiles import finders
+from django.conf import settings
 from django.core.cache import cache
 from django.test import RequestFactory, TestCase, override_settings
 
@@ -26,6 +28,7 @@ from core.views import (
     build_dashboard_indicadores,
     build_geral_indicators,
     build_kanban_columns,
+    build_registro_glosa_payload,
     build_recuperacao_indicators,
     CONCILIACAO_FATURAMENTO_PATH,
     contextualize_registro_glosa_error,
@@ -125,6 +128,23 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(contas[0]['registro_recusa'], {})
         self.assertEqual(contas[0]['registro_glosa_status'], 'not')
 
+    @patch('core.views.get_cached_api_payload')
+    def test_consulta_auxiliar_de_glosas_recebe_filtro_guia(
+        self,
+        get_cached_api_payload,
+    ):
+        get_cached_api_payload.return_value = {'glosas': []}
+
+        attach_registros_glosa(
+            [self._conta()],
+            {'nr_guia': 'GUIA-20'},
+        )
+
+        self.assertEqual(
+            get_cached_api_payload.call_args.args[2],
+            {'nr_guia': 'GUIA-20', 'limit': 5000},
+        )
+
     def test_formularios_nao_exigem_processo_do_recurso(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
 
@@ -142,6 +162,108 @@ class ContaAtendimentoRegistroTests(TestCase):
                 template,
             )
             self.assertNotIn(':required="modal !== \'acatar\'"', template)
+
+    def test_modais_de_triagem_e_follow_up_exibem_lote_opcional(self):
+        templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
+
+        self.assertEqual(triagem.count('name="numero_lote"'), 2)
+        self.assertEqual(follow_up.count('name="numero_lote"'), 1)
+        self.assertNotIn('name="numero_lote" required', triagem)
+        self.assertNotIn('name="numero_lote" required', follow_up)
+        self.assertIn("url 'conta_atendimento_recurso_pdf'", triagem)
+        base = (templates_dir / 'base.html').read_text()
+        self.assertIn("payload.processo_controle_fatura_gab", base)
+        self.assertIn("triagemPdfLink.hidden = false", base)
+
+    def test_triagem_exibe_processo_como_primeiro_filtro_e_pdf(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'conta_atendimento.html'
+        ).read_text()
+
+        self.assertLess(
+            template.index('name="processo"'),
+            template.index('name="cd_remessa"'),
+        )
+        self.assertIn("'processo', 'cd_remessa'", template)
+        self.assertIn('PDF do processo', template)
+        self.assertIn(
+            "filtros.processo|urlencode",
+            template,
+        )
+
+    def test_triagem_substitui_filtro_conta_por_guia(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'conta_atendimento.html'
+        ).read_text()
+
+        self.assertIn('<label>Guia</label>', template)
+        self.assertIn('name="nr_guia"', template)
+        self.assertIn('value="{{ filtros.nr_guia }}"', template)
+        self.assertNotIn('name="cd_reg" value="{{ filtros.cd_reg }}"', template)
+        self.assertIn("'cd_atendimento', 'nr_guia'", template)
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.get_convenio_filter_options')
+    def test_triagem_encaminha_guia_para_consultas_da_api(
+        self,
+        get_convenio_filter_options,
+        get_cached_api_payload,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+        get_convenio_filter_options.return_value = []
+        get_cached_api_payload.side_effect = [
+            {'itens': []},
+            {'atendimentos': [], 'total': 0, 'limit': 10, 'offset': 0},
+        ]
+
+        response = self.client.get(
+            '/conta-atendimento/',
+            {'nr_guia': 'GUIA-20'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        chamadas = get_cached_api_payload.call_args_list
+        self.assertEqual(chamadas[1].args[2]['nr_guia'], 'GUIA-20')
+
+    def test_payload_normaliza_lote_sem_torna_lo_obrigatorio(self):
+        com_lote = build_registro_glosa_payload(
+            {'numero_lote': '  LOTE-MAIDA-42  '}
+        )
+        sem_lote = build_registro_glosa_payload({'numero_lote': '   '})
+
+        self.assertEqual(com_lote['numero_lote'], 'LOTE-MAIDA-42')
+        self.assertIsNone(sem_lote['numero_lote'])
+
+    def test_payload_remove_datas_nulas_renderizadas_pelo_template(self):
+        payload = build_registro_glosa_payload({
+            'dt_atendimento': '2026-05-02T10:30:00',
+            'dt_alta': 'None',
+            'dt_lancamento': '-',
+            'data_glosa': '2026-09-11',
+            'dt_pagamento': '2026-09-11',
+            'dt_recurso': '2026-09-11',
+        })
+
+        self.assertEqual(
+            payload['data_atendimento'],
+            '2026-05-02T10:30:00',
+        )
+        self.assertIsNone(payload['data_alta'])
+        self.assertIsNone(payload['data_lancamento'])
+        self.assertEqual(payload['data_glosa'], '2026-09-11')
+        self.assertEqual(payload['dt_pagamento'], '2026-09-11')
+        self.assertEqual(payload['dt_recurso'], '2026-09-11')
 
     @patch('core.views.get_cached_api_payload')
     def test_guia_vazia_e_hifen_casam_mesmo_registro(self, get_cached_api_payload):
@@ -1022,6 +1144,8 @@ class ContasPagarTests(TestCase):
                     'numero_documento': 'NF-10',
                     'numero_parcela': 1,
                     'descricao_conta': 'Medicamentos',
+                    'data_lancamento': '2026-05-20',
+                    'data_emissao': '2026-05-18',
                     'data_vencimento': '2026-06-09',
                     'tipo_quitacao': 'parcialmente pago',
                     'valor_total': '650000.00',
@@ -1065,7 +1189,7 @@ class ContasPagarTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Fornecedor Essencial')
-        self.assertContains(response, 'Pagamento imediato')
+        self.assertContains(response, 'Pagar agora')
         self.assertNotContains(response, 'Excluir dados operacionais')
         self.assertNotContains(response, 'Salvar tratamento')
         self.assertNotContains(response, 'Fornecedor crítico para a operação hospitalar')
@@ -1073,16 +1197,19 @@ class ContasPagarTests(TestCase):
         self.assertNotContains(response, 'name="condicao_negociada"')
         self.assertNotContains(response, 'Operações do registro')
         self.assertNotContains(response, 'VALOR TOTAL HONRADO')
-        self.assertContains(response, 'Dias de atraso')
-        self.assertContains(response, 'Título mais antigo')
-        self.assertContains(response, 'Crítico?')
+        self.assertContains(response, 'Maior atraso')
+        self.assertContains(response, 'Crítico')
         self.assertContains(response, 'Saldo a negociar')
-        self.assertContains(response, 'BASE DA DÍVIDA VENCIDA')
-        self.assertContains(response, 'DÍVIDA VENCIDA ATUAL')
+        self.assertContains(response, 'Contas vencidas')
+        self.assertContains(response, 'Fornecedores por prioridade')
+        self.assertContains(response, 'DÍVIDA INICIAL')
+        self.assertContains(response, 'TOTAL EM ATRASO')
         self.assertContains(response, 'NOVOS ATRASOS · 7 DIAS')
-        self.assertContains(response, 'PAGAMENTO IMEDIATO PREVISTO')
-        self.assertContains(response, 'SALDO PARA NEGOCIAÇÃO')
-        self.assertContains(response, 'Valor aberto após o pagamento imediato.')
+        self.assertContains(response, 'PAGAR AGORA')
+        self.assertContains(response, 'SALDO A NEGOCIAR')
+        self.assertContains(response, 'Restante após o pagamento previsto')
+        content = response.content.decode()
+        self.assertLess(content.index('payables-filters'), content.index('payables-kpis'))
         self.assertContains(response, 'Títulos do fornecedor')
         self.assertContains(response, 'Banco Pronto')
         self.assertContains(response, '0001')
@@ -1093,8 +1220,18 @@ class ContasPagarTests(TestCase):
         self.assertNotContains(response, 'HONRADO NO ORACLE')
         self.assertNotContains(response, 'HONRADO INFORMADO')
         self.assertContains(response, 'DESCRIÇÃO')
+        self.assertContains(response, 'EMISSÃO')
+        self.assertContains(response, '18/05/2026')
+        self.assertContains(response, 'LANÇAMENTO')
+        self.assertContains(response, '20/05/2026')
         self.assertContains(response, 'value="pagamento_salvar"')
         self.assertContains(response, 'Salvar pagamento')
+        self.assertContains(
+            response, 'data-money-input autocomplete="off"', count=2
+        )
+        self.assertContains(response, 'name="valor_pago"', count=2)
+        self.assertContains(response, 'inputmode="numeric"', count=2)
+        self.assertNotContains(response, 'inputmode="decimal"')
         self.assertContains(response, 'payables-record-card')
         self.assertContains(response, '1-1 de 1 fornecedores exibidos')
         self.assertContains(response, 'id="payables-page"')
@@ -1190,6 +1327,10 @@ class ContasPagarTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'value="2026-06-01"')
         self.assertContains(response, 'value="2026-06-30"')
+        self.assertContains(response, 'Período de vencimento aplicado')
+        self.assertContains(response, '01/06/2026 a 30/06/2026')
+        self.assertContains(response, 'TOTAL EM ATRASO NO PERÍODO')
+        self.assertNotContains(response, 'DÍVIDA INICIAL')
         self.assertEqual(
             api_get.call_args.kwargs['params']['data_inicio'],
             '2026-06-01',
@@ -1939,6 +2080,18 @@ class FollowUpGlosasTests(TestCase):
         }
         session.save()
 
+    def test_payload_preserva_identidade_da_linha_do_demonstrativo(self):
+        payload = build_registro_glosa_payload(
+            {
+                'demonstrativo_id_registro': '  linha-303-48  ',
+            }
+        )
+
+        self.assertEqual(
+            payload['demonstrativo_id_registro'],
+            'linha-303-48',
+        )
+
     def _api_payload(self):
         return {
             'cards': [
@@ -1992,6 +2145,9 @@ class FollowUpGlosasTests(TestCase):
                                     'cd_atendimento': 789,
                                     'cd_reg': 456,
                                     'cd_lancamento': 3,
+                                    'demonstrativo_id_registro': (
+                                        'linha-demonstrativo-15000'
+                                    ),
                                     'cd_prestador': 4,
                                     'nm_prestador': 'Hospital Prontocardio',
                                     'cd_convenio': 5,
@@ -2000,6 +2156,7 @@ class FollowUpGlosasTests(TestCase):
                                     'cd_pro_fat': 'PROC-10',
                                     'cd_tuss': '1714',
                                     'codigo_servico': '1714',
+                                    'numero_lote': 'LOTE-MAIDA-42',
                                     'cd_gru_pro': 10,
                                     'ds_gru_pro': 'Diagnóstico',
                                     'cd_gru_fat': 1,
@@ -2051,6 +2208,55 @@ class FollowUpGlosasTests(TestCase):
             'limit': 10,
             'offset': 0,
         }
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_formulario_envia_identidade_da_linha_do_demonstrativo(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        api_get.return_value = self._api_payload()
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'name="demonstrativo_id_registro" '
+            'value="linha-demonstrativo-15000"',
+        )
+        self.assertContains(response, 'name="numero_lote"')
+        self.assertContains(
+            response,
+            r"loteRecusa: 'LOTE\u002DMAIDA\u002D42'",
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_item_legado_sem_numero_lote_renderiza_modal(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        item = payload['cards'][0]['pacientes'][0]['itens'][0]
+        item.pop('numero_lote')
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {'detalhar_vinculo': '12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="numero_lote"')
+        self.assertContains(response, "loteRecusa: ''")
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
@@ -2123,6 +2329,7 @@ class FollowUpGlosasTests(TestCase):
                 'processo_original': 'CONC-12',
                 'download': 'false',
             },
+            timeout=120,
         )
         upstream.close.assert_called_once()
 
@@ -2132,6 +2339,40 @@ class FollowUpGlosasTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         api_get_stream.assert_not_called()
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_da_triagem_entrega_pdf_do_mesmo_gerador(
+        self,
+        api_get_stream,
+    ):
+        upstream = Mock()
+        upstream.headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': (
+                'inline; filename="recurso-glosa-TRIAGEM-12.pdf"'
+            ),
+        }
+        upstream.iter_content.return_value = [b'%PDF-1.7\ntriagem']
+        api_get_stream.return_value = upstream
+
+        response = self.client.get(
+            '/conta-atendimento/recurso-pdf/',
+            {'processo_original': 'TRIAGEM-12'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'%PDF-1.7\ntriagem',
+        )
+        api_get_stream.assert_called_once_with(
+            '/app_glosas/glosas/recurso.pdf',
+            {
+                'processo_original': 'TRIAGEM-12',
+                'download': 'false',
+            },
+        )
+        upstream.close.assert_called_once()
 
     def test_ordena_processos_e_remessas_por_competencia_decrescente(self):
         cards = [
@@ -2377,7 +2618,6 @@ class FollowUpGlosasTests(TestCase):
         card['conciliacao_remessa_id'] = None
         card['processo']['numero_processo'] = 'P058752/2026'
         card['cd_remessa'] = 16425
-        card['pacientes'] = []
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
 
@@ -2390,6 +2630,8 @@ class FollowUpGlosasTests(TestCase):
             'P058752/2026&amp;detalhar_remessa=16425"',
         )
         self.assertContains(response, 'Carregando detalhamento da remessa...')
+        self.assertNotContains(response, 'Maria da Silva')
+        self.assertEqual(response.context['cards'][0]['pacientes'], [])
         self.assertFalse(
             response.context['cards'][0]['detalhes_carregados']
         )
@@ -2417,7 +2659,13 @@ class FollowUpGlosasTests(TestCase):
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
 
-        response = self.client.get('/follow-up-glosas/')
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {
+                'detalhar_processo': 'P249767/2026',
+                'detalhar_remessa': '987',
+            },
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'P249767/2026')
@@ -2572,7 +2820,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260903-associacao-manual-mv-alinhada',
+            '?v=20260921-contas-vencidas-layout',
             base_template.read_text(),
         )
 
@@ -2752,6 +3000,11 @@ class FollowUpGlosasTests(TestCase):
             'Processo Origem',
             'Qtd item',
             'Valor item',
+            'Qtd glosada',
+            'Valor glosado',
+            'Recursar selecionados',
+            'Acatar selecionados',
+            'Descrição dos registros selecionados',
             '+RECUSAR',
             '+ACATO',
             'follow-up-glosa-records-scroll',
@@ -3015,6 +3268,183 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(payload['motivo_glosa'], '1016')
         self.assertIsNone(payload['processo_recurso'])
         self.assertEqual(payload['valor_recursado'], 75.0)
+
+    @patch('core.views.api_put')
+    def test_registra_recurso_em_varios_itens_do_mesmo_paciente(
+        self,
+        api_put,
+    ):
+        api_put.side_effect = [
+            {'id': 101, 'sn_glosado': 'true'},
+            {'id': 102, 'sn_glosado': 'true'},
+        ]
+        base = {
+            'cd_paciente': '51',
+            'nm_paciente': 'Maria da Silva',
+            'cd_remessa': '987',
+            'cd_atendimento': '789',
+            'cd_prestador': '4',
+            'nm_prestador': 'Hospital Prontocardio',
+            'cd_convenio': '5',
+            'nm_convenio': 'Convênio Teste',
+            'tp_atendimento': 'Internação',
+            'cd_pro_fat': 'PROC-10',
+            'nr_guia': 'GUIA-20',
+            'dt_atendimento': '2026-07-01T08:00:00',
+            'qt_lancamento': '1',
+            'sn_glosado': 'true',
+            'processo_controle_fatura_gab': 'CONC-12',
+            'data_glosa': '2026-07-10',
+            'motivo_glosa': '1714',
+        }
+        itens = [
+            {
+                **base,
+                'registro_glosa_id': '81',
+                'cd_reg': '456',
+                'cd_lancamento': '3',
+                'demonstrativo_id_registro': 'linha-1',
+                'descricao': 'Primeiro procedimento',
+                'vl_total_conta': '10.50',
+                'qtd_glosada': '1',
+                'valor_glosado': '2.50',
+            },
+            {
+                **base,
+                'registro_glosa_id': '82',
+                'cd_reg': '457',
+                'cd_lancamento': '4',
+                'demonstrativo_id_registro': 'linha-2',
+                'descricao': 'Segundo procedimento',
+                'vl_total_conta': '20.00',
+                'qtd_glosada': '2',
+                'qt_lancamento': '2',
+                'valor_glosado': '4.75',
+            },
+        ]
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'true',
+                'dt_recurso': '2026-07-11',
+                'descricao_glosa': 'Justificativa compartilhada',
+                'form_action': 'salvar',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(api_put.call_count, 2)
+        self.assertEqual(
+            [call.args[0] for call in api_put.call_args_list],
+            [
+                f'{settings.API_REGISTRO_GLOSA_PATH}/81',
+                f'{settings.API_REGISTRO_GLOSA_PATH}/82',
+            ],
+        )
+        payloads = [call.args[1] for call in api_put.call_args_list]
+        self.assertEqual(
+            [payload['qtd_recursado'] for payload in payloads],
+            [1, 2],
+        )
+        self.assertEqual(
+            [payload['valor_recursado'] for payload in payloads],
+            [2.5, 4.75],
+        )
+        self.assertEqual(
+            {payload['descricao_glosa'] for payload in payloads},
+            {'Justificativa compartilhada'},
+        )
+        self.assertEqual(
+            response.json()['message'],
+            '2 itens recursados no Follow-Up de Glosas.',
+        )
+
+    @patch('core.views.api_post')
+    def test_registra_acato_multiplo_em_novos_itens(self, api_post):
+        api_post.side_effect = [
+            {'id': 201, 'sn_glosado': 'not'},
+            {'id': 202, 'sn_glosado': 'not'},
+        ]
+        itens = [
+            {
+                'cd_paciente': '51',
+                'nm_paciente': 'Maria da Silva',
+                'cd_remessa': '987',
+                'cd_atendimento': '789',
+                'cd_reg': str(conta),
+                'cd_lancamento': str(lancamento),
+                'cd_prestador': '4',
+                'cd_convenio': '5',
+                'tp_atendimento': 'Internação',
+                'cd_pro_fat': 'PROC-10',
+                'nm_convenio': 'Convênio Teste',
+                'nm_prestador': 'Hospital Prontocardio',
+                'nr_guia': 'GUIA-20',
+                'dt_atendimento': '2026-07-01T08:00:00',
+                'qt_lancamento': '1',
+                'vl_total_conta': valor,
+                'processo_controle_fatura_gab': 'CONC-12',
+                'data_glosa': '2026-07-10',
+                'motivo_glosa': motivo,
+                'qtd_glosada': '1',
+                'valor_glosado': valor,
+                'descricao': f'Item {lancamento}',
+            }
+            for conta, lancamento, motivo, valor in (
+                (456, 3, '1714', '2.50'),
+                (457, 4, '1305', '4.75'),
+            )
+        ]
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'not',
+                'dt_recurso': '2026-07-11',
+                'descricao_glosa': 'Acato conjunto',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(api_post.call_count, 2)
+        self.assertEqual(
+            [call.args[1]['motivo_glosa'] for call in api_post.call_args_list],
+            ['1714', '1305'],
+        )
+        self.assertTrue(all(
+            call.args[1]['sn_glosado'] == 'not'
+            for call in api_post.call_args_list
+        ))
+        self.assertEqual(
+            response.json()['message'],
+            '2 itens acatados no Follow-Up de Glosas.',
+        )
+
+    @patch('core.views.api_post')
+    def test_selecao_multipla_rejeita_itens_de_pacientes_diferentes(
+        self,
+        api_post,
+    ):
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps([
+                    {'cd_paciente': '1', 'nm_paciente': 'Paciente A'},
+                    {'cd_paciente': '2', 'nm_paciente': 'Paciente B'},
+                ]),
+                'sn_glosado': 'not',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('único paciente', response.json()['message'])
+        api_post.assert_not_called()
 
     @patch('core.views.api_put')
     def test_acatar_registra_tratamento_no_item_existente(self, api_put):

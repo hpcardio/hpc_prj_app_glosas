@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Administrativo · Contas a Pagar{% endblock %}
+{% block page_title %}Fornecedores críticos{% endblock %}
+{% block content %}
+<section class="critical-suppliers-page">
+  <header class="critical-suppliers-story">
+    <span>CRITÉRIO DE CONTINUIDADE ASSISTENCIAL</span>
+    <h2>Classifique como crítico o fornecedor cuja interrupção possa comprometer a operação do hospital.</h2>
+    <p>A classificação alimenta automaticamente a prioridade das filas de Operação, Acompanhamento e Gestão de Contas a Pagar.</p>
+  </header>
+
+  <form method="get" class="panel filter-panel critical-suppliers-filters">
+    <label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Pesquise pelo nome ou código"></label>
+    <label class="filter-group"><span>Classificação</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
+    <div class="filter-actions"><button class="btn btn-primary" type="submit">Pesquisar</button><a class="btn btn-outline-secondary" href="{% url 'fornecedores_criticos' %}">Limpar</a></div>
+  </form>
+
+  <section class="panel critical-suppliers-panel">
+    <div class="panel-header"><div class="results-heading"><div><span class="panel-title">Cadastro de criticidade</span><span class="results-subtitle">{{ pagination.total }} fornecedor(es) · classificação manual conforme orientação da direção</span></div></div></div>
+    <div class="critical-suppliers-list">
+      {% for fornecedor in fornecedores %}
+      <article class="critical-supplier-card {% if fornecedor.critico %}is-critical{% endif %}">
+        <div class="critical-supplier-identity"><span class="critical-supplier-code">{{ fornecedor.codigo_fornecedor }}</span><div><small>FORNECEDOR</small><strong>{{ fornecedor.nome_fornecedor }}</strong><span>{{ fornecedor.titulos|length }} título(s) · saldo a pagar R$ {{ fornecedor.saldo_a_pagar|br_currency }}</span></div></div>
+        <div class="critical-supplier-status"><span class="payables-badge {% if fornecedor.critico %}is-critical{% endif %}">{% if fornecedor.critico %}CRÍTICO{% else %}NÃO CRÍTICO{% endif %}</span><small>{% if fornecedor.critico %}Prioridade máxima na fila{% else %}Prioridade por tempo de atraso{% endif %}</small></div>
+        <form method="post">{% csrf_token %}<input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="critico" value="{% if fornecedor.critico %}0{% else %}1{% endif %}"><button class="btn {% if fornecedor.critico %}btn-outline-secondary{% else %}btn-primary{% endif %}" type="submit">{% if fornecedor.critico %}Remover criticidade{% else %}Cadastrar como crítico{% endif %}</button></form>
+      </article>
+      {% empty %}<div class="empty-state"><strong>Nenhum fornecedor encontrado.</strong><span>Informe parte do nome ou o código para pesquisar.</span></div>{% endfor %}
+    </div>
+    {% if pagination.total %}<div class="pagination-control payables-pagination">{% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}<form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="critical-page">Página</label><select id="critical-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>{% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}</div>{% endif %}
+  </section>
+</section>
+{% endblock %}

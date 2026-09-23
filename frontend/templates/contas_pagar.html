@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
+{% block page_title %}{% if modo == "operacao" %}Contas vencidas{% elif modo == "acompanhamento" %}Acompanhamento do passivo{% else %}Gestão de Contas a Pagar{% endif %}{% endblock %}
+{% block content %}
+<section class="payables-page{% if modo == 'operacao' %} payables-page--operation{% endif %}">
+  <nav class="payables-tabs" aria-label="Visões de Contas a Pagar">
+    <a class="payables-tab {% if modo == 'operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}">
+      <span class="payables-tab-number">1</span><span><strong>Operação</strong><small>Priorizar, editar e excluir dados operacionais</small></span>
+    </a>
+    <a class="payables-tab {% if modo == 'acompanhamento' %}is-active{% endif %}" href="{% url 'contas_pagar_acompanhamento' %}">
+      <span class="payables-tab-number">2</span><span><strong>Acompanhamento</strong><small>Consultar responsáveis, ações e negociações</small></span>
+    </a>
+    <a class="payables-tab {% if modo == 'gestao' %}is-active{% endif %}" href="{% url 'contas_pagar_gestao' %}">
+      <span class="payables-tab-number">3</span><span><strong>Gestão</strong><small>Analisar exposição e prioridade de caixa</small></span>
+    </a>
+  </nav>
+
+  <header class="payables-story{% if modo == 'operacao' %} is-operation{% endif %}">
+    <div class="payables-story-main">
+      {% if modo == "operacao" %}<span class="payables-story-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v4c0 1.7 2.7 3 6 3s6-1.3 6-3V6M6 10v4c0 1.7 2.7 3 6 3s6-1.3 6-3v-4M6 14v4c0 1.7 2.7 3 6 3s6-1.3 6-3v-4"></path></svg></span>{% endif %}
+      <div>
+        <span class="payables-eyebrow">{% if modo == "operacao" %}Fila de atuação{% elif modo == "acompanhamento" %}O passivo está diminuindo?{% else %}Decisão diária de caixa{% endif %}</span>
+        <h2>{% if modo == "operacao" %}Veja rápido o que precisa ser pago e negociado.{% elif modo == "acompanhamento" %}Pagar o passado sem criar novos vencidos.{% else %}Primeiro as contas correntes; depois, a dívida vencida na ordem de prioridade.{% endif %}</h2>
+        <p>{% if modo == "operacao" %}Críticos primeiro. Em cada grupo, os mais atrasados vêm antes.{% elif modo == "acompanhamento" %}Compare o vencido inicial, a posição atual e o que entrou em atraso nos últimos sete dias.{% else %}A visão executiva separa a continuidade do hospital do passivo acumulado e mostra quanto caixa é necessário agora.{% endif %}</p>
+      </div>
+    </div>
+    {% if modo == "operacao" %}<aside class="payables-story-note">Mais controle<br>para a saúde<br>financeira do seu hospital.<span></span></aside>{% endif %}
+  </header>
+
+  <form method="get" class="panel filter-panel payables-filters">
+    <label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>
+    <label class="filter-group"><span>Criticidade</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
+    <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
+    <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
+    <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
+    <div class="filter-actions"><button class="btn btn-primary payables-search-button" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
+  </form>
+
+  {% if filtros.data_inicio or filtros.data_fim %}
+  <div class="payables-active-period" role="status">
+    <span>Período de vencimento aplicado</span>
+    <strong>{% if filtros.data_inicio %}{{ filtros.data_inicio|api_date }}{% else %}início da base{% endif %} a {% if filtros.data_fim %}{{ filtros.data_fim|api_date }}{% else %}data mais recente{% endif %}</strong>
+    <small>Indicadores, fornecedores e títulos abaixo consideram somente este intervalo.</small>
+  </div>
+  {% endif %}
+
+  <div class="payables-kpis{% if filtros.data_inicio or filtros.data_fim %} is-period-filtered{% endif %}">
+    {% if not filtros.data_inicio and not filtros.data_fim %}
+    <article class="is-start"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6" ry="3"></ellipse><path d="M6 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"></path></svg></span><small>{% if modo == "operacao" %}DÍVIDA INICIAL{% else %}DÍVIDA NO INÍCIO DO ACOMPANHAMENTO{% endif %}</small></div><strong>R$ {{ resumo.valor_vencido_inicial|br_currency }}</strong><span>{% if modo == "operacao" %}Valor em atraso no início do acompanhamento.{% else %}Valor vencido registrado no primeiro dia acompanhado.{% endif %}</span></article>
+    {% endif %}
+    <article class="is-alert"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"></path><path d="M12 9v4M12 16h.01"></path></svg></span><small>{% if filtros.data_inicio or filtros.data_fim %}TOTAL EM ATRASO NO PERÍODO{% elif modo == "operacao" %}TOTAL EM ATRASO{% else %}DÍVIDA VENCIDA ATUAL{% endif %}</small></div><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>{% if modo == "operacao" %}Contas vencidas e ainda não pagas{% else %}Total ainda vencido em {{ resumo.fornecedores_vencidos }} fornecedores{% if filtros.data_inicio or filtros.data_fim %} no intervalo selecionado{% endif %}.{% endif %}</span></article>
+    <article class="is-new-delay"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V12M12 19V5M19 19V9"></path></svg></span><small>NOVOS ATRASOS · 7 DIAS</small></div><strong>R$ {{ resumo.novos_vencidos_7d|br_currency }}</strong><span>{% if modo == "operacao" %}Contas que entraram em atraso nesta semana{% else %}Títulos que venceram nos últimos sete dias.{% endif %}</span></article>
+    <article class="is-primary"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><small>{% if modo == "operacao" %}PAGAR AGORA{% else %}PAGAMENTO IMEDIATO PREVISTO{% endif %}</small></div><strong>R$ {{ resumo.pagamento_imediato|br_currency }}</strong><span>{% if modo == "operacao" %}Valor previsto para pagamento imediato{% else %}Caixa informado para desembolso prioritário.{% endif %}</span></article>
+    <article class="is-balance"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h7M9 17h5"></path></svg></span><small>{% if modo == "operacao" %}SALDO A NEGOCIAR{% else %}SALDO PARA NEGOCIAÇÃO{% endif %}</small></div><strong>R$ {{ resumo.saldo_negociar|br_currency }}</strong><span>{% if modo == "operacao" %}Restante após o pagamento previsto{% else %}Valor aberto após o pagamento imediato.{% endif %}</span></article>
+  </div>
+
+  {% if modo == "gestao" %}
+  <section class="payables-management-grid">
+    <article class="panel payables-cash-card">
+      <span class="panel-title">Comitê Diário de Caixa</span>
+      <div class="payables-cash-split"><span><small>1 · CONTAS CORRENTES</small><strong>R$ {{ resumo.valor_corrente|br_currency }}</strong><em>Proteger a operação e impedir novos vencidos.</em></span><span><small>2 · DÍVIDA VENCIDA</small><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><em>Aplicar o caixa restante seguindo a fila.</em></span></div>
+    </article>
+    <article class="panel payables-rule-card">
+      <span class="panel-title">Regra de decisão</span>
+      <ol><li>Proteger o que é crítico</li><li>Entre os críticos, priorizar o mais antigo</li><li>Negociar o saldo</li><li>Tratar os não críticos</li><li>Evitar novos vencidos</li></ol>
+    </article>
+    {% if not filtros.data_inicio and not filtros.data_fim %}<article class="panel payables-trend-card">
+      <span class="panel-title">Evolução registrada</span>
+      <div class="payables-history-scroll"><table><thead><tr><th>Data</th><th>Vencido</th><th>Novos vencidos</th><th>Corrente</th></tr></thead><tbody>{% for item in historico %}<tr><td>{{ item.data_referencia|api_date }}</td><td>R$ {{ item.valor_vencido|br_currency }}</td><td>R$ {{ item.novos_vencidos|br_currency }}</td><td>R$ {{ item.valor_corrente|br_currency }}</td></tr>{% empty %}<tr><td colspan="4">A série histórica começa com a primeira consulta.</td></tr>{% endfor %}</tbody></table></div>
+    </article>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="panel payables-list-panel">
+    <div class="panel-header payables-results-header">
+      <div class="results-heading">
+        <div><span class="panel-title">{% if modo == "operacao" %}Fornecedores por prioridade{% elif modo == "acompanhamento" %}Registros para acompanhamento{% else %}Registros para decisão gerencial{% endif %}</span>{% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} fornecedores exibidos</span>{% endif %}</div>
+        {% if fornecedores %}<div class="collapse-actions"><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-expand'))">Expandir</button><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-collapse'))">Colapsar todos</button></div>{% endif %}
+      </div>
+      {% if pagination.total %}
+      <div class="results-toolbar payables-results-toolbar">
+        {% if modo == "operacao" %}<span class="payables-order-note"><small>Ordenar por</small><strong>Prioridade (críticos primeiro)</strong></span>{% endif %}
+        <div class="pagination-control">
+          {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+          <form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="payables-page">Página</label><select id="payables-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>
+          {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="payables-list">
+      {% for fornecedor in fornecedores %}
+      <article class="payables-item payables-record-card {% if fornecedor.critico %}is-critical{% endif %}" x-data="{ open: false }" @payables-expand.window="open=true" @payables-collapse.window="open=false">
+        <button type="button" class="payables-record-header" @click="open=!open" :aria-expanded="open" aria-controls="payables-record-{{ fornecedor.codigo_fornecedor }}">
+          <span class="payables-record-identity">
+            <span class="payables-priority">#{{ pagination.start|add:forloop.counter0 }}</span>
+            <span class="payables-supplier"><strong>{{ fornecedor.nome_fornecedor }}</strong><small>FORNECEDOR {{ fornecedor.codigo_fornecedor }}</small></span>
+            <span class="payables-criticality{% if fornecedor.critico %} is-critical{% endif %}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"></path><path d="M12 9v4M12 16h.01"></path></svg>{% if fornecedor.critico %}Crítico{% else %}Não crítico{% endif %}</span>
+          </span>
+          <span class="payables-record-pills">
+            <span class="payables-record-pill is-danger"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6" ry="3"></ellipse><path d="M6 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"></path></svg></span><span><small>Total em atraso</small><strong>R$ {{ fornecedor.valor_total_vencido|br_currency }}</strong></span></span>
+            <span class="payables-record-pill"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16v12H4zM4 11h16"></path></svg></span><span><small>Maior atraso</small><strong>{{ fornecedor.dias_atraso }} dias</strong></span></span>
+            <span class="payables-record-pill is-payment"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><span><small>Pagar agora</small><strong>R$ {{ fornecedor.pagamento_imediato|br_currency }}</strong></span></span>
+            <span class="payables-record-pill is-balance"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h7M9 17h5"></path></svg></span><span><small>Saldo a negociar</small><strong>R$ {{ fornecedor.saldo_negociar|br_currency }}</strong></span></span>
+          </span>
+          <span class="payables-record-chevron" :class="{'is-open': open}">&#9654;</span>
+        </button>
+        <div id="payables-record-{{ fornecedor.codigo_fornecedor }}" class="payables-details" x-show="open" x-cloak>
+          <section class="payables-titles-section">
+            <header><div><strong>Títulos do fornecedor</strong><span>{{ fornecedor.titulos|length }} título(s) no período selecionado</span></div><span>Expanda um título para consultar e informar pagamentos</span></header>
+            <div class="payables-title-list">
+              {% if modo == "operacao" and fornecedor.titulos %}<div class="payables-title-table-head" aria-hidden="true"><span></span><span>Título / Parcela</span><span>Documento</span><span>Emissão</span><span>Lançamento</span><span>Vencimento</span><span>Dias em atraso</span><span>Valor</span><span>Saldo a pagar</span><span>Status</span></div>{% endif %}
+              {% for titulo in fornecedor.titulos %}
+              <article class="payables-title-card" x-data="{ titleOpen: false }" @payables-collapse.window="titleOpen=false">
+                {% if modo == "operacao" %}
+                <button type="button" class="payables-title-header is-table-row" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
+                  <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
+                  <span><small>TÍTULO / PARCELA</small><strong>#{{ titulo.codigo_parcela }} · Parcela {{ titulo.numero_parcela|default:"-" }}</strong></span>
+                  <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
+                  <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
+                  <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
+                  <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
+                  <span><small>DIAS EM ATRASO</small><strong class="payables-days-badge{% if titulo.dias_vencidos > 0 %} is-overdue{% endif %}">{{ titulo.dias_vencidos }}</strong></span>
+                  <span><small>VALOR</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
+                  <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
+                  <span class="payables-title-status"><small>STATUS</small><strong class="{% if titulo.saldo_a_pagar <= 0 %}is-paid{% elif titulo.dias_vencidos > 0 %}is-overdue{% else %}is-current{% endif %}">{% if titulo.saldo_a_pagar <= 0 %}Pago{% elif titulo.dias_vencidos > 0 %}Em atraso{% else %}A vencer{% endif %}</strong></span>
+                </button>
+                {% else %}
+                <button type="button" class="payables-title-header" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
+                  <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
+                  <span><small>TÍTULO / PARCELA</small><strong>#{{ titulo.codigo_parcela }} · Parcela {{ titulo.numero_parcela|default:"-" }}</strong></span>
+                  <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
+                  <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
+                  <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
+                  <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
+                  <span><small>VALOR TOTAL</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
+                  <span><small>TOTAL HONRADO</small><strong>R$ {{ titulo.valor_total_honrado|br_currency }}</strong></span>
+                  <span><small>DIAS VENCIDOS</small><strong>{{ titulo.dias_vencidos }}</strong></span>
+                  <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
+                </button>
+                {% endif %}
+                <div class="payables-title-body" x-show="titleOpen" x-cloak>
+                  <div class="payables-title-description"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></div>
+                  <div class="payables-payment-heading"><div><strong>Pagamentos informados</strong><span>Recursos complementares registrados no Receita Certa</span></div></div>
+                  <div class="payables-payment-list">
+                    {% for pagamento in titulo.pagamentos %}
+                    <article class="payables-payment-record" x-data="{ editing: false }">
+                      <div class="payables-payment-summary"><span><small>DATA DO PAGAMENTO</small><strong>{{ pagamento.data_pagamento|api_date }}</strong></span><span><small>VALOR PAGO</small><strong>R$ {{ pagamento.valor_pago|br_currency }}</strong></span><span><small>NOME DO BANCO</small><strong>{{ pagamento.banco }}</strong></span><span><small>AGÊNCIA</small><strong>{{ pagamento.agencia|default:"Não informada" }}</strong></span><span><small>NÚMERO DA CONTA</small><strong>{{ pagamento.numero_conta|default:"Não informado" }}</strong></span><span><small>OBSERVAÇÃO</small><strong>{{ pagamento.observacao|default:"-" }}</strong></span><span><small>REGISTRADO POR</small><strong>{{ pagamento.usuario_nome }}</strong></span>{% if modo == "operacao" %}<button type="button" class="payables-payment-edit" @click="editing=!editing">Editar</button>{% endif %}</div>
+                      {% if modo == "operacao" %}
+                      <div class="payables-payment-edit-panel" x-show="editing" x-cloak>
+                        <form method="post" class="payables-payment-form">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_atualizar"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><input type="hidden" name="pagamento_id" value="{{ pagamento.id }}"><label><span>Data do pagamento</span><input class="form-control" type="date" name="data_pagamento" value="{{ pagamento.data_pagamento }}" required></label><label><span>Valor pago</span><input class="form-control finance-money-input" name="valor_pago" value="{{ pagamento.valor_pago|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required></label><label><span>Nome do banco</span><input class="form-control" name="banco" value="{{ pagamento.banco }}" maxlength="150" required></label><label><span>Agência</span><input class="form-control" name="agencia" value="{{ pagamento.agencia|default:'' }}" maxlength="30" required></label><label><span>Número da conta</span><input class="form-control" name="numero_conta" value="{{ pagamento.numero_conta|default:'' }}" maxlength="50" required></label><label class="is-wide"><span>Observação</span><input class="form-control" name="observacao" value="{{ pagamento.observacao|default:'' }}" maxlength="4000"></label><button class="btn btn-primary" type="submit">Atualizar pagamento</button></form>
+                        <form method="post" class="payables-payment-delete" onsubmit="return confirm('Excluir este pagamento informado?');">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_excluir"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><input type="hidden" name="pagamento_id" value="{{ pagamento.id }}"><button class="btn finance-danger-button" type="submit">Excluir pagamento</button></form>
+                      </div>
+                      {% endif %}
+                    </article>
+                    {% empty %}<div class="payables-payment-empty">Nenhum pagamento complementar informado para este título.</div>{% endfor %}
+                  </div>
+                  {% if modo == "operacao" %}
+                  <form method="post" class="payables-payment-form payables-payment-form--new">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_salvar"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><label><span>Data do pagamento</span><input class="form-control" type="date" name="data_pagamento" required></label><label><span>Valor pago</span><input class="form-control finance-money-input" name="valor_pago" inputmode="numeric" data-money-input autocomplete="off" placeholder="R$ 0,00" required></label><label><span>Nome do banco</span><input class="form-control" name="banco" maxlength="150" required></label><label><span>Agência</span><input class="form-control" name="agencia" maxlength="30" required></label><label><span>Número da conta</span><input class="form-control" name="numero_conta" maxlength="50" required></label><label class="is-wide"><span>Observação</span><input class="form-control" name="observacao" maxlength="4000"></label><button class="btn btn-primary" type="submit">Salvar pagamento</button></form>
+                  {% endif %}
+                </div>
+              </article>
+              {% empty %}<div class="payables-payment-empty">Nenhum título encontrado no período selecionado.</div>{% endfor %}
+            </div>
+          </section>
+          {% if modo != "operacao" %}<div class="payables-negotiation"><small>CONDIÇÃO NEGOCIADA</small><p>{{ fornecedor.condicao_negociada|default:"Negociação ainda não registrada." }}</p></div>{% endif %}
+        </div>
+      </article>
+      {% empty %}<div class="empty-state"><strong>Nenhum fornecedor encontrado.</strong><span>Ajuste os filtros ou verifique a disponibilidade da view Oracle.</span></div>{% endfor %}
+    </div>
+  </section>
+  {% if pagination.total_pages > 1 %}<div class="pagination-footer payables-pagination-footer">{% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}<span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>{% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}</div>{% endif %}
+</section>
+{% endblock %}
