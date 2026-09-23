@@ -2736,7 +2736,7 @@ class FollowUpGlosasTests(TestCase):
                 'motivo_glosa': '1016 - Motivo TISS',
                 'cd_tuss': '1714',
                 'dt_recurso': '2026-07-11',
-                'qtd_glosada': '1',
+                'qtd_glosada': '1.00',
                 'valor_glosado': 'R$ 75,00',
                 'descricao_glosa': 'Recurso enviado',
                 'form_action': 'salvar',
@@ -2806,7 +2806,7 @@ class FollowUpGlosasTests(TestCase):
                 'demonstrativo_id_registro': 'linha-1',
                 'descricao': 'Primeiro procedimento',
                 'vl_total_conta': '10.50',
-                'qtd_glosada': '1',
+                'qtd_glosada': '1.00',
                 'valor_glosado': '2.50',
             },
             {
@@ -2817,7 +2817,7 @@ class FollowUpGlosasTests(TestCase):
                 'demonstrativo_id_registro': 'linha-2',
                 'descricao': 'Segundo procedimento',
                 'vl_total_conta': '20.00',
-                'qtd_glosada': '2',
+                'qtd_glosada': '2.00',
                 'qt_lancamento': '2',
                 'valor_glosado': '4.75',
             },
@@ -2858,6 +2858,14 @@ class FollowUpGlosasTests(TestCase):
             {'Justificativa compartilhada'},
         )
         self.assertEqual(
+            {payload['dt_recurso'] for payload in payloads},
+            {'2026-07-11'},
+        )
+        self.assertEqual(
+            [payload['descricao_item'] for payload in payloads],
+            ['Primeiro procedimento', 'Segundo procedimento'],
+        )
+        self.assertEqual(
             response.json()['message'],
             '2 itens recursados no Follow-Up de Glosas.',
         )
@@ -2889,7 +2897,7 @@ class FollowUpGlosasTests(TestCase):
                 'processo_controle_fatura_gab': 'CONC-12',
                 'data_glosa': '2026-07-10',
                 'motivo_glosa': motivo,
-                'qtd_glosada': '1',
+                'qtd_glosada': '1.00',
                 'valor_glosado': valor,
                 'descricao': f'Item {lancamento}',
             }
@@ -2921,6 +2929,14 @@ class FollowUpGlosasTests(TestCase):
             for call in api_post.call_args_list
         ))
         self.assertEqual(
+            {call.args[1]['descricao_glosa'] for call in api_post.call_args_list},
+            {'Acato conjunto'},
+        )
+        self.assertEqual(
+            {call.args[1]['dt_recurso'] for call in api_post.call_args_list},
+            {'2026-07-11'},
+        )
+        self.assertEqual(
             response.json()['message'],
             '2 itens acatados no Follow-Up de Glosas.',
         )
@@ -2945,6 +2961,37 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('único paciente', response.json()['message'])
         api_post.assert_not_called()
+
+    @patch('core.views.api_put')
+    def test_selecao_multipla_valida_todos_os_itens_antes_de_gravar(
+        self,
+        api_put,
+    ):
+        itens = [
+            {
+                'cd_paciente': '51',
+                'nm_paciente': 'Maria da Silva',
+                'registro_glosa_id': str(registro_id),
+                'qtd_glosada': quantidade,
+                'valor_glosado': '2.50',
+            }
+            for registro_id, quantidade in ((81, '1'), (82, ''))
+        ]
+
+        response = self.client.post(
+            '/follow-up-glosas/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'true',
+                'dt_recurso': '2026-07-11',
+                'descricao_glosa': 'Justificativa compartilhada',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('quantidade glosada válida', response.json()['message'])
+        api_put.assert_not_called()
 
     @patch('core.views.api_put')
     def test_acatar_registra_tratamento_no_item_existente(self, api_put):

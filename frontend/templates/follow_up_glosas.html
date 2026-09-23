@@ -555,7 +555,7 @@
                   <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="follow-up-batch-modal-title-{{ card.detalhe_dom_id }}-{{ atendimento.cd_atendimento }}">
                     <form method="post" class="glosa-modal-form" data-has-registro="false" data-reload-on-success="true" onsubmit="prepareBatchPayload(); return window.handleGlosaSubmit(this, event);">
                       {% csrf_token %}
-                      <input type="hidden" name="itens_selecionados" :value="JSON.stringify(batchItems)">
+                      <input x-ref="batchItemsInput" type="hidden" name="itens_selecionados" :value="JSON.stringify(batchItems)">
                       <input type="hidden" name="sn_glosado" :value="batchModal === 'acatar' ? 'not' : 'true'">
                       <input type="hidden" name="data_glosa" :value="minimumTreatmentDate">
                       <div class="glosa-modal-header">
@@ -790,7 +790,7 @@
           item.registro_glosa_id = (
             acato ? form.dataset.registroAcatoId : form.dataset.registroRecusaId
           ) || form.dataset.registroBaseId || '';
-          item.qtd_glosada = form.dataset.glosaQuantity;
+          item.qtd_glosada = String(this.parseNumber(form.dataset.glosaQuantity));
           item.valor_glosado = form.dataset.glosaValue;
           item.sn_glosado = acato ? 'not' : 'true';
           return item;
@@ -800,6 +800,9 @@
           .filter(Boolean)
           .sort();
         this.minimumTreatmentDate = dates.length ? dates[dates.length - 1] : '';
+        if (this.$refs.batchItemsInput) {
+          this.$refs.batchItemsInput.value = JSON.stringify(this.batchItems);
+        }
       },
       openBatch(type) {
         if (this.selectedForms.length < 2) return;

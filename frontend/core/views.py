@@ -2703,7 +2703,16 @@ def as_int_or_none(value):
     try:
         return int(value)
     except (TypeError, ValueError):
-        return None
+        try:
+            decimal_value = Decimal(str(value).strip())
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+        if (
+            not decimal_value.is_finite()
+            or decimal_value != decimal_value.to_integral_value()
+        ):
+            return None
+        return int(decimal_value)
 
 
 def as_float_or_zero(value):
@@ -6313,22 +6322,45 @@ def follow_up_glosas(request):
                     )
 
                 is_acatar = request.POST.get("sn_glosado") == "not"
-                resultados = []
+                dt_recurso = str(
+                    request.POST.get("dt_recurso") or ""
+                ).strip()
+                descricao_comum = str(
+                    request.POST.get("descricao_glosa") or ""
+                ).strip()
+                if not dt_recurso:
+                    raise ValueError("Informe a data do recurso.")
+                if not descricao_comum:
+                    raise ValueError("Informe a justificativa comum.")
+
+                operacoes = []
                 for item in itens:
                     dados_item = dict(item)
                     dados_item.update({
                         "sn_glosado": (
                             "not" if is_acatar else "true"
                         ),
-                        "dt_recurso": request.POST.get("dt_recurso"),
-                        "descricao_glosa": request.POST.get(
-                            "descricao_glosa"
-                        ) or "",
+                        "dt_recurso": dt_recurso,
+                        "descricao_glosa": descricao_comum,
                     })
                     payload = build_registro_glosa_payload(dados_item)
+                    if payload["qtd_recursado"] is None:
+                        raise ValueError(
+                            "Um dos itens selecionados não possui quantidade "
+                            "glosada válida."
+                        )
+                    if payload["valor_recursado"] is None:
+                        raise ValueError(
+                            "Um dos itens selecionados não possui valor "
+                            "glosado válido."
+                        )
                     registro_id = str(
                         dados_item.get("registro_glosa_id") or ""
                     ).strip()
+                    operacoes.append((registro_id, payload))
+
+                resultados = []
+                for registro_id, payload in operacoes:
                     resultados.append(
                         api_put(
                             f"{settings.API_REGISTRO_GLOSA_PATH}/"
