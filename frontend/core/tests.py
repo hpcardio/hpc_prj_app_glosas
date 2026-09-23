@@ -3703,7 +3703,7 @@ class RecursosProcessosTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/'
             'recursos-processos',
-            params={
+            {
                 'periodo': '07/2026',
                 'limit': 10,
                 'offset': 0,
@@ -3728,7 +3728,7 @@ class RecursosProcessosTests(TestCase):
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/conciliacao-faturamento/'
             'recursos-processos',
-            params={'limit': 10, 'offset': 0},
+            {'limit': 10, 'offset': 0},
             timeout=60,
         )
 
