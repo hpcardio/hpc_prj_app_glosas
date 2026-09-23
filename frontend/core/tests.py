@@ -39,6 +39,7 @@ from core.views import (
     group_follow_up_glosas_by_process,
     is_enabled_convenio_registro,
     is_recebido_registro,
+    prepare_follow_up_glosas_cards,
     REQUISICOES_NOTA_PATH,
     subtract_months,
 )
@@ -975,6 +976,252 @@ class DashboardIndicadoresTests(TestCase):
         self.assertIn('Motivo B: 1 acato', indicadores['mensal'][0]['motivos_tooltip'])
 
 
+class ContasPagarTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 7,
+            'nome': 'Usuário Financeiro',
+            'email': 'financeiro@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': [
+                'contas_pagar_operacao',
+                'contas_pagar_acompanhamento',
+                'contas_pagar_gestao',
+                'fornecedores_criticos',
+            ],
+        }
+        session.save()
+
+    @staticmethod
+    def payload():
+        return {
+            'fornecedores': [{
+                'codigo_fornecedor': 10,
+                'nome_fornecedor': 'Fornecedor Essencial',
+                'valor_vencido': '500000.00',
+                'valor_total': '650000.00',
+                'valor_total_vencido': '500000.00',
+                'valor_total_honrado': '150000.00',
+                'total_dias_vencidos': 250,
+                'saldo_a_pagar': '500000.00',
+                'valor_corrente': '25000.00',
+                'vencimento_mais_antigo': '2026-06-09',
+                'dias_atraso': 100,
+                'novos_vencidos_7d': '12000.00',
+                'titulos_vencidos': 4,
+                'critico': True,
+                'pagamento_imediato': '100000.00',
+                'saldo_negociar': '400000.00',
+                'status': 'NEGOCIACAO',
+                'responsavel': 'Ana',
+                'titulos': [{
+                    'codigo_parcela': 99,
+                    'codigo_contas_pagar': 88,
+                    'numero_documento': 'NF-10',
+                    'numero_parcela': 1,
+                    'descricao_conta': 'Medicamentos',
+                    'data_vencimento': '2026-06-09',
+                    'tipo_quitacao': 'parcialmente pago',
+                    'valor_total': '650000.00',
+                    'valor_honrado_oracle': '100000.00',
+                    'valor_honrado_manual': '50000.00',
+                    'valor_total_honrado': '150000.00',
+                    'saldo_a_pagar': '500000.00',
+                    'dias_vencidos': 100,
+                    'pagamentos': [{
+                        'id': 31,
+                        'data_pagamento': '2026-09-17',
+                        'valor_pago': '50000.00',
+                        'banco': 'Banco Pronto',
+                        'agencia': '0001',
+                        'numero_conta': '12345-6',
+                        'observacao': 'Parcial',
+                        'usuario_nome': 'Ana',
+                    }],
+                }],
+            }],
+            'total': 1,
+            'page': 1,
+            'total_pages': 1,
+            'resumo': {
+                'valor_vencido_inicial': '6000000.00',
+                'valor_vencido_atual': '5000000.00',
+                'novos_vencidos_7d': '12000.00',
+                'pagamento_imediato': '100000.00',
+                'saldo_negociar': '4900000.00',
+                'valor_corrente': '900000.00',
+                'fornecedores_vencidos': 1,
+            },
+            'historico': [],
+        }
+
+    @patch('core.views.api_get')
+    def test_operacao_exibe_fila_e_campos_editaveis(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get('/financeiro/contas-a-pagar/operacao/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fornecedor Essencial')
+        self.assertContains(response, 'Pagamento imediato')
+        self.assertNotContains(response, 'Excluir dados operacionais')
+        self.assertNotContains(response, 'Salvar tratamento')
+        self.assertNotContains(response, 'Fornecedor crítico para a operação hospitalar')
+        self.assertNotContains(response, 'name="responsavel"')
+        self.assertNotContains(response, 'name="condicao_negociada"')
+        self.assertNotContains(response, 'Operações do registro')
+        self.assertNotContains(response, 'VALOR TOTAL HONRADO')
+        self.assertContains(response, 'Dias de atraso')
+        self.assertContains(response, 'Título mais antigo')
+        self.assertContains(response, 'Crítico?')
+        self.assertContains(response, 'Saldo a negociar')
+        self.assertContains(response, 'BASE DA DÍVIDA VENCIDA')
+        self.assertContains(response, 'DÍVIDA VENCIDA ATUAL')
+        self.assertContains(response, 'NOVOS ATRASOS · 7 DIAS')
+        self.assertContains(response, 'PAGAMENTO IMEDIATO PREVISTO')
+        self.assertContains(response, 'SALDO PARA NEGOCIAÇÃO')
+        self.assertContains(response, 'Valor aberto após o pagamento imediato.')
+        self.assertContains(response, 'Títulos do fornecedor')
+        self.assertContains(response, 'Banco Pronto')
+        self.assertContains(response, '0001')
+        self.assertContains(response, '12345-6')
+        self.assertNotContains(response, 'Informar pagamento')
+        self.assertNotContains(response, 'CONTA A PAGAR')
+        self.assertNotContains(response, 'SITUAÇÃO ORACLE')
+        self.assertNotContains(response, 'HONRADO NO ORACLE')
+        self.assertNotContains(response, 'HONRADO INFORMADO')
+        self.assertContains(response, 'DESCRIÇÃO')
+        self.assertContains(response, 'value="pagamento_salvar"')
+        self.assertContains(response, 'Salvar pagamento')
+        self.assertContains(response, 'payables-record-card')
+        self.assertContains(response, '1-1 de 1 fornecedores exibidos')
+        self.assertContains(response, 'id="payables-page"')
+        self.assertContains(response, 'Priorizar, editar e excluir dados operacionais')
+        self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
+
+    @patch('core.views.api_get')
+    def test_gestao_separa_contas_correntes_da_divida(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get('/financeiro/contas-a-pagar/gestao/')
+
+        self.assertContains(response, 'CONTAS CORRENTES')
+        self.assertContains(response, 'DÍVIDA VENCIDA')
+        self.assertContains(response, 'Regra de decisão')
+        self.assertNotContains(response, 'Análise gerencial do registro')
+        self.assertContains(response, 'Títulos do fornecedor')
+        self.assertContains(response, 'Página')
+        self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
+
+    @patch('core.views.api_get')
+    def test_acompanhamento_exibe_operacao_do_card(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get(
+            '/financeiro/contas-a-pagar/acompanhamento/'
+        )
+
+        self.assertNotContains(response, 'Acompanhamento do registro')
+        self.assertContains(response, 'Pagamentos informados')
+        self.assertContains(
+            response,
+            'Consultar responsáveis, ações e negociações',
+        )
+
+    @patch('core.views.api_put')
+    def test_operacao_salva_dados_complementares(self, api_put):
+        response = self.client.post(
+            '/financeiro/contas-a-pagar/operacao/',
+            {
+                'codigo_fornecedor': '10',
+                'critico': '1',
+                'pagamento_imediato': '100.000,00',
+                'status': 'NEGOCIACAO',
+                'responsavel': 'Ana',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_put.assert_called_once()
+        self.assertEqual(api_put.call_args.args[1]['pagamento_imediato'], 100000.0)
+
+    @patch('core.views.api_post')
+    def test_operacao_informa_pagamento_do_titulo(self, api_post):
+        response = self.client.post(
+            '/financeiro/contas-a-pagar/operacao/',
+            {
+                'form_action': 'pagamento_salvar',
+                'codigo_fornecedor': '10',
+                'codigo_parcela': '99',
+                'data_pagamento': '2026-09-17',
+                'valor_pago': '1.250,50',
+                'banco': 'Banco Pronto',
+                'agencia': '0001',
+                'numero_conta': '12345-6',
+                'observacao': 'Pagamento parcial',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/fornecedores/10'
+            '/titulos/99/pagamentos',
+            {
+                'data_pagamento': '2026-09-17',
+                'valor_pago': 1250.5,
+                'banco': 'Banco Pronto',
+                'agencia': '0001',
+                'numero_conta': '12345-6',
+                'observacao': 'Pagamento parcial',
+            },
+        )
+
+    @patch('core.views.api_get')
+    def test_filtro_entre_datas_e_enviado_para_api(self, api_get):
+        api_get.return_value = self.payload()
+
+        response = self.client.get(
+            '/financeiro/contas-a-pagar/operacao/',
+            {'data_inicio': '2026-06-01', 'data_fim': '2026-06-30'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="2026-06-01"')
+        self.assertContains(response, 'value="2026-06-30"')
+        self.assertEqual(
+            api_get.call_args.kwargs['params']['data_inicio'],
+            '2026-06-01',
+        )
+
+    @patch('core.views.api_patch')
+    @patch('core.views.api_get')
+    def test_administrativo_cadastra_fornecedor_critico(
+        self, api_get, api_patch
+    ):
+        api_get.return_value = self.payload()
+        response = self.client.get(
+            '/administrativo/fornecedores-criticos/',
+            {'q': 'Essencial'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cadastro de criticidade')
+        self.assertContains(response, 'Fornecedor Essencial')
+
+        response = self.client.post(
+            '/administrativo/fornecedores-criticos/',
+            {'codigo_fornecedor': '10', 'critico': '1'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        api_patch.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/fornecedores/10/criticidade',
+            {'critico': True},
+        )
+
+
 @override_settings(
     SPU_NOVNC_PASSWORD='vnc12345',
     SPU_RECAPTCHA_POLL_SECONDS=5,
@@ -1533,6 +1780,8 @@ class LoginFlowTests(TestCase):
             'aria-label="Telas disponíveis para o novo usuário"',
         )
         self.assertContains(response, 'Criar acesso')
+        self.assertContains(response, 'Fornecedores críticos')
+        self.assertContains(response, 'value="fornecedores_criticos"')
         self.assertContains(
             response,
             'name="access-user-management"',
@@ -2009,6 +2258,7 @@ class FollowUpGlosasTests(TestCase):
         card['processo']['numero_processo'] = 'P249767/2026'
         card['processo']['status_processo'] = 'TRAMITANDO'
         card['pacientes'] = []
+        card['possui_pendencia_associacao_manual'] = True
         payload['valor_total_tratado'] = '0.00'
         api_get.return_value = payload
         get_cached_api_payload.return_value = {'itens': []}
@@ -2034,9 +2284,9 @@ class FollowUpGlosasTests(TestCase):
             '/associacoes-remessas-ipm/?numero_processo=P249767/2026',
         )
         self.assertNotContains(response, 'detalhar_vinculo=')
-        self.assertEqual(
+        self.assertRegex(
             response.context['cards'][0]['detalhe_dom_id'],
-            'cogestao-987',
+            r'^cogestao-987-[0-9a-f]{12}$',
         )
         self.assertTrue(
             response.context['cards'][0]['detalhes_carregados']
@@ -2053,6 +2303,67 @@ class FollowUpGlosasTests(TestCase):
                 'cd_remessa': 987,
             },
         )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_card_sem_pendencia_nao_oferece_associacao_manual(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['processo']['numero_processo'] = 'P142201/2026'
+        card['pacientes'] = []
+        card['possui_pendencia_associacao_manual'] = False
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/',
+            {
+                'detalhar_processo': 'P142201/2026',
+                'detalhar_remessa': '987',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Não foram encontrados itens vinculados para esta remessa.',
+        )
+        self.assertNotContains(response, 'Abrir Associação Manual')
+
+    def test_cards_da_mesma_remessa_em_processos_distintos_tem_ids_unicos(
+        self,
+    ):
+        payload = self._api_payload()['cards'][0]
+        primeiro = {
+            **payload,
+            'conciliacao_remessa_id': None,
+            'processo': {
+                **payload['processo'],
+                'numero_processo': 'P142201/2026',
+            },
+        }
+        segundo = {
+            **payload,
+            'conciliacao_remessa_id': None,
+            'processo': {
+                **payload['processo'],
+                'numero_processo': 'P129288/2026',
+            },
+        }
+
+        cards = prepare_follow_up_glosas_cards([primeiro, segundo])
+
+        self.assertNotEqual(
+            cards[0]['detalhe_dom_id'],
+            cards[1]['detalhe_dom_id'],
+        )
+        self.assertTrue(cards[0]['detalhe_dom_id'].startswith('cogestao-987-'))
+        self.assertTrue(cards[1]['detalhe_dom_id'].startswith('cogestao-987-'))
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')

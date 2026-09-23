@@ -7,7 +7,7 @@
   <title>Gestao de Glosas</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon-heart.svg' %}?v=20260611-3">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/app.css' %}?v=20260903-associacao-manual-mv-alinhada" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}?v=20260921-contas-vencidas-layout" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -81,18 +81,19 @@
         </div>
       </div>
       {% endif %}
-      {% if screen_access.conciliacao_manual or screen_access.conciliacao_financeira or screen_access.consultar_conciliacoes or screen_access.follow_up_solicitacoes or screen_access.emissao_nfse or screen_access.acompanhamento_particular %}
+      {% if screen_access.conciliacao_manual or screen_access.conciliacao_financeira or screen_access.consultar_conciliacoes or screen_access.follow_up_solicitacoes or screen_access.emissao_nfse or screen_access.acompanhamento_particular or screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao %}
       <div
         class="nav-group"
-        x-data="{ open: false, requestOpen: false }"
+        x-data="{ open: false, requestOpen: false, payableOpen: false }"
         x-init="
-          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular'].includes('{{ request.resolver_match.url_name }}');
+          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao'].includes('{{ request.resolver_match.url_name }}');
           requestOpen = ['workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular'].includes('{{ request.resolver_match.url_name }}');
+          payableOpen = ['contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao'].includes('{{ request.resolver_match.url_name }}');
         "
       >
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
           :aria-expanded="sidebarOpen && open"
           title="Financeiro"
@@ -136,6 +137,19 @@
             </div>
           </div>
           {% endif %}
+          {% if screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao %}
+          <div class="nav-subgroup">
+            <button type="button" class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}" @click="payableOpen = !payableOpen" :aria-expanded="payableOpen" title="Contas a Pagar">
+              <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span>
+              <span class="nav-label">Contas a Pagar</span><span class="nav-nested-chevron" aria-hidden="true">&#9654;</span>
+            </button>
+            <div class="nav-submenu nav-submenu--nested" x-show="payableOpen">
+              {% if screen_access.contas_pagar_operacao %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}" title="Operacionalizar e editar registros"><span class="nav-label">1. Operação</span></a>{% endif %}
+              {% if screen_access.contas_pagar_acompanhamento %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_acompanhamento' %}is-active{% endif %}" href="{% url 'contas_pagar_acompanhamento' %}" title="Acompanhar ações e negociações"><span class="nav-label">2. Acompanhamento</span></a>{% endif %}
+              {% if screen_access.contas_pagar_gestao %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}" href="{% url 'contas_pagar_gestao' %}" title="Gerenciar exposição e prioridade"><span class="nav-label">3. Gestão</span></a>{% endif %}
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
       {% endif %}
@@ -168,15 +182,15 @@
         </div>
       </div>
       {% endif %}
-      {% if screen_access.configuracao_convenio or screen_access.empresas_nfse or is_ti_user %}
+      {% if screen_access.fornecedores_criticos or screen_access.configuracao_convenio or screen_access.empresas_nfse or is_ti_user %}
       <div
         class="nav-group"
         x-data="{ open: false }"
-        x-init="open = ['prazos_recurso_convenio', 'empresas_emissoras', 'user_access_management'].includes('{{ request.resolver_match.url_name }}')"
+        x-init="open = ['fornecedores_criticos', 'prazos_recurso_convenio', 'empresas_emissoras', 'user_access_management'].includes('{{ request.resolver_match.url_name }}')"
       >
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'prazos_recurso_convenio' or request.resolver_match.url_name == 'empresas_emissoras' or request.resolver_match.url_name == 'user_access_management' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'fornecedores_criticos' or request.resolver_match.url_name == 'prazos_recurso_convenio' or request.resolver_match.url_name == 'empresas_emissoras' or request.resolver_match.url_name == 'user_access_management' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
           :aria-expanded="sidebarOpen && open"
           title="Administrativo"
@@ -185,6 +199,9 @@
           <span class="nav-label">Administrativo</span>
         </button>
         <div class="nav-submenu" x-show="open">
+          {% if screen_access.fornecedores_criticos %}
+          <a class="nav-subitem {% if request.resolver_match.url_name == 'fornecedores_criticos' %}is-active{% endif %}" href="{% url 'fornecedores_criticos' %}" title="Fornecedores críticos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 20h18z"></path><path d="M12 9v5"></path><path d="M12 17h.01"></path></svg></span><span class="nav-label">Fornecedores críticos</span></a>
+          {% endif %}
           {% if screen_access.configuracao_convenio %}
           <a class="nav-subitem {% if request.resolver_match.url_name == 'prazos_recurso_convenio' %}is-active{% endif %}" href="{% url 'prazos_recurso_convenio' %}" title="Configuração por Convênio"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14"></path><path d="M8 12h8"></path><path d="M10 18h4"></path></svg></span><span class="nav-label">Configuração por Convênio</span></a>
           {% endif %}
@@ -775,6 +792,7 @@
         return;
       }
       form.dataset.submitting = 'true';
+      form._submittedGlosaType = form.querySelector('[name="sn_glosado"]')?.value;
       form.classList.add('is-submitting');
       form.querySelectorAll('input[data-submit-proxy="true"]').forEach((input) => {
         input.remove();
@@ -811,6 +829,7 @@
           if (!response.ok) {
             data.ok = false;
           }
+          data.operationType = form._submittedGlosaType;
           window.showOperationMessage(data, form);
         })
         .catch((error) => {
@@ -852,6 +871,7 @@
         'dt_pagamento',
         'motivo_glosa',
         'processo_recurso',
+        'numero_lote',
         'dt_recurso',
         'qtd_glosada',
         'valor_glosado',
@@ -872,6 +892,10 @@
     window.showOperationMessage = function (data, form) {
       if (form && !data.ok) {
         window.resetGlosaFormToInitialState(form);
+      }
+      if (form && data.ok) {
+        window.applyOperationState(form, data);
+        form.closest('.glosa-modal')?.querySelector('.glosa-modal-close')?.click();
       }
 
       const layer = document.createElement('div');
@@ -910,11 +934,6 @@
       okButton.addEventListener('click', () => {
         layer.remove();
         if (data.ok) {
-          if (form?.dataset.reloadOnSuccess === 'true') {
-            window.location.reload();
-            return;
-          }
-          window.applyOperationState(form, data);
           form.closest('.glosa-modal')?.querySelector('.glosa-modal-close')?.click();
         }
       });
@@ -981,9 +1000,59 @@
       }
 
       const payload = data.payload || {};
+      const tipo = payload.sn_glosado || data.operationType;
+      const state = window.Alpine?.$data(row);
+      const followUp = typeof state?.openTreatment === 'function';
+      const savedForms = followUp ? [form] : Array.from(row.querySelectorAll('.glosa-modal-form')).filter(
+        (modalForm) => modalForm.querySelector('[name="sn_glosado"]')?.value === tipo
+      );
+      const valor = payload.valor_recursado == null ? '' : Number(payload.valor_recursado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      const qtd = payload.qtd_recursado == null ? '' : String(Number(payload.qtd_recursado));
+      if (followUp) {
+        const acato = tipo === 'not';
+        const previousValue = acato ? state.valorAcatado : state.valorRecusado;
+        const previousAmount = Number(String(previousValue || '').replace(/\D/g, '')) / 100;
+        const delta = Number(payload.valor_recursado || 0) - previousAmount;
+        const updateTotal = (element) => {
+          if (!element) return;
+          const current = Number(element.textContent.replace(/[^\d-]/g, '')) / 100;
+          element.textContent = (current + delta).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        };
+        updateTotal(row.querySelector('.cell-valor--treated'));
+        ['remessa', 'processo'].forEach((kind) => {
+          updateTotal(row.closest?.(`[data-follow-up-expansion-kind="${kind}"]`)?.querySelector('.follow-up-glosa-card-value--treated strong'));
+        });
+        updateTotal(window.document?.querySelector('[data-glosa-summary-treated]'));
+        const fields = {
+          [acato ? 'registroAcatoId' : 'registroRecusaId']: payload.id || '',
+          [acato ? 'processoAcato' : 'processoRecusa']: payload.processo_recurso || '',
+          [acato ? 'loteAcato' : 'loteRecusa']: payload.numero_lote || '',
+          [acato ? 'qtdAcatada' : 'qtdRecusada']: qtd,
+          [acato ? 'valorAcatado' : 'valorRecusado']: valor,
+          [acato ? 'dataAcato' : 'dataRecusa']: (payload.dt_recurso || '').slice(0, 10),
+          [acato ? 'motivoAcato' : 'motivoRecusa']: payload.motivo_glosa || '',
+          [acato ? 'descricaoAcato' : 'descricaoRecusa']: payload.descricao_glosa || ''
+        };
+        Object.assign(state, fields);
+        state.registroTratadoId = payload.id || state.registroBaseId;
+        state.editingExisting = Boolean(payload.id);
+      }
+      if (payload.id) {
+        const values = { ...payload, qtd_glosada: qtd, valor_glosado: valor };
+        savedForms.forEach((modalForm) => {
+          modalForm.querySelectorAll('input, select, textarea').forEach((field) => {
+            if (!Object.prototype.hasOwnProperty.call(values, field.name)) return;
+            const value = values[field.name] == null ? '' : String(values[field.name]);
+            field.value = field.type === 'date' ? value.slice(0, 10) : value;
+            field.defaultValue = field.value;
+            field._x_model?.set?.(field.value);
+          });
+        });
+      }
       const glosarButton = row.querySelector('.btn-glosar');
       const acatarButton = row.querySelector('.btn-acatar');
-      const forms = row.querySelectorAll('.glosa-modal-form');
+      const triagemPdfLink = row.querySelector('[data-triagem-pdf-link]');
+      const forms = savedForms;
 
       if (payload.id) {
         forms.forEach((modalForm) => {
@@ -996,6 +1065,17 @@
           glosarButton?.classList.add('btn-glosar--filled');
           acatarButton?.classList.remove('btn-acatar--filled');
         }
+        const processoOriginal = payload.processo_controle_fatura_gab || '';
+        if (
+          triagemPdfLink
+          && payload.sn_glosado !== 'not'
+          && processoOriginal
+        ) {
+          triagemPdfLink.href = `${triagemPdfLink.dataset.pdfBase}?processo_original=${encodeURIComponent(processoOriginal)}`;
+          triagemPdfLink.hidden = false;
+        } else if (triagemPdfLink) {
+          triagemPdfLink.hidden = true;
+        }
       } else {
         forms.forEach((modalForm) => {
           window.updateRegistroFormActions(modalForm, false, '');
@@ -1003,6 +1083,13 @@
         });
         glosarButton?.classList.remove('btn-glosar--filled');
         acatarButton?.classList.remove('btn-acatar--filled');
+        if (triagemPdfLink) {
+          triagemPdfLink.hidden = true;
+        }
+      }
+      if (followUp) {
+        glosarButton?.classList.toggle('btn-glosar--filled', Boolean(state.registroRecusaId));
+        acatarButton?.classList.toggle('btn-acatar--filled', Boolean(state.registroAcatoId));
       }
     };
   </script>

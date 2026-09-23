@@ -52,6 +52,11 @@ urlpatterns = [
         name="associacoes_remessas_ipm",
     ),
     path("conta-atendimento/", views.conta_atendimento, name="conta_atendimento"),
+    path(
+        "conta-atendimento/recurso-pdf/",
+        views.conta_atendimento_recurso_pdf,
+        name="conta_atendimento_recurso_pdf",
+    ),
     path("acompanhamento/", views.acompanhamento, name="acompanhamento"),
     path(
         "requisicao/solicitacao-nota/",
@@ -128,6 +133,26 @@ urlpatterns = [
         "financeiro/conciliacoes/",
         views.conciliacoes_financeiras,
         name="conciliacoes_financeiras",
+    ),
+    path(
+        "financeiro/contas-a-pagar/operacao/",
+        views.contas_pagar_operacao,
+        name="contas_pagar_operacao",
+    ),
+    path(
+        "financeiro/contas-a-pagar/acompanhamento/",
+        views.contas_pagar_acompanhamento,
+        name="contas_pagar_acompanhamento",
+    ),
+    path(
+        "financeiro/contas-a-pagar/gestao/",
+        views.contas_pagar_gestao,
+        name="contas_pagar_gestao",
+    ),
+    path(
+        "administrativo/fornecedores-criticos/",
+        views.fornecedores_criticos,
+        name="fornecedores_criticos",
     ),
     path(
         "financeiro/conciliacao-fiscal-faturamento/remessas/<str:nfse_row_hash>/",

@@ -15,7 +15,7 @@
   searchError: false,
   submitSearch(event) {
     const formData = new FormData(event.currentTarget);
-    const fields = ['cd_remessa', 'cd_atendimento', 'cd_reg', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
+    const fields = ['processo', 'cd_remessa', 'cd_atendimento', 'nr_guia', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
     const hasCriteria = fields.some((field) => String(formData.get(field) || '').trim());
     if (!hasCriteria) {
       event.preventDefault();
@@ -30,6 +30,10 @@
   <form class="remessa-filters" method="get" @submit="submitSearch($event)" @input="searchError = false" @change="searchError = false">
     <div class="filter-row">
       <div class="filter-group">
+        <label>Processo</label>
+        <input name="processo" value="{{ filtros.processo }}" class="form-control" placeholder="Número do processo">
+      </div>
+      <div class="filter-group">
         <label>Remessa</label>
         <input name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" placeholder="Ex: 1234">
       </div>
@@ -38,8 +42,8 @@
         <input name="cd_atendimento" value="{{ filtros.cd_atendimento }}" class="form-control" placeholder="Ex: 9876">
       </div>
       <div class="filter-group">
-        <label>Conta</label>
-        <input name="cd_reg" value="{{ filtros.cd_reg }}" class="form-control" placeholder="Ex: 456">
+        <label>Guia</label>
+        <input name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Ex: 123456">
       </div>
       <div class="filter-group">
         <label>Paciente</label>
@@ -73,6 +77,9 @@
           <span x-show="loading" x-cloak>Buscando...</span>
         </button>
         <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
+        {% if filtros.processo %}
+        <a href="{% url 'conta_atendimento_recurso_pdf' %}?processo_original={{ filtros.processo|urlencode }}" class="btn btn-outline-secondary" target="_blank" rel="noopener" :class="{ 'disabled': loading }">PDF do processo</a>
+        {% endif %}
       </div>
     </div>
     <div class="filter-validation-message" x-show="searchError" x-cloak role="alert">
@@ -292,6 +299,7 @@
                           <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar
                           </button>
+                          <a class="account-action-pdf" data-triagem-pdf-link data-pdf-base="{% url 'conta_atendimento_recurso_pdf' %}" href="{% url 'conta_atendimento_recurso_pdf' %}?processo_original={{ conta.registro_recusa.processo_controle_fatura_gab|urlencode }}" target="_blank" rel="noopener" title="Gerar PDF consolidado do recurso" {% if not conta.registro_recusa.id or not conta.registro_recusa.processo_controle_fatura_gab %}hidden{% endif %}>PDF</a>
                           </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
@@ -353,6 +361,10 @@
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
                                         <input name="processo_recurso" class="form-control" value="{{ conta.registro_recusa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>LOTE</label>
+                                        <input name="numero_lote" class="form-control" maxlength="255" value="{{ conta.registro_recusa.numero_lote|default:'' }}" placeholder="Informe o lote, se houver">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
@@ -457,6 +469,10 @@
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo do Recurso</label>
                                         <input name="processo_recurso" class="form-control" value="{{ conta.registro_acato.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>LOTE</label>
+                                        <input name="numero_lote" class="form-control" maxlength="255" value="{{ conta.registro_acato.numero_lote|default:'' }}" placeholder="Informe o lote, se houver">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>

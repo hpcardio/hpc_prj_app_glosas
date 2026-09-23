@@ -84,11 +84,13 @@ def api_get_stream(
     path: str,
     params: dict | None = None,
     token: str | None = None,
+    timeout: int | float | None = None,
 ):
     return api_request(
         "GET",
         path,
         token=token,
+        timeout=timeout,
         params={k: v for k, v in (params or {}).items() if v is not None},
         stream=True,
     )

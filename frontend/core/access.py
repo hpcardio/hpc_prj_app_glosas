@@ -70,6 +70,21 @@ SCREEN_GROUPS = (
                 "label": "Acompanhamento Particular",
                 "route_name": "acompanhamento_particular",
             },
+            {
+                "key": "contas_pagar_operacao",
+                "label": "Contas a Pagar · Operação",
+                "route_name": "contas_pagar_operacao",
+            },
+            {
+                "key": "contas_pagar_acompanhamento",
+                "label": "Contas a Pagar · Acompanhamento",
+                "route_name": "contas_pagar_acompanhamento",
+            },
+            {
+                "key": "contas_pagar_gestao",
+                "label": "Contas a Pagar · Gestão",
+                "route_name": "contas_pagar_gestao",
+            },
         ),
     },
     {
@@ -95,6 +110,11 @@ SCREEN_GROUPS = (
     {
         "label": "Administrativo",
         "screens": (
+            {
+                "key": "fornecedores_criticos",
+                "label": "Fornecedores críticos",
+                "route_name": "fornecedores_criticos",
+            },
             {
                 "key": "configuracao_convenio",
                 "label": "Configuração por Convênio",
@@ -122,6 +142,7 @@ ROUTE_PERMISSIONS = {
     "associacoes_remessas_ipm": "follow_up_glosas",
     "glosas": "follow_up_glosas",
     "conta_atendimento": "triagem",
+    "conta_atendimento_recurso_pdf": "triagem",
     "acompanhamento": "acompanhamento",
     "recursos": ("recursos_processos", "follow_up_glosas"),
     "conciliacao_faturamento": "conciliacao_manual",
@@ -143,6 +164,10 @@ ROUTE_PERMISSIONS = {
         "follow_up_solicitacoes",
     ),
     "acompanhamento_particular": "acompanhamento_particular",
+    "contas_pagar_operacao": "contas_pagar_operacao",
+    "contas_pagar_acompanhamento": "contas_pagar_acompanhamento",
+    "contas_pagar_gestao": "contas_pagar_gestao",
+    "fornecedores_criticos": "fornecedores_criticos",
     "solicitacao_nota": "solicitar_nota",
     "cadastrar_nota": "solicitar_nota",
     "consultar_atendimento_nota": "solicitar_nota",
