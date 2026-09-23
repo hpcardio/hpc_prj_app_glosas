@@ -52,6 +52,8 @@ DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
 DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 DASHBOARD_FOLLOW_UP_CACHE_KEY = "dashboard:follow-up-resumo"
+DASHBOARD_FOLLOW_UP_TIMEOUT = 60
+DASHBOARD_FOLLOW_UP_CACHE_SECONDS = 300
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
@@ -69,6 +71,9 @@ FOLLOW_UP_GLOSAS_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/glosas-pendentes"
 FOLLOW_UP_RECURSO_PDF_PATH = f"{FOLLOW_UP_GLOSAS_PATH}/recurso.pdf"
 FOLLOW_UP_RECURSO_PDF_TIMEOUT = 120
 TRIAGEM_RECURSO_PDF_PATH = "/app_glosas/glosas/recurso.pdf"
+DESCRICOES_AGRUPADAS_GLOSA_PATH = (
+    "/app_glosas/glosas/descricoes-agrupadas"
+)
 PROCESSOS_RECURSO_PATH = f"{CONCILIACAO_FATURAMENTO_PATH}/recursos-processos"
 PROCESSOS_RECURSO_TIMEOUT = 60
 PROCESSOS_RECURSO_CACHE_SECONDS = int(
@@ -2701,7 +2706,16 @@ def as_int_or_none(value):
     try:
         return int(value)
     except (TypeError, ValueError):
-        return None
+        try:
+            decimal_value = Decimal(str(value).strip())
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+        if (
+            not decimal_value.is_finite()
+            or decimal_value != decimal_value.to_integral_value()
+        ):
+            return None
+        return int(decimal_value)
 
 
 def as_float_or_zero(value):
@@ -3524,6 +3538,14 @@ def prepare_follow_up_glosas_cards(cards):
                 item["lote_acato"] = (
                     registro_acato.get("numero_lote") or numero_lote
                 )
+                item["recurso_preenchido"] = bool(
+                    registro_recusa.get("id")
+                    and registro_recusa.get("dt_recurso")
+                )
+                item["acato_preenchido"] = bool(
+                    registro_acato.get("id")
+                    and registro_acato.get("dt_recurso")
+                )
                 item["registro_glosa_id"] = registro.get("id")
                 item["registro_glosa_status"] = canonical_glosa_status(registro)
                 item["processo_origem"] = (
@@ -3587,6 +3609,12 @@ def prepare_follow_up_glosas_cards(cards):
                         "grupos_procedimento_map": {},
                         "ordem_grupos_procedimento": [],
                         "total_itens": 0,
+                        "total_recursos": 0,
+                        "total_acatos": 0,
+                        "estado_dom_id": (
+                            f"{card['detalhe_dom_id']}-atendimento-"
+                            f"{len(ordem_atendimentos) + 1}"
+                        ),
                     }
                     ordem_atendimentos.append(atendimento_key)
                 atendimento = atendimentos[atendimento_key]
@@ -3605,6 +3633,10 @@ def prepare_follow_up_glosas_cards(cards):
                     "itens"
                 ].append(item)
                 atendimento["total_itens"] += 1
+                if item["recurso_preenchido"]:
+                    atendimento["total_recursos"] += 1
+                if item["acato_preenchido"]:
+                    atendimento["total_acatos"] += 1
             atendimentos_preparados = []
             for atendimento_key in ordem_atendimentos:
                 atendimento = atendimentos[atendimento_key]
@@ -5601,6 +5633,7 @@ def get_dashboard_follow_up_summary(force_refresh=False):
                 "incluir_detalhes": "false",
                 "agrupar_por_processo": "true",
             },
+            timeout=DASHBOARD_FOLLOW_UP_TIMEOUT,
         )
         if resumo is None:
             resumo = dict(pagina) if isinstance(pagina, dict) else {}
@@ -5611,7 +5644,7 @@ def get_dashboard_follow_up_summary(force_refresh=False):
     cache.set(
         DASHBOARD_FOLLOW_UP_CACHE_KEY,
         resumo,
-        getattr(settings, "DASHBOARD_CACHE_SECONDS", 45),
+        DASHBOARD_FOLLOW_UP_CACHE_SECONDS,
     )
     return resumo
 
@@ -6338,22 +6371,43 @@ def follow_up_glosas(request):
                     )
 
                 is_acatar = request.POST.get("sn_glosado") == "not"
-                resultados = []
+                dt_recurso = str(request.POST.get("dt_recurso") or "").strip()
+                descricao_comum = str(
+                    request.POST.get("descricao_glosa") or ""
+                ).strip()
+                if not dt_recurso:
+                    raise ValueError("Informe a data do recurso.")
+                if not descricao_comum:
+                    raise ValueError("Informe a justificativa comum.")
+
+                operacoes = []
                 for item in itens:
                     dados_item = dict(item)
                     dados_item.update({
                         "sn_glosado": (
                             "not" if is_acatar else "true"
                         ),
-                        "dt_recurso": request.POST.get("dt_recurso"),
-                        "descricao_glosa": request.POST.get(
-                            "descricao_glosa"
-                        ) or "",
+                        "dt_recurso": dt_recurso,
+                        "descricao_glosa": descricao_comum,
                     })
                     payload = build_registro_glosa_payload(dados_item)
+                    if payload["qtd_recursado"] is None:
+                        raise ValueError(
+                            "Um dos itens selecionados não possui quantidade "
+                            "glosada válida."
+                        )
+                    if payload["valor_recursado"] is None:
+                        raise ValueError(
+                            "Um dos itens selecionados não possui valor "
+                            "glosado válido."
+                        )
                     registro_id = str(
                         dados_item.get("registro_glosa_id") or ""
                     ).strip()
+                    operacoes.append((registro_id, payload))
+
+                resultados = []
+                for registro_id, payload in operacoes:
                     resultados.append(
                         api_put(
                             f"{settings.API_REGISTRO_GLOSA_PATH}/"
@@ -6401,6 +6455,88 @@ def follow_up_glosas(request):
 
         registro_id = request.POST.get("registro_glosa_id")
         form_action = request.POST.get("form_action") or "salvar"
+        if form_action == "salvar_descricoes_agrupadas":
+            selecionados = list(
+                dict.fromkeys(
+                    request.POST.getlist("registros_selecionados")
+                )
+            )
+            registros_por_tipo = {"recurso": [], "acato": []}
+            tipos_invalidos = set()
+            for selecionado in selecionados:
+                tipo, _, registro_id_selecionado = selecionado.partition(":")
+                registro_id_normalizado = as_int_or_zero(
+                    registro_id_selecionado
+                )
+                if tipo not in registros_por_tipo or not registro_id_normalizado:
+                    tipos_invalidos.add(tipo or "pendente")
+                    continue
+                registros_por_tipo[tipo].append(registro_id_normalizado)
+            tipos_selecionados = {
+                tipo for tipo, ids in registros_por_tipo.items() if ids
+            }
+            descricao_lote = (
+                request.POST.get("descricao_lote") or ""
+            ).strip()
+            if tipos_invalidos:
+                return modal_action_response(
+                    request,
+                    "Preencha o recurso ou o acato dos itens selecionados "
+                    "antes de salvar a descrição coletiva.",
+                    "error",
+                    status=400,
+                )
+            if len(tipos_selecionados) != 1:
+                return modal_action_response(
+                    request,
+                    "Todos os registros selecionados devem ser do mesmo "
+                    "tipo: somente recursos ou somente acatos.",
+                    "error",
+                    status=400,
+                )
+            if not descricao_lote:
+                return modal_action_response(
+                    request,
+                    "Informe a descrição dos registros selecionados.",
+                    "error",
+                    status=400,
+                )
+            tipo_selecionado = tipos_selecionados.pop()
+            recursos_ids = registros_por_tipo["recurso"]
+            acatos_ids = registros_por_tipo["acato"]
+            try:
+                api_payload = api_patch(
+                    DESCRICOES_AGRUPADAS_GLOSA_PATH,
+                    {
+                        "recursos_ids": recursos_ids,
+                        "descricao_recurso": (
+                            descricao_lote
+                            if tipo_selecionado == "recurso"
+                            else None
+                        ),
+                        "acatos_ids": acatos_ids,
+                        "descricao_acato": (
+                            descricao_lote
+                            if tipo_selecionado == "acato"
+                            else None
+                        ),
+                    },
+                )
+                clear_filter_caches()
+                return modal_action_response(
+                    request,
+                    "Descrições dos tratamentos selecionados foram salvas.",
+                    "success",
+                    api_payload=api_payload,
+                )
+            except ApiError as exc:
+                return modal_action_response(
+                    request,
+                    "Falha ao salvar as descrições: "
+                    + extract_api_error_message(exc),
+                    "error",
+                    status=400,
+                )
         try:
             if form_action == "desfazer":
                 api_delete(f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}")
