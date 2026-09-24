@@ -2940,7 +2940,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260923-follow-up-pdf-alinhado',
+            '?v=20260924-triagem-pdf-card',
             base_template.read_text(),
         )
 
