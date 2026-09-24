@@ -6113,19 +6113,65 @@ body:not(.sidebar-collapsed) .indicator-grid {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px;
   background: linear-gradient(90deg, #245f75 0%, #2b7187 100%);
   color: #fff;
   border: none;
   min-height: 48px;
-  padding: 9px 14px;
-  cursor: pointer;
+  padding: 0;
   text-align: left;
   transition: background 0.15s;
 }
 
 .pac-header:hover {
   background: linear-gradient(90deg, #286a82 0%, #327f96 100%);
+}
+
+.pac-header-toggle {
+  min-width: 0;
+  min-height: 48px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 6px 9px 14px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pac-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  max-width: 45%;
+  padding-right: 14px;
+  overflow-x: auto;
+}
+
+.pac-action-pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 6px;
+  padding: 4px 9px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pac-action-pdf:hover {
+  background: #fff;
+  color: #17647d;
 }
 
 .pac-header-left {

@@ -39,6 +39,7 @@ from core.views import (
     extract_api_error_message,
     get_dashboard_filters,
     get_dashboard_follow_up_summary,
+    _group_contas,
     group_follow_up_glosas_by_process,
     is_enabled_convenio_registro,
     is_recebido_registro,
@@ -175,7 +176,122 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn("url 'conta_atendimento_recurso_pdf'", triagem)
         base = (templates_dir / 'base.html').read_text()
         self.assertIn("payload.processo_controle_fatura_gab", base)
-        self.assertIn("triagemPdfLink.hidden = false", base)
+        self.assertIn("window.syncTriagemCardPdfLinks", base)
+
+    def test_triagem_disponibiliza_pdf_unico_no_card_do_paciente(self):
+        conta_base = {
+            **self._conta(),
+            'nm_paciente': 'Paciente Teste',
+            'vl_total_conta': 10,
+        }
+        grupos = _group_contas([
+            {
+                **conta_base,
+                'cd_lancamento': 1,
+                'registro_recusa': self._registro('true'),
+            },
+            {
+                **conta_base,
+                'cd_lancamento': 2,
+                'registro_recusa': {
+                    **self._registro('true'),
+                    'id': 78,
+                },
+            },
+            {
+                **conta_base,
+                'cd_lancamento': 3,
+                'registro_recusa': {},
+            },
+        ])
+
+        self.assertEqual(grupos[0]['processos_pdf'], ['131313/2026'])
+
+    def test_triagem_mantem_processos_pdf_distintos_no_mesmo_card(self):
+        conta_base = {
+            **self._conta(),
+            'nm_paciente': 'Paciente Teste',
+            'vl_total_conta': 10,
+        }
+        grupos = _group_contas([
+            {
+                **conta_base,
+                'cd_lancamento': 1,
+                'registro_recusa': self._registro('true'),
+            },
+            {
+                **conta_base,
+                'cd_lancamento': 2,
+                'registro_recusa': {
+                    **self._registro('true'),
+                    'id': 78,
+                    'processo_controle_fatura_gab': '141414/2026',
+                },
+            },
+        ])
+
+        self.assertEqual(
+            grupos[0]['processos_pdf'],
+            ['131313/2026', '141414/2026'],
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.get_convenio_filter_options')
+    def test_triagem_renderiza_pdf_no_card_do_paciente(
+        self,
+        get_convenio_filter_options,
+        get_cached_api_payload,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+        get_convenio_filter_options.return_value = []
+        conta = {
+            **self._conta(),
+            'cd_lancamento': 1,
+            'nm_paciente': 'Paciente Teste',
+            'nm_convenio': 'CAFAZ',
+            'ds_gru_fat': 'Exames',
+            'vl_total_conta': 10,
+            'qt_lancamento': 1,
+        }
+        get_cached_api_payload.side_effect = [
+            {'itens': []},
+            {
+                'atendimentos': [conta],
+                'total': 1,
+                'limit': 10,
+                'offset': 0,
+            },
+            {'glosas': [{**self._registro('true'), 'cd_lancamento': 1}]},
+        ]
+
+        response = self.client.get(
+            '/conta-atendimento/',
+            {'cd_remessa': '15588'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="pac-action-pdf"', count=1)
+        self.assertContains(
+            response,
+            'processo_original=131313/2026',
+        )
+        self.assertNotContains(response, 'class="account-action-pdf"')
+
+    def test_pdf_da_triagem_e_renderizado_no_card_e_nao_na_linha(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'conta_atendimento.html'
+        ).read_text()
+
+        self.assertIn('data-triagem-pdf-actions', template)
+        self.assertIn('data-triagem-card-pdf-link', template)
+        self.assertNotIn('data-triagem-pdf-link', template)
 
     def test_triagem_exibe_processo_como_primeiro_filtro_e_pdf(self):
         template = (
