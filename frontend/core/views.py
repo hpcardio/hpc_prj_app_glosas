@@ -2602,6 +2602,8 @@ def _group_contas(contas):
     result = []
     for pac in order_paciente:
         remessas = []
+        processos_pdf = []
+        processos_pdf_vistos = set()
         pac_total = 0.0
         pac_lancamentos = 0
         pac_convenios = set()
@@ -2627,6 +2629,20 @@ def _group_contas(contas):
                     proc = item.get("cd_pro_fat")
                     if proc:
                         atd_procedimentos.add(str(proc))
+                    registro_recusa = item.get("registro_recusa") or {}
+                    processo_pdf = str(
+                        registro_recusa.get(
+                            "processo_controle_fatura_gab"
+                        )
+                        or ""
+                    ).strip()
+                    if (
+                        registro_recusa.get("id")
+                        and processo_pdf
+                        and processo_pdf not in processos_pdf_vistos
+                    ):
+                        processos_pdf_vistos.add(processo_pdf)
+                        processos_pdf.append(processo_pdf)
                 rem_total += atd_total
                 rem_lancamentos += len(itens)
                 rem_convenios |= atd_convenios
@@ -2663,6 +2679,7 @@ def _group_contas(contas):
         result.append({
             "nm_paciente": pac,
             "remessas": remessas,
+            "processos_pdf": processos_pdf,
             "num_remessas": len(remessas),
             "num_atendimentos": pac_atendimentos,
             "num_lancamentos": pac_lancamentos,

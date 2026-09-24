@@ -175,21 +175,28 @@
   <div class="results-list">
     {% for grupo in grupos %}
     <div class="pac-card" x-data="{ open: false }" @expand-results-level-1.window="open = true" @collapse-all-results.window="open = false">
-      <button class="pac-header" @click="open = !open" :aria-expanded="open">
-        <div class="pac-header-left">
-          <span class="pac-chevron" :class="{ 'pac-chevron--open': open }">&#9654;</span>
-          <span class="pac-nome">{{ grupo.nm_paciente }}</span>
-          {% for conv in grupo.convenios %}
-          <span class="pac-convenio">{{ conv }}</span>
+      <div class="pac-header">
+        <button type="button" class="pac-header-toggle" @click="open = !open" :aria-expanded="open">
+          <div class="pac-header-left">
+            <span class="pac-chevron" :class="{ 'pac-chevron--open': open }">&#9654;</span>
+            <span class="pac-nome">{{ grupo.nm_paciente }}</span>
+            {% for conv in grupo.convenios %}
+            <span class="pac-convenio">{{ conv }}</span>
+            {% endfor %}
+          </div>
+          <div class="pac-header-pills">
+            <span class="mpill mpill--dim">{{ grupo.num_remessas }} rem.</span>
+            <span class="mpill mpill--dim">{{ grupo.num_atendimentos }} atend.</span>
+            <span class="mpill mpill--dim">{{ grupo.num_lancamentos }} lanc.</span>
+            <span class="mpill mpill--valor">R$ {{ grupo.total|br_currency }}</span>
+          </div>
+        </button>
+        <div class="pac-header-actions" data-triagem-pdf-actions data-pdf-base="{% url 'conta_atendimento_recurso_pdf' %}">
+          {% for processo_pdf in grupo.processos_pdf %}
+          <a class="pac-action-pdf" data-triagem-card-pdf-link data-processo-original="{{ processo_pdf }}" href="{% url 'conta_atendimento_recurso_pdf' %}?processo_original={{ processo_pdf|urlencode }}" target="_blank" rel="noopener" title="Gerar PDF consolidado do recurso {{ processo_pdf }}">{% if grupo.processos_pdf|length > 1 %}PDF {{ processo_pdf }}{% else %}PDF{% endif %}</a>
           {% endfor %}
         </div>
-        <div class="pac-header-pills">
-          <span class="mpill mpill--dim">{{ grupo.num_remessas }} rem.</span>
-          <span class="mpill mpill--dim">{{ grupo.num_atendimentos }} atend.</span>
-          <span class="mpill mpill--dim">{{ grupo.num_lancamentos }} lanc.</span>
-          <span class="mpill mpill--valor">R$ {{ grupo.total|br_currency }}</span>
-        </div>
-      </button>
+      </div>
 
       <div class="pac-body" x-show="open">
         {% for rem in grupo.remessas %}
@@ -256,6 +263,7 @@
                         </thead>
                         {% for conta in grupo_fat.itens %}
                         <tbody
+                          {% if conta.registro_recusa.id and conta.registro_recusa.processo_controle_fatura_gab %}data-triagem-recurso-processo="{{ conta.registro_recusa.processo_controle_fatura_gab }}"{% endif %}
                           x-data="{
                             glosar: false,
                             acatar: false,
@@ -299,7 +307,6 @@
                           <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar
                           </button>
-                          <a class="account-action-pdf" data-triagem-pdf-link data-pdf-base="{% url 'conta_atendimento_recurso_pdf' %}" href="{% url 'conta_atendimento_recurso_pdf' %}?processo_original={{ conta.registro_recusa.processo_controle_fatura_gab|urlencode }}" target="_blank" rel="noopener" title="Gerar PDF consolidado do recurso" {% if not conta.registro_recusa.id or not conta.registro_recusa.processo_controle_fatura_gab %}hidden{% endif %}>PDF</a>
                           </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
