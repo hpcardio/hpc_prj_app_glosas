@@ -464,6 +464,10 @@
                                       <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
                                       <input type="date" name="dt_recurso" class="form-control" x-model="dataTratada" required>
                                     </div>
+                                    <div class="glosa-field">
+                                      <label>Processo do Recurso</label>
+                                      <input name="processo_recurso" class="form-control" x-model="processoTratado" placeholder="Informe o processo do recurso">
+                                    </div>
                                     <div class="glosa-values-columns glosa-field--full">
                                       <div class="glosa-values-column">
                                         <div class="glosa-field">
@@ -594,6 +598,10 @@
                             <div class="glosa-field">
                               <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
                               <input type="date" name="dt_recurso" class="form-control" :min="minimumTreatmentDate" required>
+                            </div>
+                            <div class="glosa-field">
+                              <label>Processo do Recurso</label>
+                              <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
                             </div>
                             <div class="glosa-field glosa-field--wide">
                               <label>Aplicação</label>

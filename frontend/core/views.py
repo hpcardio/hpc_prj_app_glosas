@@ -6389,6 +6389,9 @@ def follow_up_glosas(request):
 
                 is_acatar = request.POST.get("sn_glosado") == "not"
                 dt_recurso = str(request.POST.get("dt_recurso") or "").strip()
+                processo_recurso = str(
+                    request.POST.get("processo_recurso") or ""
+                ).strip()
                 descricao_comum = str(
                     request.POST.get("descricao_glosa") or ""
                 ).strip()
@@ -6405,6 +6408,7 @@ def follow_up_glosas(request):
                             "not" if is_acatar else "true"
                         ),
                         "dt_recurso": dt_recurso,
+                        "processo_recurso": processo_recurso or None,
                         "descricao_glosa": descricao_comum,
                     })
                     payload = build_registro_glosa_payload(dados_item)
@@ -6465,7 +6469,8 @@ def follow_up_glosas(request):
                 return modal_action_response(
                     request,
                     f"Falha ao salvar {action_name} dos itens selecionados: "
-                    f"{contextualize_registro_glosa_error(extract_api_error_message(exc), is_acatar)}",
+                    f"{contextualize_registro_glosa_error("
+                    f"extract_api_error_message(exc), is_acatar)}",
                     "error",
                     status=400,
                 )
@@ -7065,6 +7070,129 @@ def associacoes_remessas_ipm(request):
 @require_http_methods(["GET", "POST"])
 def conta_atendimento(request):
     if request.method == "POST":
+        itens_selecionados = request.POST.get("itens_selecionados")
+        if itens_selecionados:
+            is_acatar = request.POST.get("sn_glosado") == "not"
+            try:
+                itens = json.loads(itens_selecionados)
+                if not isinstance(itens, list) or len(itens) < 2:
+                    raise ValueError(
+                        "Selecione pelo menos dois itens do paciente."
+                    )
+                if len(itens) > 100:
+                    raise ValueError(
+                        "Selecione no máximo 100 itens por operação."
+                    )
+                pacientes = {
+                    (
+                        str(item.get("cd_paciente") or "").strip(),
+                        str(item.get("nm_paciente") or "").strip().casefold(),
+                    )
+                    for item in itens
+                }
+                atendimentos = {
+                    str(item.get("cd_atendimento") or "").strip()
+                    for item in itens
+                }
+                if len(pacientes) != 1 or len(atendimentos) != 1:
+                    raise ValueError(
+                        "Selecione itens de um único paciente e atendimento."
+                    )
+
+                campos_comuns = {
+                    "sn_glosado": "not" if is_acatar else "true",
+                    "processo_controle_fatura_gab": str(
+                        request.POST.get("processo_controle_fatura_gab") or ""
+                    ).strip(),
+                    "data_glosa": str(
+                        request.POST.get("data_glosa") or ""
+                    ).strip(),
+                    "dt_pagamento": str(
+                        request.POST.get("dt_pagamento") or ""
+                    ).strip(),
+                    "motivo_glosa": str(
+                        request.POST.get("motivo_glosa") or ""
+                    ).strip(),
+                    "numero_lote": str(
+                        request.POST.get("numero_lote") or ""
+                    ).strip(),
+                    "dt_recurso": str(
+                        request.POST.get("dt_recurso") or ""
+                    ).strip(),
+                    "processo_recurso": str(
+                        request.POST.get("processo_recurso") or ""
+                    ).strip() or None,
+                    "descricao_glosa": str(
+                        request.POST.get("descricao_glosa") or ""
+                    ).strip(),
+                }
+                obrigatorios = {
+                    "processo_controle_fatura_gab": "processo original",
+                    "data_glosa": "data da glosa",
+                    "dt_pagamento": "data do pagamento",
+                    "motivo_glosa": "motivo da glosa",
+                    "dt_recurso": "data do recurso",
+                    "descricao_glosa": "justificativa comum",
+                }
+                for campo, rotulo in obrigatorios.items():
+                    if not campos_comuns[campo]:
+                        raise ValueError(f"Informe {rotulo}.")
+
+                operacoes = []
+                for item in itens:
+                    dados_item = dict(item)
+                    dados_item.update(campos_comuns)
+                    dados_item["qtd_glosada"] = item.get("qt_lancamento")
+                    dados_item["valor_glosado"] = item.get("vl_total_conta")
+                    payload = build_registro_glosa_payload(dados_item)
+                    registro_id = str(
+                        dados_item.get("registro_glosa_id") or ""
+                    ).strip()
+                    operacoes.append((registro_id, payload))
+
+                resultados = []
+                for registro_id, payload in operacoes:
+                    resultados.append(
+                        api_put(
+                            f"{settings.API_REGISTRO_GLOSA_PATH}/{registro_id}",
+                            payload,
+                        )
+                        if registro_id
+                        else api_post(settings.API_REGISTRO_GLOSA_PATH, payload)
+                    )
+                clear_filter_caches()
+                quantidade = len(resultados)
+                return modal_action_response(
+                    request,
+                    (
+                        f"{quantidade} itens acatados na Triagem."
+                        if is_acatar
+                        else f"{quantidade} itens recursados na Triagem."
+                    ),
+                    "warning" if is_acatar else "success",
+                    api_payload={
+                        "quantidade": quantidade,
+                        "itens": resultados,
+                        "sn_glosado": "not" if is_acatar else "true",
+                    },
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                return modal_action_response(
+                    request,
+                    f"Falha ao salvar seleção: {exc}",
+                    "error",
+                    status=400,
+                )
+            except ApiError as exc:
+                action_name = "acato" if is_acatar else "recurso"
+                return modal_action_response(
+                    request,
+                    f"Falha ao salvar {action_name} dos itens selecionados: "
+                    f"{contextualize_registro_glosa_error(extract_api_error_message(exc), is_acatar)}",
+                    "error",
+                    status=400,
+                )
+
         registro_id = request.POST.get("registro_glosa_id")
         form_action = request.POST.get("form_action") or "salvar"
         try:
