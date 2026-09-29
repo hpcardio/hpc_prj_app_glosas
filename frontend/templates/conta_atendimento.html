@@ -314,11 +314,11 @@
                           <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar
                           </button>
-                          </div>
                           <label class="follow-up-item-selector" title="Selecionar item">
                             <input type="checkbox" :checked="selectedForms.includes(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}`)" @change="toggleSelection(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}`, $event.target.checked)">
                             <span>Selecionar</span>
                           </label>
+                          </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
                             <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">

@@ -190,6 +190,15 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn('window.triagemBatchTreatment', template)
         self.assertGreaterEqual(template.count('glosa-values-columns'), 3)
         self.assertEqual(template.count('name="processo_recurso"'), 3)
+        action_group_start = template.index(
+            '<div class="account-action-buttons">'
+        )
+        selector_position = template.index(
+            '<label class="follow-up-item-selector"',
+            action_group_start,
+        )
+        action_group_end = template.index('</div>', action_group_start)
+        self.assertLess(selector_position, action_group_end)
 
     @patch('core.views.api_post')
     def test_triagem_registra_tratamento_multiplo_item_a_item(self, api_post):
