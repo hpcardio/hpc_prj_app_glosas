@@ -169,7 +169,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         triagem = (templates_dir / 'conta_atendimento.html').read_text()
         follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
 
-        self.assertEqual(triagem.count('name="numero_lote"'), 2)
+        self.assertEqual(triagem.count('name="numero_lote"'), 3)
         self.assertEqual(follow_up.count('name="numero_lote"'), 1)
         self.assertNotIn('name="numero_lote" required', triagem)
         self.assertNotIn('name="numero_lote" required', follow_up)
@@ -177,6 +177,96 @@ class ContaAtendimentoRegistroTests(TestCase):
         base = (templates_dir / 'base.html').read_text()
         self.assertIn("payload.processo_controle_fatura_gab", base)
         self.assertIn("window.syncTriagemCardPdfLinks", base)
+
+    def test_triagem_exibe_selecao_multipla_e_modais_padronizados(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'conta_atendimento.html'
+        ).read_text()
+
+        self.assertIn('Recursar selecionados', template)
+        self.assertIn('Acatar selecionados', template)
+        self.assertIn('window.triagemBatchTreatment', template)
+        self.assertGreaterEqual(template.count('glosa-values-columns'), 3)
+        self.assertEqual(template.count('name="processo_recurso"'), 3)
+
+    @patch('core.views.api_post')
+    def test_triagem_registra_tratamento_multiplo_item_a_item(self, api_post):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {'telas_permitidas': list(SCREEN_KEYS)}
+        session.save()
+        api_post.side_effect = [
+            {'id': 201, 'sn_glosado': 'true'},
+            {'id': 202, 'sn_glosado': 'true'},
+        ]
+        itens = [
+            {
+                'cd_paciente': '51',
+                'nm_paciente': 'Maria da Silva',
+                'cd_remessa': '987',
+                'cd_atendimento': '789',
+                'cd_reg': str(conta),
+                'cd_lancamento': str(lancamento),
+                'cd_prestador': '4',
+                'nm_prestador': 'Hospital Prontocardio',
+                'cd_convenio': '5',
+                'nm_convenio': 'Convênio Teste',
+                'tp_atendimento': 'Internação',
+                'cd_pro_fat': procedimento,
+                'nr_guia': 'GUIA-20',
+                'dt_atendimento': '2026-07-01T08:00:00',
+                'qt_lancamento': quantidade,
+                'vl_total_conta': valor,
+                'descricao': descricao,
+            }
+            for conta, lancamento, procedimento, quantidade, valor, descricao in (
+                (456, 3, 'PROC-10', '1', '10.50', 'Primeiro procedimento'),
+                (457, 4, 'PROC-11', '2', '20.00', 'Segundo procedimento'),
+            )
+        ]
+
+        response = self.client.post(
+            '/conta-atendimento/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'true',
+                'processo_controle_fatura_gab': 'PROC-ORIGEM-12',
+                'data_glosa': '2026-07-10',
+                'dt_pagamento': '2026-07-10',
+                'motivo_glosa': '1714 - VALOR DO SERVIÇO SUPERIOR',
+                'numero_lote': 'LOTE-42',
+                'dt_recurso': '2026-07-11',
+                'processo_recurso': 'REC-COMUM-99',
+                'descricao_glosa': 'Justificativa compartilhada',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(api_post.call_count, 2)
+        payloads = [call.args[1] for call in api_post.call_args_list]
+        self.assertEqual(
+            [payload['qtd_recursado'] for payload in payloads],
+            [1, 2],
+        )
+        self.assertEqual(
+            [payload['valor_recursado'] for payload in payloads],
+            [10.5, 20.0],
+        )
+        self.assertEqual(
+            {payload['processo_recurso'] for payload in payloads},
+            {'REC-COMUM-99'},
+        )
+        self.assertEqual(
+            {payload['descricao_glosa'] for payload in payloads},
+            {'Justificativa compartilhada'},
+        )
+        self.assertEqual(
+            response.json()['message'],
+            '2 itens recursados na Triagem.',
+        )
 
     def test_triagem_disponibiliza_pdf_unico_no_card_do_paciente(self):
         conta_base = {
@@ -3471,6 +3561,7 @@ class FollowUpGlosasTests(TestCase):
                 'itens_selecionados': json.dumps(itens),
                 'sn_glosado': 'true',
                 'dt_recurso': '2026-07-11',
+                'processo_recurso': 'REC-COMUM-99',
                 'descricao_glosa': 'Justificativa compartilhada',
                 'form_action': 'salvar',
             },
@@ -3502,6 +3593,10 @@ class FollowUpGlosasTests(TestCase):
         self.assertEqual(
             {payload['dt_recurso'] for payload in payloads},
             {'2026-07-11'},
+        )
+        self.assertEqual(
+            {payload['processo_recurso'] for payload in payloads},
+            {'REC-COMUM-99'},
         )
         self.assertEqual(
             [payload['descricao_item'] for payload in payloads],

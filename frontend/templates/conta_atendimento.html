@@ -213,7 +213,7 @@
 
           <div class="rem-body" x-show="remOpen">
             {% for atd in rem.atendimentos %}
-            <div class="atd-block" x-data="{ atdOpen: false }" @expand-results-level-3.window="atdOpen = true" @collapse-all-results.window="atdOpen = false">
+            <div class="atd-block" x-data="triagemBatchTreatment()" @expand-results-level-3.window="atdOpen = true" @collapse-all-results.window="atdOpen = false">
               <button class="atd-header" @click="atdOpen = !atdOpen" :aria-expanded="atdOpen">
                 <span class="atd-chevron" :class="{ 'atd-chevron--open': atdOpen }">&#9654;</span>
                 <span class="atd-title">Atendimento <strong>#{{ atd.cd_atendimento }}</strong></span>
@@ -224,6 +224,13 @@
               </button>
 
               <div class="atd-body" x-show="atdOpen">
+                <div class="follow-up-batch-toolbar">
+                  <span x-text="selectedForms.length ? `${selectedForms.length} item(ns) selecionado(s)` : `Selecione dois ou mais itens para tratamento conjunto`"></span>
+                  <div>
+                    <button type="button" class="btn-glosar" :disabled="selectedForms.length < 2" @click="openBatch(`recursar`)">Recursar selecionados</button>
+                    <button type="button" class="btn-acatar" :disabled="selectedForms.length < 2" @click="openBatch(`acatar`)">Acatar selecionados</button>
+                  </div>
+                </div>
                 <div class="account-groups">
                   {% for grupo_fat in atd.grupos_faturamento %}
                   <section class="account-group-section">
@@ -308,13 +315,24 @@
                             + Acatar
                           </button>
                           </div>
+                          <label class="follow-up-item-selector" title="Selecionar item">
+                            <input type="checkbox" :checked="selectedForms.includes(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}`)" @change="toggleSelection(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}`, $event.target.checked)">
+                            <span>Selecionar</span>
+                          </label>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
                             <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
                               <form
+                                id="triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}"
                                 method="post"
                                 class="glosa-modal-form"
                                 data-has-registro="{% if conta.registro_glosa_id %}true{% else %}false{% endif %}"
+                                data-registro-base-id="{{ conta.registro_glosa_id|default:'' }}"
+                                data-registro-recusa-id="{{ conta.registro_recusa.id|default:'' }}"
+                                data-registro-acato-id="{{ conta.registro_acato.id|default:'' }}"
+                                data-item-quantity="{{ conta.qt_lancamento }}"
+                                data-item-value="{{ conta.vl_total_conta }}"
+                                data-item-description="{{ conta.descricao|default:'Procedimento não informado' }}"
                                 onsubmit="return window.handleGlosaSubmit(this, event);"
                               >
                                 {% csrf_token %}
@@ -363,14 +381,10 @@
                                     </div>
                                   </section>
                                   <section class="glosa-section" aria-labelledby="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                                    <h3 id="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo de glosa</h3>
+                                    <h3 id="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo de recurso</h3>
                                     <div class="glosa-section-grid">
-                                      <div class="glosa-field glosa-field--wide">
-                                        <label>Processo do Recurso</label>
-                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_recusa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
-                                      </div>
                                       <div class="glosa-field">
-                                        <label>LOTE</label>
+                                        <label>Lote</label>
                                         <input name="numero_lote" class="form-control" maxlength="255" value="{{ conta.registro_recusa.numero_lote|default:'' }}" placeholder="Informe o lote, se houver">
                                       </div>
                                       <div class="glosa-field">
@@ -378,24 +392,44 @@
                                         <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_recusa.dt_recurso_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field">
-                                        <label>Qtd glosada</label>
-                                        <input type="text" class="form-control form-control-readonly" value="{{ conta.qt_lancamento|stringformat:'g' }}" readonly aria-readonly="true">
+                                        <label>Processo do Recurso</label>
+                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_recusa.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
                                       </div>
-                                      <div class="glosa-field">
-                                        <label>Valor glosado</label>
-                                        <input type="text" class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true">
-                                      </div>
-                                      <div class="glosa-field">
-                                        <label>Qtd Recusada <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_recusa.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
-                                      </div>
-                                      <div class="glosa-field">
-                                        <label>Valor Recursado <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorRecursado" required @input="valorRecursado = $event.target.value; formatValorRecursado()">
+                                      <div class="glosa-values-columns glosa-field--full">
+                                        <div class="glosa-values-column">
+                                          <div class="glosa-field">
+                                            <label>Qtd item</label>
+                                            <input class="form-control form-control-readonly" value="{{ conta.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                          </div>
+                                          <div class="glosa-field">
+                                            <label>Valor item</label>
+                                            <input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true">
+                                          </div>
+                                        </div>
+                                        <div class="glosa-values-column">
+                                          <div class="glosa-field">
+                                            <label>Qtd glosada</label>
+                                            <input class="form-control form-control-readonly" value="{{ conta.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                          </div>
+                                          <div class="glosa-field">
+                                            <label>Valor glosado</label>
+                                            <input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true">
+                                          </div>
+                                        </div>
+                                        <div class="glosa-values-column glosa-values-column--action">
+                                          <div class="glosa-field">
+                                            <label>Qtd Recursada <span class="required-marker" aria-hidden="true">*</span></label>
+                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_recusa.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                          </div>
+                                          <div class="glosa-field">
+                                            <label>Valor Recurso <span class="required-marker" aria-hidden="true">*</span></label>
+                                            <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorRecursado" required @input="valorRecursado = $event.target.value; formatValorRecursado()">
+                                          </div>
+                                        </div>
                                       </div>
                                       <div class="glosa-field glosa-field--full">
-                                        <label>Descricao</label>
-                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes da glosa">{{ conta.registro_recusa.descricao_glosa|default:'' }}</textarea>
+                                        <label>Descrição</label>
+                                        <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do recurso">{{ conta.registro_recusa.descricao_glosa|default:'' }}</textarea>
                                       </div>
                                     </div>
                                   </section>
@@ -471,14 +505,10 @@
                                     </div>
                                   </section>
                                   <section class="glosa-section" aria-labelledby="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                                    <h3 id="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo de glosa</h3>
+                                    <h3 id="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Tratamento por acato</h3>
                                     <div class="glosa-section-grid">
-                                      <div class="glosa-field glosa-field--wide">
-                                        <label>Processo do Recurso</label>
-                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_acato.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
-                                      </div>
                                       <div class="glosa-field">
-                                        <label>LOTE</label>
+                                        <label>Lote</label>
                                         <input name="numero_lote" class="form-control" maxlength="255" value="{{ conta.registro_acato.numero_lote|default:'' }}" placeholder="Informe o lote, se houver">
                                       </div>
                                       <div class="glosa-field">
@@ -486,23 +516,31 @@
                                         <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_acato.dt_recurso_input|default:'' }}" required>
                                       </div>
                                       <div class="glosa-field">
-                                        <label>Qtd glosada</label>
-                                        <input type="text" class="form-control form-control-readonly" value="{{ conta.qt_lancamento|stringformat:'g' }}" readonly aria-readonly="true">
+                                        <label>Processo do Recurso</label>
+                                        <input name="processo_recurso" class="form-control" value="{{ conta.registro_acato.processo_recurso|default:'' }}" placeholder="Informe o processo do recurso">
                                       </div>
-                                      <div class="glosa-field">
-                                        <label>Valor glosado</label>
-                                        <input type="text" class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true">
-                                      </div>
-                                      <div class="glosa-field">
-                                        <label>Qtd Acatada <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_acato.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
-                                      </div>
-                                      <div class="glosa-field">
-                                        <label>Valor Acatado <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorAcatado" required @input="valorAcatado = $event.target.value; formatValorAcatado()">
+                                      <div class="glosa-values-columns glosa-field--full">
+                                        <div class="glosa-values-column">
+                                          <div class="glosa-field"><label>Qtd item</label><input class="form-control form-control-readonly" value="{{ conta.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true"></div>
+                                          <div class="glosa-field"><label>Valor item</label><input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true"></div>
+                                        </div>
+                                        <div class="glosa-values-column">
+                                          <div class="glosa-field"><label>Qtd glosada</label><input class="form-control form-control-readonly" value="{{ conta.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true"></div>
+                                          <div class="glosa-field"><label>Valor glosado</label><input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true"></div>
+                                        </div>
+                                        <div class="glosa-values-column glosa-values-column--action">
+                                          <div class="glosa-field">
+                                            <label>Qtd Acatada <span class="required-marker" aria-hidden="true">*</span></label>
+                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_acato.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                          </div>
+                                          <div class="glosa-field">
+                                            <label>Valor Acatado <span class="required-marker" aria-hidden="true">*</span></label>
+                                            <input type="text" inputmode="numeric" name="valor_glosado" class="form-control" placeholder="R$ 0,00" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorAcatado" required @input="valorAcatado = $event.target.value; formatValorAcatado()">
+                                          </div>
+                                        </div>
                                       </div>
                                       <div class="glosa-field glosa-field--full">
-                                        <label>Descricao</label>
+                                        <label>Descrição</label>
                                         <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva os detalhes do acato">{{ conta.registro_acato.descricao_glosa|default:'' }}</textarea>
                                       </div>
                                     </div>
@@ -533,6 +571,114 @@
                   </section>
                   {% endfor %}
                 </div>
+                <div class="glosa-modal" x-show="batchModal" x-cloak @keydown.escape.window="closeBatch()">
+                  <div class="glosa-modal-backdrop" @click="closeBatch()"></div>
+                  <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="triagem-batch-modal-title-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}">
+                    <form method="post" class="glosa-modal-form" data-has-registro="false" data-reload-on-success="true" onsubmit="prepareBatchPayload(); return window.handleGlosaSubmit(this, event);">
+                      {% csrf_token %}
+                      <input x-ref="batchItemsInput" type="hidden" name="itens_selecionados" :value="JSON.stringify(batchItems)">
+                      <input type="hidden" name="sn_glosado" :value="batchModal === 'acatar' ? 'not' : 'true'">
+                      <div class="glosa-modal-header">
+                        <div>
+                          <span class="glosa-modal-eyebrow" x-text="batchModal === 'acatar' ? 'Acato múltiplo' : 'Recurso múltiplo'"></span>
+                          <h2 id="triagem-batch-modal-title-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}" x-text="`${selectedForms.length} itens selecionados`"></h2>
+                        </div>
+                        <button type="button" class="glosa-modal-close" @click="closeBatch()" aria-label="Fechar">x</button>
+                      </div>
+                      <div class="glosa-modal-context">
+                        <span>{{ grupo.nm_paciente|default:"Paciente não informado" }}</span>
+                        <span>Atend. {{ atd.cd_atendimento|default:"-" }}</span>
+                        <span class="glosa-modal-context-desc">Tratamento conjunto dos itens selecionados</span>
+                      </div>
+                      <div class="glosa-section-stack">
+                        <section class="glosa-section">
+                          <h3 x-text="batchModal === 'acatar' ? 'Tratamento por acato' : 'Processo de recurso'"></h3>
+                          <div class="glosa-section-grid">
+                            <div class="glosa-field glosa-field--wide">
+                              <label>Processo / N Controle / N Fatura / N GAB (Processo Original) <span class="required-marker" aria-hidden="true">*</span></label>
+                              <input name="processo_controle_fatura_gab" class="form-control" placeholder="Informe o identificador usado pelo convênio" required>
+                            </div>
+                            <div class="glosa-field">
+                              <label>Lote</label>
+                              <input name="numero_lote" class="form-control" maxlength="255" placeholder="Informe o lote, se houver">
+                            </div>
+                            <div class="glosa-field">
+                              <label>Data da glosa <span class="required-marker" aria-hidden="true">*</span></label>
+                              <input type="date" name="data_glosa" class="form-control" required>
+                            </div>
+                            <div class="glosa-field">
+                              <label>Dt pagamento <span class="required-marker" aria-hidden="true">*</span></label>
+                              <input type="date" name="dt_pagamento" class="form-control" required>
+                            </div>
+                            <div class="glosa-field glosa-field--wide">
+                              <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
+                              <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
+                            </div>
+                            <div class="glosa-field">
+                              <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
+                              <input type="date" name="dt_recurso" class="form-control" required>
+                            </div>
+                            <div class="glosa-field">
+                              <label>Processo do Recurso</label>
+                              <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
+                            </div>
+                            <div class="glosa-values-columns glosa-field--full">
+                              <div class="glosa-values-column">
+                                <div class="glosa-field">
+                                  <label>Qtd item</label>
+                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
+                                </div>
+                                <div class="glosa-field">
+                                  <label>Valor item</label>
+                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
+                                </div>
+                              </div>
+                              <div class="glosa-values-column">
+                                <div class="glosa-field">
+                                  <label>Qtd glosada</label>
+                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
+                                </div>
+                                <div class="glosa-field">
+                                  <label>Valor glosado</label>
+                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
+                                </div>
+                              </div>
+                              <div class="glosa-values-column glosa-values-column--action">
+                                <div class="glosa-field">
+                                  <label x-text="batchModal === 'acatar' ? 'Qtd Acatada' : 'Qtd Recursada'"></label>
+                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
+                                </div>
+                                <div class="glosa-field">
+                                  <label x-text="batchModal === 'acatar' ? 'Valor Acatado' : 'Valor Recurso'"></label>
+                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
+                                </div>
+                              </div>
+                            </div>
+                            <div class="glosa-field glosa-field--full">
+                              <label>Descrição dos registros selecionados</label>
+                              <div class="follow-up-selected-descriptions">
+                                <template x-for="(description, index) in selectedDescriptions" :key="`${index}-${description}`">
+                                  <span x-text="description"></span>
+                                </template>
+                              </div>
+                            </div>
+                            <div class="glosa-field glosa-field--full">
+                              <label>Justificativa comum <span class="required-marker" aria-hidden="true">*</span></label>
+                              <textarea name="descricao_glosa" class="form-control" rows="4" placeholder="Descreva a justificativa que será aplicada a todos os registros selecionados" required></textarea>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+                      <div class="glosa-modal-actions">
+                        <button type="button" class="btn btn-outline-secondary" @click="closeBatch()">Cancelar</button>
+                        <button :class="batchModal === 'acatar' ? 'btn-success-outline' : 'btn-danger-outline'" name="form_action" value="salvar">
+                          <span class="submit-label" x-text="batchModal === 'acatar' ? 'Registrar acatos' : 'Registrar recursos'"></span>
+                          <span class="loading-label">Registrando...</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
               </div>
             </div>
             {% endfor %}
@@ -561,5 +707,80 @@
   {% endif %}
   <script>
     window.triagemExpandLevel = 0;
+    window.triagemBatchTreatment = function () {
+      return {
+        atdOpen: false,
+        selectedForms: [],
+        batchModal: '',
+        batchItems: [],
+        selectedDescriptions: [],
+        batchTotals: { itemQuantity: 0, itemValue: 0 },
+        parseNumber(value) {
+          const text = String(value || '').trim();
+          if (!text) return 0;
+          if (text.includes(',')) {
+            return Number(text.replace(/\./g, '').replace(',', '.')) || 0;
+          }
+          return Number(text) || 0;
+        },
+        formatCurrency(value) {
+          return Number(value || 0).toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          });
+        },
+        formatQuantity(value) {
+          return Number(value || 0).toLocaleString('pt-BR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+          });
+        },
+        toggleSelection(formId, checked) {
+          this.selectedForms = checked
+            ? [...new Set([...this.selectedForms, formId])]
+            : this.selectedForms.filter((current) => current !== formId);
+        },
+        selectedFormElements() {
+          return this.selectedForms
+            .map((formId) => document.getElementById(formId))
+            .filter(Boolean);
+        },
+        prepareBatchPayload() {
+          const acato = this.batchModal === 'acatar';
+          this.batchItems = this.selectedFormElements().map((form) => {
+            const item = Object.fromEntries(new FormData(form).entries());
+            delete item.csrfmiddlewaretoken;
+            delete item.form_action;
+            item.registro_glosa_id = (
+              acato ? form.dataset.registroAcatoId : form.dataset.registroRecusaId
+            ) || form.dataset.registroBaseId || '';
+            item.qtd_glosada = form.dataset.itemQuantity;
+            item.valor_glosado = form.dataset.itemValue;
+            item.sn_glosado = acato ? 'not' : 'true';
+            return item;
+          });
+          if (this.$refs.batchItemsInput) {
+            this.$refs.batchItemsInput.value = JSON.stringify(this.batchItems);
+          }
+        },
+        openBatch(type) {
+          if (this.selectedForms.length < 2) return;
+          this.batchModal = type;
+          const forms = this.selectedFormElements();
+          this.batchTotals = forms.reduce((totals, form) => ({
+            itemQuantity: totals.itemQuantity + this.parseNumber(form.dataset.itemQuantity),
+            itemValue: totals.itemValue + this.parseNumber(form.dataset.itemValue)
+          }), { itemQuantity: 0, itemValue: 0 });
+          this.selectedDescriptions = forms.map(
+            (form) => form.dataset.itemDescription || 'Procedimento não informado'
+          );
+          this.prepareBatchPayload();
+        },
+        closeBatch() {
+          this.batchModal = '';
+          this.batchItems = [];
+        }
+      };
+    };
   </script>
 {% endblock %}
