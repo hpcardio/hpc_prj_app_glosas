@@ -6466,11 +6466,14 @@ def follow_up_glosas(request):
                 )
             except ApiError as exc:
                 action_name = "acato" if is_acatar else "recurso"
+                api_error = contextualize_registro_glosa_error(
+                    extract_api_error_message(exc),
+                    is_acatar,
+                )
                 return modal_action_response(
                     request,
                     f"Falha ao salvar {action_name} dos itens selecionados: "
-                    f"{contextualize_registro_glosa_error("
-                    f"extract_api_error_message(exc), is_acatar)}",
+                    f"{api_error}",
                     "error",
                     status=400,
                 )
@@ -7185,10 +7188,14 @@ def conta_atendimento(request):
                 )
             except ApiError as exc:
                 action_name = "acato" if is_acatar else "recurso"
+                api_error = contextualize_registro_glosa_error(
+                    extract_api_error_message(exc),
+                    is_acatar,
+                )
                 return modal_action_response(
                     request,
                     f"Falha ao salvar {action_name} dos itens selecionados: "
-                    f"{contextualize_registro_glosa_error(extract_api_error_message(exc), is_acatar)}",
+                    f"{api_error}",
                     "error",
                     status=400,
                 )
