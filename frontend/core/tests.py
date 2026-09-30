@@ -164,6 +164,58 @@ class ContaAtendimentoRegistroTests(TestCase):
             )
             self.assertNotIn(':required="modal !== \'acatar\'"', template)
 
+    def test_modais_preenchem_datas_padrao_sem_bloquear_edicao(self):
+        templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
+        base = (templates_dir / 'base.html').read_text()
+
+        for template in (triagem, follow_up):
+            self.assertIn('{% now "Y-m-d" as data_atual %}', template)
+            self.assertIn('+Recursar', template)
+            self.assertNotIn('+Recusar', template)
+            self.assertNotIn('+RECUSAR', template)
+
+        self.assertEqual(
+            triagem.count(
+                '@change="window.syncGlosaPaymentDate($event.target)"'
+            ),
+            3,
+        )
+        self.assertEqual(
+            triagem.count('name="dt_recurso"'),
+            3,
+        )
+        self.assertEqual(
+            triagem.count('default:data_atual'),
+            2,
+        )
+        self.assertIn(
+            'name="dt_recurso" class="form-control" '
+            'value="{{ data_atual }}" required',
+            triagem,
+        )
+        self.assertIn("dataAtual: '{{ data_atual }}'", follow_up)
+        self.assertIn(
+            'this.dataTratada = (acato ? this.dataAcato : '
+            'this.dataRecusa) || this.dataAtual;',
+            follow_up,
+        )
+        self.assertIn(
+            'name="dt_recurso" class="form-control" '
+            'value="{{ data_atual }}" :min="minimumTreatmentDate"',
+            follow_up,
+        )
+        self.assertIn('window.syncGlosaPaymentDate = function', base)
+        self.assertIn(
+            'dataPagamento.value = dataGlosaField.value;',
+            base,
+        )
+        self.assertIn(
+            'window.validateGlosaDates(form, dataPagamento);',
+            base,
+        )
+
     def test_modais_de_triagem_e_follow_up_exibem_lote_opcional(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
         triagem = (templates_dir / 'conta_atendimento.html').read_text()
@@ -2979,7 +3031,7 @@ class FollowUpGlosasTests(TestCase):
             'Os dados do portal IPM ainda não estão vinculados '
             'a lançamentos do MV.',
         )
-        self.assertContains(response, '>+RECUSAR</button>')
+        self.assertContains(response, '>+Recursar</button>')
         self.assertContains(response, '>+ACATO</button>')
         self.assertContains(
             response,
@@ -3324,7 +3376,7 @@ class FollowUpGlosasTests(TestCase):
             'Recursar selecionados',
             'Acatar selecionados',
             'Descrição dos registros selecionados',
-            '+RECUSAR',
+            '+Recursar',
             '+ACATO',
             'follow-up-glosa-records-scroll',
             '<template x-if="patientOpen">',
