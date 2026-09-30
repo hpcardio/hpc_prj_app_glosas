@@ -274,23 +274,29 @@
                           x-data="{
                             glosar: false,
                             acatar: false,
-                            valorRecursado: '{{ conta.registro_recusa.valor_glosado_input|default:""|escapejs }}',
-                            valorAcatado: '{{ conta.registro_acato.valor_glosado_input|default:""|escapejs }}',
-                            formatValorRecursado() {
-                              const digits = this.valorRecursado.replace(/\D/g, '');
+                            valorGlosadoRecusa: '{% if conta.registro_recusa.valor %}R$ {{ conta.registro_recusa.valor|br_currency|escapejs }}{% else %}R$ {{ conta.vl_total_conta|br_currency|escapejs }}{% endif %}',
+                            valorGlosadoAcato: '{% if conta.registro_acato.valor %}R$ {{ conta.registro_acato.valor|br_currency|escapejs }}{% else %}R$ {{ conta.vl_total_conta|br_currency|escapejs }}{% endif %}',
+                            valorRecursado: '{% if conta.registro_recusa.valor_glosado_input %}{{ conta.registro_recusa.valor_glosado_input|escapejs }}{% else %}R$ {{ conta.vl_total_conta|br_currency|escapejs }}{% endif %}',
+                            valorAcatado: '{% if conta.registro_acato.valor_glosado_input %}{{ conta.registro_acato.valor_glosado_input|escapejs }}{% else %}R$ {{ conta.vl_total_conta|br_currency|escapejs }}{% endif %}',
+                            formatCurrencyField(fieldName) {
+                              const digits = String(this[fieldName] || '').replace(/\D/g, '');
                               const cents = Number(digits || 0);
-                              this.valorRecursado = new Intl.NumberFormat('pt-BR', {
+                              this[fieldName] = new Intl.NumberFormat('pt-BR', {
                                 style: 'currency',
                                 currency: 'BRL'
                               }).format(cents / 100);
                             },
+                            formatValorGlosadoRecusa() {
+                              this.formatCurrencyField('valorGlosadoRecusa');
+                            },
+                            formatValorGlosadoAcato() {
+                              this.formatCurrencyField('valorGlosadoAcato');
+                            },
+                            formatValorRecursado() {
+                              this.formatCurrencyField('valorRecursado');
+                            },
                             formatValorAcatado() {
-                              const digits = this.valorAcatado.replace(/\D/g, '');
-                              const cents = Number(digits || 0);
-                              this.valorAcatado = new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL'
-                              }).format(cents / 100);
+                              this.formatCurrencyField('valorAcatado');
                             }
                           }"
                           :class="{ 'glosa-open-row': glosar || acatar }"
@@ -408,18 +414,18 @@
                                         </div>
                                         <div class="glosa-values-column">
                                           <div class="glosa-field">
-                                            <label>Qtd glosada</label>
-                                            <input class="form-control form-control-readonly" value="{{ conta.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true">
+                                            <label>Qtd glosada <span class="required-marker" aria-hidden="true">*</span></label>
+                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" name="qtd_registro" class="form-control" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" value="{{ conta.registro_recusa.qtd_registro|default:conta.qt_lancamento|stringformat:'g' }}" required>
                                           </div>
                                           <div class="glosa-field">
-                                            <label>Valor glosado</label>
-                                            <input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true">
+                                            <label>Valor glosado <span class="required-marker" aria-hidden="true">*</span></label>
+                                            <input type="text" inputmode="numeric" name="valor_registro" class="form-control" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorGlosadoRecusa" required @input="valorGlosadoRecusa = $event.target.value; formatValorGlosadoRecusa()">
                                           </div>
                                         </div>
                                         <div class="glosa-values-column glosa-values-column--action">
                                           <div class="glosa-field">
                                             <label>Qtd Recursada <span class="required-marker" aria-hidden="true">*</span></label>
-                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_recusa.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_recusa.qtd_glosada_input|default:conta.qt_lancamento|stringformat:'g' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                           </div>
                                           <div class="glosa-field">
                                             <label>Valor Recurso <span class="required-marker" aria-hidden="true">*</span></label>
@@ -525,13 +531,13 @@
                                           <div class="glosa-field"><label>Valor item</label><input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true"></div>
                                         </div>
                                         <div class="glosa-values-column">
-                                          <div class="glosa-field"><label>Qtd glosada</label><input class="form-control form-control-readonly" value="{{ conta.qt_lancamento|floatformat:'-2' }}" readonly aria-readonly="true"></div>
-                                          <div class="glosa-field"><label>Valor glosado</label><input class="form-control form-control-readonly" value="R$ {{ conta.vl_total_conta|br_currency }}" readonly aria-readonly="true"></div>
+                                          <div class="glosa-field"><label>Qtd glosada <span class="required-marker" aria-hidden="true">*</span></label><input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" name="qtd_registro" class="form-control" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" value="{{ conta.registro_acato.qtd_registro|default:conta.qt_lancamento|stringformat:'g' }}" required></div>
+                                          <div class="glosa-field"><label>Valor glosado <span class="required-marker" aria-hidden="true">*</span></label><input type="text" inputmode="numeric" name="valor_registro" class="form-control" data-max-value="{{ conta.vl_total_conta|stringformat:'g' }}" x-model="valorGlosadoAcato" required @input="valorGlosadoAcato = $event.target.value; formatValorGlosadoAcato()"></div>
                                         </div>
                                         <div class="glosa-values-column glosa-values-column--action">
                                           <div class="glosa-field">
                                             <label>Qtd Acatada <span class="required-marker" aria-hidden="true">*</span></label>
-                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_acato.qtd_glosada_input|default:'' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
+                                            <input type="number" step="1" min="1" max="{{ conta.qt_lancamento|stringformat:'g' }}" data-max-quantity="{{ conta.qt_lancamento|stringformat:'g' }}" inputmode="numeric" pattern="[0-9]*" name="qtd_glosada" class="form-control" value="{{ conta.registro_acato.qtd_glosada_input|default:conta.qt_lancamento|stringformat:'g' }}" placeholder="0" required @input="$event.target.value = $event.target.value.replace(/\D/g, '')">
                                           </div>
                                           <div class="glosa-field">
                                             <label>Valor Acatado <span class="required-marker" aria-hidden="true">*</span></label>
@@ -622,45 +628,53 @@
                               <label>Processo do Recurso</label>
                               <input name="processo_recurso" class="form-control" placeholder="Informe o processo do recurso">
                             </div>
-                            <div class="glosa-values-columns glosa-field--full">
-                              <div class="glosa-values-column">
-                                <div class="glosa-field">
-                                  <label>Qtd item</label>
-                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
-                                </div>
-                                <div class="glosa-field">
-                                  <label>Valor item</label>
-                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
-                                </div>
+                            <div class="triagem-batch-item-editor glosa-field--full" x-show="currentBatchItem">
+                              <div class="triagem-batch-item-navigation">
+                                <button type="button" class="btn btn-outline-secondary" @click="previousBatchItem()" :disabled="currentBatchIndex === 0" aria-label="Item anterior">&larr; Anterior</button>
+                                <strong x-text="'Item ' + (currentBatchIndex + 1) + ' de ' + batchItems.length"></strong>
+                                <button type="button" class="btn btn-outline-secondary" @click="nextBatchItem()" :disabled="currentBatchIndex >= batchItems.length - 1" aria-label="Próximo item">Próximo &rarr;</button>
                               </div>
-                              <div class="glosa-values-column">
-                                <div class="glosa-field">
-                                  <label>Qtd glosada</label>
-                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
+                              <template x-if="currentBatchItem">
+                                <div>
+                                  <div class="triagem-batch-item-context">
+                                    <span x-text="'Conta ' + (currentBatchItem.account || '-')"></span>
+                                    <span x-text="'Procedimento ' + (currentBatchItem.procedure || '-')"></span>
+                                    <strong x-text="currentBatchItem.description"></strong>
+                                  </div>
+                                  <div class="glosa-values-columns">
+                                    <div class="glosa-values-column">
+                                      <div class="glosa-field">
+                                        <label>Qtd item</label>
+                                        <input class="form-control form-control-readonly" :value="formatQuantity(currentBatchItem.itemQuantity)" readonly aria-readonly="true">
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Valor item</label>
+                                        <input class="form-control form-control-readonly" :value="formatCurrency(currentBatchItem.itemValue)" readonly aria-readonly="true">
+                                      </div>
+                                    </div>
+                                    <div class="glosa-values-column">
+                                      <div class="glosa-field">
+                                        <label>Qtd glosada <span class="required-marker" aria-hidden="true">*</span></label>
+                                        <input type="number" step="1" min="1" :max="currentBatchItem.itemQuantity" inputmode="numeric" class="form-control" x-model="currentBatchItem.glosaQuantity" required>
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label>Valor glosado <span class="required-marker" aria-hidden="true">*</span></label>
+                                        <input type="text" inputmode="numeric" class="form-control" x-model="currentBatchItem.glosaValue" required @input="formatBatchItemCurrency('glosaValue', $event.target.value)">
+                                      </div>
+                                    </div>
+                                    <div class="glosa-values-column glosa-values-column--action">
+                                      <div class="glosa-field">
+                                        <label x-text="batchModal === 'acatar' ? 'Qtd Acatada *' : 'Qtd Recursada *'"></label>
+                                        <input type="number" step="1" min="1" :max="currentBatchItem.glosaQuantity" inputmode="numeric" class="form-control" x-model="currentBatchItem.treatmentQuantity" required>
+                                      </div>
+                                      <div class="glosa-field">
+                                        <label x-text="batchModal === 'acatar' ? 'Valor Acatado *' : 'Valor Recurso *'"></label>
+                                        <input type="text" inputmode="numeric" class="form-control" x-model="currentBatchItem.treatmentValue" required @input="formatBatchItemCurrency('treatmentValue', $event.target.value)">
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div class="glosa-field">
-                                  <label>Valor glosado</label>
-                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
-                                </div>
-                              </div>
-                              <div class="glosa-values-column glosa-values-column--action">
-                                <div class="glosa-field">
-                                  <label x-text="batchModal === 'acatar' ? 'Qtd Acatada' : 'Qtd Recursada'"></label>
-                                  <input class="form-control form-control-readonly" :value="formatQuantity(batchTotals.itemQuantity)" readonly aria-readonly="true">
-                                </div>
-                                <div class="glosa-field">
-                                  <label x-text="batchModal === 'acatar' ? 'Valor Acatado' : 'Valor Recurso'"></label>
-                                  <input class="form-control form-control-readonly" :value="formatCurrency(batchTotals.itemValue)" readonly aria-readonly="true">
-                                </div>
-                              </div>
-                            </div>
-                            <div class="glosa-field glosa-field--full">
-                              <label>Descrição dos registros selecionados</label>
-                              <div class="follow-up-selected-descriptions">
-                                <template x-for="(description, index) in selectedDescriptions" :key="`${index}-${description}`">
-                                  <span x-text="description"></span>
-                                </template>
-                              </div>
+                              </template>
                             </div>
                             <div class="glosa-field glosa-field--full">
                               <label>Justificativa comum <span class="required-marker" aria-hidden="true">*</span></label>
@@ -713,10 +727,12 @@
         selectedForms: [],
         batchModal: '',
         batchItems: [],
-        selectedDescriptions: [],
-        batchTotals: { itemQuantity: 0, itemValue: 0 },
+        currentBatchIndex: 0,
+        get currentBatchItem() {
+          return this.batchItems[this.currentBatchIndex] || null;
+        },
         parseNumber(value) {
-          const text = String(value || '').trim();
+          const text = String(value || '').replace(/[^\d,.-]/g, '').trim();
           if (!text) return 0;
           if (text.includes(',')) {
             return Number(text.replace(/\./g, '').replace(',', '.')) || 0;
@@ -735,6 +751,13 @@
             maximumFractionDigits: 2
           });
         },
+        formatBatchItemCurrency(fieldName, value) {
+          if (!this.currentBatchItem) return;
+          const digits = String(value || '').replace(/\D/g, '');
+          this.currentBatchItem[fieldName] = this.formatCurrency(
+            Number(digits || 0) / 100
+          );
+        },
         toggleSelection(formId, checked) {
           this.selectedForms = checked
             ? [...new Set([...this.selectedForms, formId])]
@@ -745,40 +768,72 @@
             .map((formId) => document.getElementById(formId))
             .filter(Boolean);
         },
+        buildBatchItem(form, type) {
+          const payload = Object.fromEntries(new FormData(form).entries());
+          delete payload.csrfmiddlewaretoken;
+          delete payload.form_action;
+          delete payload.qtd_registro;
+          delete payload.valor_registro;
+          delete payload.qtd_glosada;
+          delete payload.valor_glosado;
+          const itemQuantity = this.parseNumber(form.dataset.itemQuantity);
+          const itemValue = this.parseNumber(form.dataset.itemValue);
+          return {
+            payload,
+            registroId: (
+              type === 'acatar'
+                ? form.dataset.registroAcatoId
+                : form.dataset.registroRecusaId
+            ) || form.dataset.registroBaseId || '',
+            account: payload.cd_reg || '',
+            procedure: payload.cd_pro_fat || '',
+            description: form.dataset.itemDescription || 'Procedimento não informado',
+            itemQuantity,
+            itemValue,
+            glosaQuantity: itemQuantity,
+            glosaValue: this.formatCurrency(itemValue),
+            treatmentQuantity: itemQuantity,
+            treatmentValue: this.formatCurrency(itemValue)
+          };
+        },
         prepareBatchPayload() {
           const acato = this.batchModal === 'acatar';
-          this.batchItems = this.selectedFormElements().map((form) => {
-            const item = Object.fromEntries(new FormData(form).entries());
-            delete item.csrfmiddlewaretoken;
-            delete item.form_action;
-            item.registro_glosa_id = (
-              acato ? form.dataset.registroAcatoId : form.dataset.registroRecusaId
-            ) || form.dataset.registroBaseId || '';
-            item.qtd_glosada = form.dataset.itemQuantity;
-            item.valor_glosado = form.dataset.itemValue;
-            item.sn_glosado = acato ? 'not' : 'true';
-            return item;
-          });
+          const payloadItems = this.batchItems.map((item) => ({
+            ...item.payload,
+            registro_glosa_id: item.registroId,
+            qtd_registro: item.glosaQuantity,
+            valor_registro: this.parseNumber(item.glosaValue),
+            qtd_glosada: item.treatmentQuantity,
+            valor_glosado: this.parseNumber(item.treatmentValue),
+            sn_glosado: acato ? 'not' : 'true'
+          }));
           if (this.$refs.batchItemsInput) {
-            this.$refs.batchItemsInput.value = JSON.stringify(this.batchItems);
+            this.$refs.batchItemsInput.value = JSON.stringify(payloadItems);
           }
         },
         openBatch(type) {
           if (this.selectedForms.length < 2) return;
           this.batchModal = type;
-          const forms = this.selectedFormElements();
-          this.batchTotals = forms.reduce((totals, form) => ({
-            itemQuantity: totals.itemQuantity + this.parseNumber(form.dataset.itemQuantity),
-            itemValue: totals.itemValue + this.parseNumber(form.dataset.itemValue)
-          }), { itemQuantity: 0, itemValue: 0 });
-          this.selectedDescriptions = forms.map(
-            (form) => form.dataset.itemDescription || 'Procedimento não informado'
+          this.currentBatchIndex = 0;
+          this.batchItems = this.selectedFormElements().map(
+            (form) => this.buildBatchItem(form, type)
           );
           this.prepareBatchPayload();
+        },
+        previousBatchItem() {
+          if (this.currentBatchIndex > 0) {
+            this.currentBatchIndex -= 1;
+          }
+        },
+        nextBatchItem() {
+          if (this.currentBatchIndex < this.batchItems.length - 1) {
+            this.currentBatchIndex += 1;
+          }
         },
         closeBatch() {
           this.batchModal = '';
           this.batchItems = [];
+          this.currentBatchIndex = 0;
         }
       };
     };

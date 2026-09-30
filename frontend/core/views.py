@@ -3427,7 +3427,9 @@ def build_registro_glosa_payload(data):
         "data_atendimento": normalize_glosa_match_text(
             data.get("dt_atendimento") or data.get("dt_lancamento")
         ) or None,
-        "valor": as_float_or_zero(data.get("vl_total_conta")),
+        "valor": as_float_or_zero(
+            data.get("valor_registro") or data.get("vl_total_conta")
+        ),
         "sn_glosado": data.get("sn_glosado") or None,
         "processo_controle_fatura_gab": data.get("processo_controle_fatura_gab") or "",
         "processo_recurso": data.get("processo_recurso") or None,
@@ -3437,7 +3439,9 @@ def build_registro_glosa_payload(data):
         ) or None,
         "motivo_glosa": motivo_glosa_codigo,
         "descricao_glosa": data.get("descricao_glosa") or "",
-        "qtd_registro": as_float_or_none(data.get("qt_lancamento")),
+        "qtd_registro": as_float_or_none(
+            data.get("qtd_registro") or data.get("qt_lancamento")
+        ),
         "descricao_item": data.get("descricao") or None,
         "data_alta": normalize_glosa_match_text(
             data.get("dt_alta")
@@ -7145,9 +7149,67 @@ def conta_atendimento(request):
                 for item in itens:
                     dados_item = dict(item)
                     dados_item.update(campos_comuns)
-                    dados_item["qtd_glosada"] = item.get("qt_lancamento")
-                    dados_item["valor_glosado"] = item.get("vl_total_conta")
+                    dados_item["qtd_registro"] = (
+                        item.get("qtd_registro") or item.get("qt_lancamento")
+                    )
+                    dados_item["valor_registro"] = (
+                        item.get("valor_registro") or item.get("vl_total_conta")
+                    )
+                    dados_item["qtd_glosada"] = (
+                        item.get("qtd_glosada") or item.get("qt_lancamento")
+                    )
+                    dados_item["valor_glosado"] = (
+                        item.get("valor_glosado") or item.get("vl_total_conta")
+                    )
                     payload = build_registro_glosa_payload(dados_item)
+                    item_label = (
+                        str(dados_item.get("descricao") or "").strip()
+                        or str(dados_item.get("cd_pro_fat") or "").strip()
+                        or "sem descrição"
+                    )
+                    qtd_item = as_float_or_none(
+                        dados_item.get("qt_lancamento")
+                    )
+                    valor_item = as_float_or_zero(
+                        dados_item.get("vl_total_conta")
+                    )
+                    qtd_glosada = payload["qtd_registro"]
+                    valor_glosado = payload["valor"]
+                    qtd_tratada = payload["qtd_recursado"]
+                    valor_tratado = payload["valor_recursado"]
+                    if (
+                        qtd_glosada is None
+                        or qtd_glosada <= 0
+                        or valor_glosado <= 0
+                        or qtd_tratada is None
+                        or qtd_tratada <= 0
+                        or valor_tratado is None
+                        or valor_tratado <= 0
+                    ):
+                        raise ValueError(
+                            "Informe quantidades e valores maiores que zero "
+                            f"para o item {item_label}."
+                        )
+                    if qtd_item and qtd_glosada > qtd_item:
+                        raise ValueError(
+                            "A quantidade glosada não pode exceder a "
+                            f"quantidade do item {item_label}."
+                        )
+                    if valor_item and valor_glosado > valor_item:
+                        raise ValueError(
+                            "O valor glosado não pode exceder o valor do "
+                            f"item {item_label}."
+                        )
+                    if qtd_tratada > qtd_glosada:
+                        raise ValueError(
+                            "A quantidade recursada/acatada não pode exceder "
+                            f"a quantidade glosada do item {item_label}."
+                        )
+                    if valor_tratado > valor_glosado:
+                        raise ValueError(
+                            "O valor recursado/acatado não pode exceder o "
+                            f"valor glosado do item {item_label}."
+                        )
                     registro_id = str(
                         dados_item.get("registro_glosa_id") or ""
                     ).strip()

@@ -199,6 +199,17 @@ class ContaAtendimentoRegistroTests(TestCase):
         )
         action_group_end = template.index('</div>', action_group_start)
         self.assertLess(selector_position, action_group_end)
+        self.assertIn('triagem-batch-item-navigation', template)
+        self.assertIn('previousBatchItem()', template)
+        self.assertIn('nextBatchItem()', template)
+        self.assertIn('currentBatchItem.glosaQuantity', template)
+        self.assertIn('currentBatchItem.glosaValue', template)
+        self.assertIn('currentBatchItem.treatmentQuantity', template)
+        self.assertIn('currentBatchItem.treatmentValue', template)
+        self.assertNotIn('batchTotals', template)
+        self.assertNotIn('selectedDescriptions', template)
+        self.assertEqual(template.count('name="qtd_registro"'), 2)
+        self.assertEqual(template.count('name="valor_registro"'), 2)
 
     @patch('core.views.api_post')
     def test_triagem_registra_tratamento_multiplo_item_a_item(self, api_post):
@@ -235,6 +246,18 @@ class ContaAtendimentoRegistroTests(TestCase):
                 (457, 4, 'PROC-11', '2', '20.00', 'Segundo procedimento'),
             )
         ]
+        itens[0].update({
+            'qtd_registro': '1',
+            'valor_registro': '8.00',
+            'qtd_glosada': '1',
+            'valor_glosado': '7.50',
+        })
+        itens[1].update({
+            'qtd_registro': '2',
+            'valor_registro': '18.00',
+            'qtd_glosada': '1',
+            'valor_glosado': '12.00',
+        })
 
         response = self.client.post(
             '/conta-atendimento/',
@@ -257,12 +280,20 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(api_post.call_count, 2)
         payloads = [call.args[1] for call in api_post.call_args_list]
         self.assertEqual(
+            [payload['qtd_registro'] for payload in payloads],
+            [1.0, 2.0],
+        )
+        self.assertEqual(
+            [payload['valor'] for payload in payloads],
+            [8.0, 18.0],
+        )
+        self.assertEqual(
             [payload['qtd_recursado'] for payload in payloads],
-            [1, 2],
+            [1, 1],
         )
         self.assertEqual(
             [payload['valor_recursado'] for payload in payloads],
-            [10.5, 20.0],
+            [7.5, 12.0],
         )
         self.assertEqual(
             {payload['processo_recurso'] for payload in payloads},
@@ -276,6 +307,60 @@ class ContaAtendimentoRegistroTests(TestCase):
             response.json()['message'],
             '2 itens recursados na Triagem.',
         )
+
+    @patch('core.views.api_post')
+    def test_triagem_rejeita_tratamento_maior_que_glosa_antes_de_gravar(
+        self,
+        api_post,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {'telas_permitidas': list(SCREEN_KEYS)}
+        session.save()
+        itens = [
+            {
+                'cd_paciente': '51',
+                'nm_paciente': 'Maria da Silva',
+                'cd_remessa': '987',
+                'cd_atendimento': '789',
+                'cd_reg': str(conta),
+                'cd_lancamento': str(lancamento),
+                'cd_pro_fat': procedimento,
+                'qt_lancamento': '2',
+                'vl_total_conta': '20.00',
+                'qtd_registro': '1',
+                'valor_registro': '10.00',
+                'qtd_glosada': '2',
+                'valor_glosado': '12.00',
+                'descricao': procedimento,
+            }
+            for conta, lancamento, procedimento in (
+                (456, 3, 'PROC-10'),
+                (457, 4, 'PROC-11'),
+            )
+        ]
+
+        response = self.client.post(
+            '/conta-atendimento/',
+            {
+                'itens_selecionados': json.dumps(itens),
+                'sn_glosado': 'true',
+                'processo_controle_fatura_gab': 'PROC-ORIGEM-12',
+                'data_glosa': '2026-07-10',
+                'dt_pagamento': '2026-07-10',
+                'motivo_glosa': '1714',
+                'dt_recurso': '2026-07-11',
+                'descricao_glosa': 'Justificativa compartilhada',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            'não pode exceder a quantidade glosada',
+            response.json()['message'],
+        )
+        api_post.assert_not_called()
 
     def test_triagem_disponibiliza_pdf_unico_no_card_do_paciente(self):
         conta_base = {
@@ -3039,7 +3124,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260924-triagem-pdf-card',
+            '?v=20260930-triagem-itens-modal',
             base_template.read_text(),
         )
 
