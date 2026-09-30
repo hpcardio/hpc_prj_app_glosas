@@ -3,6 +3,7 @@
 {% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
 {% block page_title %}Triagem{% endblock %}
 {% block content %}
+{% now "Y-m-d" as data_atual %}
 
 <datalist id="tiss-motivo-options">
   {% for motivo in tiss_motivos %}
@@ -315,7 +316,7 @@
                         <td class="account-action-cell">
                           <div class="account-action-buttons">
                           <button type="button" class="btn-glosar {% if conta.registro_glosa_status == 'true' %}btn-glosar--filled{% endif %}" @click="acatar = false; glosar = true" :class="{ 'btn-glosar--active': glosar }">
-                            +Recusar
+                            +Recursar
                           </button>
                           <button type="button" class="btn-acatar {% if conta.registro_glosa_status == 'not' %}btn-acatar--filled{% endif %}" @click="glosar = false; acatar = true" :class="{ 'btn-acatar--active': acatar }">
                             + Acatar
@@ -374,7 +375,7 @@
                                       </div>
                                       <div class="glosa-field">
                                         <label>Data da glosa <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_recusa.data_glosa_input|default:'' }}" required>
+                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_recusa.data_glosa_input|default:'' }}" required @change="window.syncGlosaPaymentDate($event.target)">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt pagamento <span class="required-marker" aria-hidden="true">*</span></label>
@@ -395,7 +396,7 @@
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_recusa.dt_recurso_input|default:'' }}" required>
+                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_recusa.dt_recurso_input|default:data_atual }}" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Processo do Recurso</label>
@@ -498,7 +499,7 @@
                                       </div>
                                       <div class="glosa-field">
                                         <label>Data da glosa <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_acato.data_glosa_input|default:'' }}" required>
+                                        <input type="date" name="data_glosa" class="form-control" value="{{ conta.registro_acato.data_glosa_input|default:'' }}" required @change="window.syncGlosaPaymentDate($event.target)">
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt pagamento <span class="required-marker" aria-hidden="true">*</span></label>
@@ -519,7 +520,7 @@
                                       </div>
                                       <div class="glosa-field">
                                         <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_acato.dt_recurso_input|default:'' }}" required>
+                                        <input type="date" name="dt_recurso" class="form-control" value="{{ conta.registro_acato.dt_recurso_input|default:data_atual }}" required>
                                       </div>
                                       <div class="glosa-field">
                                         <label>Processo do Recurso</label>
@@ -610,7 +611,7 @@
                             </div>
                             <div class="glosa-field">
                               <label>Data da glosa <span class="required-marker" aria-hidden="true">*</span></label>
-                              <input type="date" name="data_glosa" class="form-control" required>
+                              <input type="date" name="data_glosa" class="form-control" required @change="window.syncGlosaPaymentDate($event.target)">
                             </div>
                             <div class="glosa-field">
                               <label>Dt pagamento <span class="required-marker" aria-hidden="true">*</span></label>
@@ -622,7 +623,7 @@
                             </div>
                             <div class="glosa-field">
                               <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
-                              <input type="date" name="dt_recurso" class="form-control" required>
+                              <input type="date" name="dt_recurso" class="form-control" value="{{ data_atual }}" required>
                             </div>
                             <div class="glosa-field">
                               <label>Processo do Recurso</label>

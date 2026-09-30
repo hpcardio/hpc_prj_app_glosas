@@ -634,6 +634,17 @@
       return true;
     };
 
+    window.syncGlosaPaymentDate = function (dataGlosaField) {
+      const form = dataGlosaField?.form;
+      const dataPagamento = form?.elements?.dt_pagamento;
+      if (!dataGlosaField?.value || !dataPagamento || dataPagamento.value) {
+        return;
+      }
+      dataPagamento.value = dataGlosaField.value;
+      dataPagamento.setCustomValidity('');
+      window.validateGlosaDates(form, dataPagamento);
+    };
+
     window.validateGlosaDates = function (form, changedField = null) {
       const dataGlosa = form.elements.data_glosa;
       const dataPagamento = form.elements.dt_pagamento;

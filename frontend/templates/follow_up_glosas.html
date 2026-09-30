@@ -3,6 +3,7 @@
 {% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
 {% block page_title %}Follow-Up de Glosas{% endblock %}
 {% block content %}
+{% now "Y-m-d" as data_atual %}
 
 <section class="panel filter-panel follow-up-glosa-page" x-data="{ loading: false }">
   <form class="remessa-filters" method="get" @submit="loading = true">
@@ -310,6 +311,7 @@
                     valorAcatado: '{{ item.registro_acato.valor_glosado_input|default:""|escapejs }}',
                     dataRecusa: '{{ item.registro_recusa.dt_recurso_input|default:""|escapejs }}',
                     dataAcato: '{{ item.registro_acato.dt_recurso_input|default:""|escapejs }}',
+                    dataAtual: '{{ data_atual }}',
                     motivoRecusa: '{{ item.registro_recusa.motivo_glosa|default:""|escapejs }}',
                     motivoAcato: '{{ item.registro_acato.motivo_glosa|default:""|escapejs }}',
                     motivoOrigem: '{{ item.motivo_glosa_codigo|default:""|escapejs }}',
@@ -333,7 +335,7 @@
                       this.loteTratado = acato ? this.loteAcato : this.loteRecusa;
                       this.qtdTratada = acato ? this.qtdAcatada : this.qtdRecusada;
                       this.valorTratado = acato ? this.valorAcatado : this.valorRecusado;
-                      this.dataTratada = acato ? this.dataAcato : this.dataRecusa;
+                      this.dataTratada = (acato ? this.dataAcato : this.dataRecusa) || this.dataAtual;
                       this.motivoTratado = (acato ? this.motivoAcato : this.motivoRecusa) || this.motivoOrigem;
                       this.descricaoTratada = acato ? this.descricaoAcato : this.descricaoRecusa;
                       this.modal = tipo;
@@ -355,7 +357,7 @@
                       <td class="account-action-cell">
                         <div class="follow-up-glosa-actions">
                           {% if item.tratativa_disponivel or item.registro_glosa.id %}
-                          <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+RECUSAR</button>
+                          <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+Recursar</button>
                           <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ACATO</button>
                           <label class="follow-up-item-selector" title="Selecionar item">
                             {% if item.recurso_preenchido and not item.acato_preenchido %}
@@ -422,7 +424,7 @@
                               <input type="hidden" name="sn_glosado" :value="modal === 'acatar' ? 'not' : 'true'">
                               <input type="hidden" name="processo_controle_fatura_gab" value="{{ item.processo_origem }}">
                               <input type="hidden" name="data_glosa" value="{{ item.registro_glosa.data_glosa_input|default:item.data_glosa_input }}">
-                              <input type="hidden" name="dt_pagamento" value="{{ item.registro_glosa.dt_pagamento_oculto|default:item.dt_pagamento_input }}">
+                              <input type="hidden" name="dt_pagamento" value="{{ item.registro_glosa.dt_pagamento_oculto|default:item.dt_pagamento_input|default:item.data_glosa_input }}">
 
                               <div class="glosa-modal-header">
                                 <div>
@@ -597,7 +599,7 @@
                             </div>
                             <div class="glosa-field">
                               <label>Dt recurso <span class="required-marker" aria-hidden="true">*</span></label>
-                              <input type="date" name="dt_recurso" class="form-control" :min="minimumTreatmentDate" required>
+                              <input type="date" name="dt_recurso" class="form-control" value="{{ data_atual }}" :min="minimumTreatmentDate" required>
                             </div>
                             <div class="glosa-field">
                               <label>Processo do Recurso</label>
