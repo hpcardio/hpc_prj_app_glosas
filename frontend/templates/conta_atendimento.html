@@ -192,10 +192,10 @@
             <span class="mpill mpill--valor">R$ {{ grupo.total|br_currency }}</span>
           </div>
         </button>
-        <div class="pac-header-actions" data-triagem-pdf-actions data-pdf-base="{% url 'conta_atendimento_recurso_pdf' %}">
-          {% for processo_pdf in grupo.processos_pdf %}
-          <a class="pac-action-pdf" data-triagem-card-pdf-link data-processo-original="{{ processo_pdf }}" href="{% url 'conta_atendimento_recurso_pdf' %}?processo_original={{ processo_pdf|urlencode }}" target="_blank" rel="noopener" title="Gerar PDF consolidado do recurso {{ processo_pdf }}">{% if grupo.processos_pdf|length > 1 %}PDF {{ processo_pdf }}{% else %}PDF{% endif %}</a>
-          {% endfor %}
+        <div class="pac-header-actions" data-triagem-pdf-actions data-pdf-base="{% url 'conta_atendimento_recurso_pdf' %}" data-patient-code="{{ grupo.codigo_paciente|default:'' }}">
+          {% if grupo.processos_pdf %}
+          <a class="pac-action-pdf" data-triagem-card-pdf-link href="{% url 'conta_atendimento_recurso_pdf' %}?codigo_paciente={{ grupo.codigo_paciente }}{% for processo_pdf in grupo.processos_pdf %}&amp;processos_originais={{ processo_pdf|urlencode }}{% endfor %}" target="_blank" rel="noopener" title="Gerar PDF consolidado de todos os recursos do paciente">PDF</a>
+          {% endif %}
         </div>
       </div>
 

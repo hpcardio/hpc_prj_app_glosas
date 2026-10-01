@@ -2588,19 +2588,22 @@ def _group_contas(contas):
     order_paciente = []
     for conta in contas:
         pac = conta.get("nm_paciente") or "-"
+        codigo_paciente = as_int_or_zero(conta.get("cd_paciente"))
+        paciente_key = (codigo_paciente, pac)
         rem = str(conta.get("cd_remessa") or "-")
         atd = str(conta.get("cd_atendimento") or "-")
-        if pac not in by_paciente:
-            by_paciente[pac] = {}
-            order_paciente.append(pac)
-        if rem not in by_paciente[pac]:
-            by_paciente[pac][rem] = {}
-        if atd not in by_paciente[pac][rem]:
-            by_paciente[pac][rem][atd] = []
-        by_paciente[pac][rem][atd].append(conta)
+        if paciente_key not in by_paciente:
+            by_paciente[paciente_key] = {}
+            order_paciente.append(paciente_key)
+        if rem not in by_paciente[paciente_key]:
+            by_paciente[paciente_key][rem] = {}
+        if atd not in by_paciente[paciente_key][rem]:
+            by_paciente[paciente_key][rem][atd] = []
+        by_paciente[paciente_key][rem][atd].append(conta)
 
     result = []
-    for pac in order_paciente:
+    for paciente_key in order_paciente:
+        codigo_paciente, pac = paciente_key
         remessas = []
         processos_pdf = []
         processos_pdf_vistos = set()
@@ -2608,7 +2611,7 @@ def _group_contas(contas):
         pac_lancamentos = 0
         pac_convenios = set()
         pac_atendimentos = 0
-        for rem, atendimentos_por_remessa in by_paciente[pac].items():
+        for rem, atendimentos_por_remessa in by_paciente[paciente_key].items():
             atendimentos = []
             rem_total = 0.0
             rem_lancamentos = 0
@@ -2678,6 +2681,7 @@ def _group_contas(contas):
             })
         result.append({
             "nm_paciente": pac,
+            "codigo_paciente": codigo_paciente,
             "remessas": remessas,
             "processos_pdf": processos_pdf,
             "num_remessas": len(remessas),
@@ -6858,9 +6862,17 @@ def conta_atendimento_recurso_pdf(request):
     processo_original = (
         request.GET.get("processo_original") or ""
     ).strip()
-    if not processo_original:
+    processos_originais = [
+        processo.strip()
+        for processo in request.GET.getlist("processos_originais")
+        if processo.strip()
+    ]
+    codigo_paciente = as_int_or_zero(
+        request.GET.get("codigo_paciente")
+    )
+    if not processo_original and not processos_originais:
         return HttpResponse(
-            "Informe o processo original para gerar o PDF.",
+            "Informe ao menos um processo original para gerar o PDF.",
             status=400,
             content_type="text/plain; charset=utf-8",
         )
@@ -6868,7 +6880,9 @@ def conta_atendimento_recurso_pdf(request):
         upstream = api_get_stream(
             TRIAGEM_RECURSO_PDF_PATH,
             {
-                "processo_original": processo_original,
+                "processo_original": processo_original or None,
+                "processos_originais": processos_originais or None,
+                "codigo_paciente": codigo_paciente or None,
                 "download": "false",
             },
         )
