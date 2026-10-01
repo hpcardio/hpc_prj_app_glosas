@@ -1032,6 +1032,29 @@
     };
 
     window.applyOperationState = function (form, data) {
+      const batchResults = data.payload?.itens;
+      const triagemBatchRoot = form.closest('.atd-block');
+      if (Array.isArray(batchResults) && triagemBatchRoot) {
+        const batchState = window.Alpine?.$data(triagemBatchRoot);
+        const batchItems = Array.isArray(batchState?.batchItems)
+          ? batchState.batchItems
+          : [];
+        const tipo = data.payload?.sn_glosado || data.operationType;
+        batchResults.forEach((result, index) => {
+          const itemForm = document.getElementById(batchItems[index]?.formId || '');
+          if (!itemForm) return;
+          window.applyOperationState(itemForm, {
+            ...data,
+            operationType: tipo,
+            payload: {
+              ...(result || {}),
+              sn_glosado: result?.sn_glosado || tipo
+            }
+          });
+        });
+        return;
+      }
+
       const row = form.closest('tbody');
       if (!row) {
         return;
@@ -1041,9 +1064,11 @@
       const tipo = payload.sn_glosado || data.operationType;
       const state = window.Alpine?.$data(row);
       const followUp = typeof state?.openTreatment === 'function';
-      const savedForms = followUp ? [form] : Array.from(row.querySelectorAll('.glosa-modal-form')).filter(
+      const rowForms = Array.from(row.querySelectorAll('.glosa-modal-form'));
+      const savedForms = followUp ? [form] : rowForms.filter(
         (modalForm) => modalForm.querySelector('[name="sn_glosado"]')?.value === tipo
       );
+      const actionForms = followUp ? savedForms : rowForms;
       const valor = payload.valor_recursado == null ? '' : Number(payload.valor_recursado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       const qtd = payload.qtd_recursado == null ? '' : String(Number(payload.qtd_recursado));
       if (followUp) {
@@ -1080,7 +1105,15 @@
         state.editingExisting = Boolean(payload.id);
       }
       if (payload.id) {
-        const values = { ...payload, qtd_glosada: qtd, valor_glosado: valor };
+        const valorRegistro = payload.valor == null
+          ? ''
+          : Number(payload.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const values = {
+          ...payload,
+          valor_registro: valorRegistro,
+          qtd_glosada: qtd,
+          valor_glosado: valor
+        };
         savedForms.forEach((modalForm) => {
           modalForm.querySelectorAll('input, select, textarea').forEach((field) => {
             if (!Object.prototype.hasOwnProperty.call(values, field.name)) return;
@@ -1093,10 +1126,9 @@
       }
       const glosarButton = row.querySelector('.btn-glosar');
       const acatarButton = row.querySelector('.btn-acatar');
-      const forms = savedForms;
 
       if (payload.id) {
-        forms.forEach((modalForm) => {
+        actionForms.forEach((modalForm) => {
           window.updateRegistroFormActions(modalForm, true, payload.id);
         });
         if (payload.sn_glosado === 'not') {
@@ -1107,7 +1139,7 @@
           acatarButton?.classList.remove('btn-acatar--filled');
         }
       } else {
-        forms.forEach((modalForm) => {
+        actionForms.forEach((modalForm) => {
           window.updateRegistroFormActions(modalForm, false, '');
           window.clearGlosaFormFields(modalForm);
         });
@@ -1115,6 +1147,16 @@
         acatarButton?.classList.remove('btn-acatar--filled');
       }
       if (!followUp) {
+        const selectionForm = row.querySelector('form[id^="triagem-item-"]');
+        if (selectionForm) {
+          selectionForm.dataset.registroBaseId = payload.id || '';
+          selectionForm.dataset.registroRecusaId = (
+            payload.id && payload.sn_glosado !== 'not' ? payload.id : ''
+          );
+          selectionForm.dataset.registroAcatoId = (
+            payload.id && payload.sn_glosado === 'not' ? payload.id : ''
+          );
+        }
         const processoOriginal = payload.processo_controle_fatura_gab || '';
         if (payload.id && payload.sn_glosado !== 'not' && processoOriginal) {
           row.dataset.triagemRecursoProcesso = processoOriginal;

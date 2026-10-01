@@ -581,7 +581,7 @@
                 <div class="glosa-modal" x-show="batchModal" x-cloak @keydown.escape.window="closeBatch()">
                   <div class="glosa-modal-backdrop" @click="closeBatch()"></div>
                   <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="triagem-batch-modal-title-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}">
-                    <form method="post" class="glosa-modal-form" data-has-registro="false" data-reload-on-success="true" @submit.prevent="prepareBatchPayload(); window.handleGlosaSubmit($el, $event);">
+                    <form method="post" class="glosa-modal-form" data-has-registro="false" @submit.prevent="prepareBatchPayload(); window.handleGlosaSubmit($el, $event);">
                       {% csrf_token %}
                       <input x-ref="batchItemsInput" type="hidden" name="itens_selecionados" value="">
                       <input type="hidden" name="sn_glosado" :value="batchModal === 'acatar' ? 'not' : 'true'">
@@ -780,6 +780,7 @@
           const itemQuantity = this.parseNumber(form.dataset.itemQuantity);
           const itemValue = this.parseNumber(form.dataset.itemValue);
           return {
+            formId: form.id,
             payload,
             registroId: (
               type === 'acatar'
