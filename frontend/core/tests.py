@@ -546,6 +546,26 @@ class ContaAtendimentoRegistroTests(TestCase):
             ['131313/2026', '141414/2026'],
         )
 
+    def test_triagem_nao_agrupa_pacientes_homonimos(self):
+        grupos = _group_contas([
+            {
+                **self._conta(),
+                'cd_paciente': 10,
+                'nm_paciente': 'Paciente Homônimo',
+            },
+            {
+                **self._conta(),
+                'cd_paciente': 20,
+                'nm_paciente': 'Paciente Homônimo',
+            },
+        ])
+
+        self.assertEqual(len(grupos), 2)
+        self.assertEqual(
+            [grupo['codigo_paciente'] for grupo in grupos],
+            [10, 20],
+        )
+
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.get_convenio_filter_options')
     def test_triagem_renderiza_pdf_no_card_do_paciente(
@@ -562,6 +582,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         get_convenio_filter_options.return_value = []
         conta = {
             **self._conta(),
+            'cd_paciente': 77,
             'cd_lancamento': 1,
             'nm_paciente': 'Paciente Teste',
             'nm_convenio': 'CAFAZ',
@@ -572,12 +593,25 @@ class ContaAtendimentoRegistroTests(TestCase):
         get_cached_api_payload.side_effect = [
             {'itens': []},
             {
-                'atendimentos': [conta],
+                'atendimentos': [
+                    conta,
+                    {**conta, 'cd_lancamento': 2},
+                ],
                 'total': 1,
                 'limit': 10,
                 'offset': 0,
             },
-            {'glosas': [{**self._registro('true'), 'cd_lancamento': 1}]},
+            {
+                'glosas': [
+                    {**self._registro('true'), 'cd_lancamento': 1},
+                    {
+                        **self._registro('true'),
+                        'id': 78,
+                        'cd_lancamento': 2,
+                        'processo_controle_fatura_gab': '141414/2026',
+                    },
+                ]
+            },
         ]
 
         response = self.client.get(
@@ -589,7 +623,15 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertContains(response, 'class="pac-action-pdf"', count=1)
         self.assertContains(
             response,
-            'processo_original=131313/2026',
+            'codigo_paciente=77',
+        )
+        self.assertContains(
+            response,
+            'processos_originais=131313/2026',
+        )
+        self.assertContains(
+            response,
+            'processos_originais=141414/2026',
         )
         self.assertNotContains(response, 'class="account-action-pdf"')
 
@@ -602,6 +644,9 @@ class ContaAtendimentoRegistroTests(TestCase):
 
         self.assertIn('data-triagem-pdf-actions', template)
         self.assertIn('data-triagem-card-pdf-link', template)
+        self.assertIn('data-patient-code', template)
+        self.assertIn('processos_originais=', template)
+        self.assertNotIn('PDF {{ processo_pdf }}', template)
         self.assertNotIn('data-triagem-pdf-link', template)
 
     def test_triagem_exibe_processo_como_primeiro_filtro_e_pdf(self):
@@ -2835,6 +2880,48 @@ class FollowUpGlosasTests(TestCase):
             '/app_glosas/glosas/recurso.pdf',
             {
                 'processo_original': 'TRIAGEM-12',
+                'processos_originais': None,
+                'codigo_paciente': None,
+                'download': 'false',
+            },
+        )
+        upstream.close.assert_called_once()
+
+    @patch('core.views.api_get_stream')
+    def test_proxy_da_triagem_encaminha_pdf_unico_do_paciente(
+        self,
+        api_get_stream,
+    ):
+        upstream = Mock()
+        upstream.headers = {'Content-Type': 'application/pdf'}
+        upstream.iter_content.return_value = [b'%PDF-1.7\npaciente']
+        api_get_stream.return_value = upstream
+
+        response = self.client.get(
+            '/conta-atendimento/recurso-pdf/',
+            {
+                'codigo_paciente': '77',
+                'processos_originais': [
+                    'PROC-1/2026',
+                    'PROC-2/2026',
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            b''.join(response.streaming_content),
+            b'%PDF-1.7\npaciente',
+        )
+        api_get_stream.assert_called_once_with(
+            '/app_glosas/glosas/recurso.pdf',
+            {
+                'processo_original': None,
+                'processos_originais': [
+                    'PROC-1/2026',
+                    'PROC-2/2026',
+                ],
+                'codigo_paciente': 77,
                 'download': 'false',
             },
         )

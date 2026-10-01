@@ -1017,18 +1017,25 @@
         .filter((processo, index, values) => processo && values.indexOf(processo) === index);
 
       actions.replaceChildren();
+      if (!processos.length) {
+        return;
+      }
+      const url = new URL(actions.dataset.pdfBase, window.location.origin);
+      if (actions.dataset.patientCode) {
+        url.searchParams.set('codigo_paciente', actions.dataset.patientCode);
+      }
       processos.forEach((processo) => {
-        const link = document.createElement('a');
-        link.className = 'pac-action-pdf';
-        link.dataset.triagemCardPdfLink = '';
-        link.dataset.processoOriginal = processo;
-        link.href = `${actions.dataset.pdfBase}?processo_original=${encodeURIComponent(processo)}`;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.title = `Gerar PDF consolidado do recurso ${processo}`;
-        link.textContent = processos.length > 1 ? `PDF ${processo}` : 'PDF';
-        actions.appendChild(link);
+        url.searchParams.append('processos_originais', processo);
       });
+      const link = document.createElement('a');
+      link.className = 'pac-action-pdf';
+      link.dataset.triagemCardPdfLink = '';
+      link.href = url.toString();
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = 'Gerar PDF consolidado de todos os recursos do paciente';
+      link.textContent = 'PDF';
+      actions.appendChild(link);
     };
 
     window.applyOperationState = function (form, data) {
