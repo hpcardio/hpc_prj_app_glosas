@@ -258,10 +258,43 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn('currentBatchItem.glosaValue', template)
         self.assertIn('currentBatchItem.treatmentQuantity', template)
         self.assertIn('currentBatchItem.treatmentValue', template)
+        self.assertIn(
+            '@submit.prevent="prepareBatchPayload(); '
+            'window.handleGlosaSubmit($el, $event);"',
+            template,
+        )
+        self.assertIn(
+            'name="itens_selecionados" value=""',
+            template,
+        )
+        self.assertNotIn(
+            ':value="JSON.stringify(batchItems)"',
+            template,
+        )
         self.assertNotIn('batchTotals', template)
         self.assertNotIn('selectedDescriptions', template)
         self.assertEqual(template.count('name="qtd_registro"'), 2)
         self.assertEqual(template.count('name="valor_registro"'), 2)
+
+    def test_follow_up_exibe_totais_separados_de_recurso_e_acato(self):
+        template = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'follow_up_glosas.html'
+        ).read_text()
+        base = (
+            Path(__file__).resolve().parent.parent
+            / 'templates'
+            / 'base.html'
+        ).read_text()
+
+        self.assertIn('Total recursado', template)
+        self.assertIn('Total acatado', template)
+        self.assertIn('resumo.valor_total_recursado', template)
+        self.assertIn('resumo.valor_total_acatado', template)
+        self.assertNotIn('data-glosa-summary-treated', template)
+        self.assertIn('data-glosa-summary-recursed', base)
+        self.assertIn('data-glosa-summary-accepted', base)
 
     @patch('core.views.api_post')
     def test_triagem_registra_tratamento_multiplo_item_a_item(self, api_post):
@@ -2561,6 +2594,8 @@ class FollowUpGlosasTests(TestCase):
             'valor_total_glosado': '150.00',
             'valor_total_pendente': '100.00',
             'valor_total_tratado': '50.00',
+            'valor_total_recursado': '40.00',
+            'valor_total_acatado': '10.00',
             'limit': 10,
             'offset': 0,
         }
@@ -2818,12 +2853,17 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, 'id="follow-up-page-select"')
         self.assertContains(response, '<option value="1" selected>1</option>')
         self.assertContains(response, '<span>de 1</span>')
-        self.assertContains(response, 'Valor tratado')
-        self.assertContains(response, 'VALOR TRATADO')
-        self.assertContains(response, 'R$ 50,00', count=3)
+        self.assertContains(response, 'Total recursado')
+        self.assertContains(response, 'Total acatado')
+        self.assertContains(response, 'R$ 40,00')
+        self.assertContains(response, 'R$ 10,00')
         self.assertEqual(
-            response.context['resumo']['valor_total_tratado'],
-            50.0,
+            response.context['resumo']['valor_total_recursado'],
+            40.0,
+        )
+        self.assertEqual(
+            response.context['resumo']['valor_total_acatado'],
+            10.0,
         )
         self.assertContains(
             response,

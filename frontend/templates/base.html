@@ -1060,7 +1060,11 @@
         ['remessa', 'processo'].forEach((kind) => {
           updateTotal(row.closest?.(`[data-follow-up-expansion-kind="${kind}"]`)?.querySelector('.follow-up-glosa-card-value--treated strong'));
         });
-        updateTotal(window.document?.querySelector('[data-glosa-summary-treated]'));
+        updateTotal(window.document?.querySelector(
+          acato
+            ? '[data-glosa-summary-accepted]'
+            : '[data-glosa-summary-recursed]'
+        ));
         const fields = {
           [acato ? 'registroAcatoId' : 'registroRecusaId']: payload.id || '',
           [acato ? 'processoAcato' : 'processoRecusa']: payload.processo_recurso || '',
