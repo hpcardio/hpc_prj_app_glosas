@@ -322,15 +322,15 @@
                             + Acatar
                           </button>
                           <label class="follow-up-item-selector" title="Selecionar item">
-                            <input type="checkbox" :checked="selectedForms.includes(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}`)" @change="toggleSelection(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}`, $event.target.checked)">
+                            <input type="checkbox" :checked="selectedForms.includes(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}`)" @change="toggleSelection(`triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}`, $event.target.checked)">
                             <span>Selecionar</span>
                           </label>
                           </div>
                           <div class="glosa-modal" x-show="glosar" x-cloak @keydown.escape.window="glosar = false">
                             <div class="glosa-modal-backdrop" @click="glosar = false"></div>
-                            <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                            <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">
                               <form
-                                id="triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}"
+                                id="triagem-item-{{ rem.cd_remessa }}-{{ atd.cd_atendimento }}-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}"
                                 method="post"
                                 class="glosa-modal-form"
                                 data-has-registro="{% if conta.registro_glosa_id %}true{% else %}false{% endif %}"
@@ -355,7 +355,7 @@
                                 <div class="glosa-modal-header">
                                   <div>
                                     <span class="glosa-modal-eyebrow">Registro de glosa</span>
-                                    <h2 id="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Conta {{ conta.cd_reg|default:"-" }}</h2>
+                                    <h2 id="glosa-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">Conta {{ conta.cd_reg|default:"-" }}</h2>
                                   </div>
                                   <button type="button" class="glosa-modal-close" @click="glosar = false" aria-label="Fechar">x</button>
                                 </div>
@@ -366,8 +366,8 @@
                                   <span class="glosa-modal-context-desc">{{ conta.descricao|default:"Procedimento nao informado" }}</span>
                                 </div>
                                 <div class="glosa-section-stack">
-                                  <section class="glosa-section" aria-labelledby="glosa-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                                    <h3 id="glosa-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo original</h3>
+                                  <section class="glosa-section" aria-labelledby="glosa-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">
+                                    <h3 id="glosa-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">Processo original</h3>
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo / N Controle / N Fatura / N GAB (Processo Original) <span class="required-marker" aria-hidden="true">*</span></label>
@@ -387,8 +387,8 @@
                                       </div>
                                     </div>
                                   </section>
-                                  <section class="glosa-section" aria-labelledby="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                                    <h3 id="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo de recurso</h3>
+                                  <section class="glosa-section" aria-labelledby="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">
+                                    <h3 id="glosa-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">Processo de recurso</h3>
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field">
                                         <label>Lote</label>
@@ -459,7 +459,7 @@
                           </div>
                           <div class="glosa-modal" x-show="acatar" x-cloak @keydown.escape.window="acatar = false">
                             <div class="glosa-modal-backdrop" @click="acatar = false"></div>
-                            <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
+                            <div class="glosa-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">
                               <form
                                 method="post"
                                 class="glosa-modal-form"
@@ -479,7 +479,7 @@
                                 <div class="glosa-modal-header">
                                   <div>
                                     <span class="glosa-modal-eyebrow">Registro de acato</span>
-                                    <h2 id="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Conta {{ conta.cd_reg|default:"-" }}</h2>
+                                    <h2 id="acatar-modal-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">Conta {{ conta.cd_reg|default:"-" }}</h2>
                                   </div>
                                   <button type="button" class="glosa-modal-close" @click="acatar = false" aria-label="Fechar">x</button>
                                 </div>
@@ -490,8 +490,8 @@
                                   <span class="glosa-modal-context-desc">{{ conta.descricao|default:"Procedimento nao informado" }}</span>
                                 </div>
                                 <div class="glosa-section-stack">
-                                  <section class="glosa-section" aria-labelledby="acatar-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                                    <h3 id="acatar-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Processo original</h3>
+                                  <section class="glosa-section" aria-labelledby="acatar-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">
+                                    <h3 id="acatar-original-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">Processo original</h3>
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Processo / N Controle / N Fatura / N GAB (Processo Original) <span class="required-marker" aria-hidden="true">*</span></label>
@@ -511,8 +511,8 @@
                                       </div>
                                     </div>
                                   </section>
-                                  <section class="glosa-section" aria-labelledby="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">
-                                    <h3 id="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}">Tratamento por acato</h3>
+                                  <section class="glosa-section" aria-labelledby="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">
+                                    <h3 id="acatar-recurso-title-{{ conta.cd_reg }}-{{ conta.cd_lancamento }}-{{ conta.cd_prestador|default:0 }}">Tratamento por acato</h3>
                                     <div class="glosa-section-grid">
                                       <div class="glosa-field">
                                         <label>Lote</label>

@@ -258,6 +258,10 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn('currentBatchItem.glosaValue', template)
         self.assertIn('currentBatchItem.treatmentQuantity', template)
         self.assertIn('currentBatchItem.treatmentValue', template)
+        self.assertGreaterEqual(
+            template.count('conta.cd_prestador|default:0'),
+            10,
+        )
         self.assertIn(
             '@submit.prevent="prepareBatchPayload(); '
             'window.handleGlosaSubmit($el, $event);"',
@@ -723,6 +727,39 @@ class ContaAtendimentoRegistroTests(TestCase):
 
         self.assertEqual(contas[0]['registro_glosa_id'], 91)
         self.assertEqual(contas[1]['registro_glosa_id'], 92)
+
+    @patch('core.views.get_cached_api_payload')
+    def test_prestador_diferencia_honorarios_do_mesmo_lancamento(
+        self,
+        get_cached_api_payload,
+    ):
+        contas = [
+            {**self._conta(), 'cd_lancamento': 7, 'cd_prestador': 15148},
+            {**self._conta(), 'cd_lancamento': 7, 'cd_prestador': 5151},
+        ]
+        get_cached_api_payload.return_value = {
+            'glosas': [
+                {
+                    **self._registro('true'),
+                    'id': 101,
+                    'cd_lancamento': 7,
+                    'cd_prestador': 15148,
+                },
+                {
+                    **self._registro('not'),
+                    'id': 102,
+                    'cd_lancamento': 7,
+                    'cd_prestador': 5151,
+                },
+            ]
+        }
+
+        attach_registros_glosa(contas, {})
+
+        self.assertEqual(contas[0]['registro_glosa_id'], 101)
+        self.assertEqual(contas[0]['registro_glosa_status'], 'true')
+        self.assertEqual(contas[1]['registro_glosa_id'], 102)
+        self.assertEqual(contas[1]['registro_glosa_status'], 'not')
 
 
 class AcompanhamentoRowsTests(TestCase):

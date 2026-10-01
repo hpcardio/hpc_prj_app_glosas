@@ -3261,20 +3261,23 @@ def _glosa_match_key(item):
             item.get("nr_guia") or item.get("cd_guia") or item.get("guia")
         ),
         str(as_int_or_zero(item.get("cd_lancamento"))),
+        str(as_int_or_zero(item.get("cd_prestador"))),
     )
 
 
 def _glosa_match_key_without_guia(item):
     key = _glosa_match_key(item)
-    return (*key[:4], key[5])
+    return (*key[:4], *key[5:])
 
 
 def _glosa_legacy_match_key(item):
-    return _glosa_match_key(item)[:5]
+    key = _glosa_match_key(item)
+    return (*key[:5], key[6])
 
 
 def _glosa_legacy_match_key_without_guia(item):
-    return _glosa_match_key(item)[:4]
+    key = _glosa_match_key(item)
+    return (*key[:4], key[6])
 
 
 def _prepare_registro_glosa(registro):
