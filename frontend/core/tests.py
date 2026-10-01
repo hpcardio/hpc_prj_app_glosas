@@ -280,6 +280,37 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(template.count('name="qtd_registro"'), 2)
         self.assertEqual(template.count('name="valor_registro"'), 2)
 
+    def test_triagem_atualiza_itens_salvos_sem_recarregar_cards(self):
+        templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        base = (templates_dir / 'base.html').read_text()
+
+        self.assertIn('formId: form.id', triagem)
+        self.assertNotIn(
+            'data-reload-on-success="true" @submit.prevent=',
+            triagem,
+        )
+        self.assertIn('const batchResults = data.payload?.itens;', base)
+        self.assertIn(
+            "const triagemBatchRoot = form.closest('.atd-block');",
+            base,
+        )
+        self.assertIn(
+            'Array.isArray(batchResults) && triagemBatchRoot',
+            base,
+        )
+        self.assertIn('window.applyOperationState(itemForm, {', base)
+        self.assertIn('valor_registro: valorRegistro,', base)
+        self.assertIn(
+            'const actionForms = followUp ? savedForms : rowForms;',
+            base,
+        )
+        self.assertIn(
+            "selectionForm.dataset.registroBaseId = payload.id || '';",
+            base,
+        )
+        self.assertNotIn('window.location.reload()', triagem)
+
     def test_follow_up_exibe_totais_separados_de_recurso_e_acato(self):
         template = (
             Path(__file__).resolve().parent.parent
@@ -395,6 +426,13 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(
             response.json()['message'],
             '2 itens recursados na Triagem.',
+        )
+        self.assertEqual(
+            response.json()['payload']['itens'],
+            [
+                {'id': 201, 'sn_glosado': 'true'},
+                {'id': 202, 'sn_glosado': 'true'},
+            ],
         )
 
     @patch('core.views.api_post')
