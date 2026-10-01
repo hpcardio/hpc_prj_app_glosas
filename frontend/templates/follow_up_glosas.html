@@ -96,8 +96,12 @@
           <strong>R$ {{ resumo.valor_total_glosado|br_currency }}</strong>
         </span>
         <span class="result-total result-total--value">
-          <span>Valor tratado</span>
-          <strong data-glosa-summary-treated>R$ {{ resumo.valor_total_tratado|br_currency }}</strong>
+          <span>Total recursado</span>
+          <strong data-glosa-summary-recursed>R$ {{ resumo.valor_total_recursado|br_currency }}</strong>
+        </span>
+        <span class="result-total result-total--value">
+          <span>Total acatado</span>
+          <strong data-glosa-summary-accepted>R$ {{ resumo.valor_total_acatado|br_currency }}</strong>
         </span>
         <span class="result-total result-total--value">
           <span>Valor pendente</span>
