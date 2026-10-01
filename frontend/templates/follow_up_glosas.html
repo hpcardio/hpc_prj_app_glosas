@@ -288,13 +288,13 @@
                           <table class="table align-middle account-table">
                   <colgroup>
                     <col class="account-col-procedimento"><col class="account-col-descricao">
-                    <col class="account-col-valor"><col class="account-col-valor account-col-valor--wide"><col class="account-col-valor">
+                    <col class="account-col-valor"><col class="account-col-qtd"><col class="account-col-valor account-col-valor--wide"><col class="account-col-valor">
                     <col class="account-col-valor account-col-valor--wide"><col class="account-col-valor"><col class="account-col-acao">
                   </colgroup>
                   <thead>
                     <tr>
                       <th>CÓD. ITEM</th><th class="col-desc">DESCRIÇÃO</th>
-                      <th class="col-valor">VALOR ITEM</th><th class="col-valor follow-up-glosa-value-heading">VALOR PROCESSADO</th>
+                      <th class="col-valor">VALOR ITEM</th><th class="account-col-label-qtd">QTD. ITEM</th><th class="col-valor follow-up-glosa-value-heading">VALOR PROCESSADO</th>
                       <th class="col-valor">VALOR GLOSA</th><th class="col-valor follow-up-glosa-value-heading">VALOR LIBERADO</th>
                       <th class="col-valor">TOTAL TRATADO</th><th>AÇÃO</th>
                     </tr>
@@ -354,6 +354,7 @@
                       <td class="cell-mono">{{ item.codigo_item|default:"-" }}</td>
                       <td class="col-desc">{{ item.descricao|default:"-" }}</td>
                       <td class="cell-valor">R$ {{ item.vl_total_conta|br_currency }}</td>
+                      <td class="cell-mono cell-center">{{ item.qt_lancamento|floatformat:"-2"|default:"-" }}</td>
                       <td class="cell-valor">R$ {{ item.valor_processado|br_currency }}</td>
                       <td class="cell-valor cell-valor--danger">R$ {{ item.valor_glosa|br_currency }}</td>
                       <td class="cell-valor">R$ {{ item.valor_liberado|br_currency }}</td>

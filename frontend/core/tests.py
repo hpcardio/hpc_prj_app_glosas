@@ -3237,6 +3237,16 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(response, '>+ACATO</button>')
         self.assertContains(
             response,
+            '<th class="account-col-label-qtd">QTD. ITEM</th>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<td class="cell-mono cell-center">2</td>',
+            html=True,
+        )
+        self.assertContains(
+            response,
             'name="processo_controle_fatura_gab" value="P249767/2026"',
         )
         self.assertContains(
