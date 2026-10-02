@@ -7442,6 +7442,22 @@ def conta_atendimento(request):
                 conta.get("hr_lancamento"),
             )
     grupos = _group_contas(contas)
+    processos_pdf_resultado = []
+    processos_pdf_vistos = set()
+    processo_filtro = str(filtros.get("processo") or "").strip()
+    for processo_pdf in (
+        [processo_filtro]
+        + [
+            processo
+            for grupo in grupos
+            for processo in grupo.get("processos_pdf", [])
+        ]
+    ):
+        processo_pdf = str(processo_pdf or "").strip()
+        processo_chave = processo_pdf.casefold()
+        if processo_pdf and processo_chave not in processos_pdf_vistos:
+            processos_pdf_vistos.add(processo_chave)
+            processos_pdf_resultado.append(processo_pdf)
     if pesquisa_executada and not total_pacientes:
         total_pacientes = len(grupos)
 
@@ -7490,6 +7506,7 @@ def conta_atendimento(request):
         "conta_atendimento.html",
         {
             "grupos": grupos_pagina,
+            "processos_pdf_resultado": processos_pdf_resultado,
             "filtros": filtros,
             "resumo": resumo,
             "pagination": pagination,

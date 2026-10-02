@@ -623,6 +623,13 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertContains(response, 'class="pac-action-pdf"', count=1)
         self.assertContains(
             response,
+            'class="btn btn-outline-secondary triagem-process-pdf-link"',
+            count=2,
+        )
+        self.assertContains(response, 'PDF do processo 131313/2026')
+        self.assertContains(response, 'PDF do processo 141414/2026')
+        self.assertContains(
+            response,
             'codigo_paciente=77',
         )
         self.assertContains(
@@ -663,9 +670,10 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn("'processo', 'cd_remessa'", template)
         self.assertIn('PDF do processo', template)
         self.assertIn(
-            "filtros.processo|urlencode",
+            "processos_pdf_resultado",
             template,
         )
+        self.assertIn('data-triagem-process-pdf-actions', template)
 
     def test_triagem_substitui_filtro_conta_por_guia(self):
         template = (

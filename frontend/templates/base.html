@@ -1004,6 +1004,42 @@
       }
     };
 
+    window.syncTriagemProcessPdfLinks = function () {
+      const actions = document.querySelector('[data-triagem-process-pdf-actions]');
+      if (!actions) {
+        return;
+      }
+      const processos = [
+        actions.dataset.filterProcess?.trim(),
+        ...Array.from(
+          document.querySelectorAll('tbody[data-triagem-recurso-processo]')
+        ).map((itemRow) => itemRow.dataset.triagemRecursoProcesso?.trim())
+      ].filter(
+        (processo, index, values) => processo && values.findIndex(
+          (value) => value?.toLocaleLowerCase() === processo.toLocaleLowerCase()
+        ) === index
+      );
+
+      actions.querySelectorAll('[data-triagem-process-pdf-link]').forEach(
+        (link) => link.remove()
+      );
+      processos.forEach((processo) => {
+        const url = new URL(actions.dataset.pdfBase, window.location.origin);
+        url.searchParams.set('processo_original', processo);
+        const link = document.createElement('a');
+        link.className = 'btn btn-outline-secondary triagem-process-pdf-link';
+        link.dataset.triagemProcessPdfLink = '';
+        link.dataset.processoOriginal = processo;
+        link.href = url.toString();
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = processos.length > 1
+          ? `PDF do processo ${processo}`
+          : 'PDF do processo';
+        actions.appendChild(link);
+      });
+    };
+
     window.syncTriagemCardPdfLinks = function (row) {
       const card = row?.closest('.pac-card');
       const actions = card?.querySelector('[data-triagem-pdf-actions]');
@@ -1018,6 +1054,7 @@
 
       actions.replaceChildren();
       if (!processos.length) {
+        window.syncTriagemProcessPdfLinks();
         return;
       }
       const url = new URL(actions.dataset.pdfBase, window.location.origin);
@@ -1036,6 +1073,7 @@
       link.title = 'Gerar PDF consolidado de todos os recursos do paciente';
       link.textContent = 'PDF';
       actions.appendChild(link);
+      window.syncTriagemProcessPdfLinks();
     };
 
     window.applyOperationState = function (form, data) {
