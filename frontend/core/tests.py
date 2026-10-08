@@ -1207,10 +1207,37 @@ class DashboardIndicadoresTests(TestCase):
         )
         self.assertEqual(api_get.call_count, 2)
         self.assertEqual(api_get.call_args_list[1].args[1]['offset'], 100)
-        self.assertEqual(api_get.call_args_list[0].kwargs['timeout'], 60)
-        self.assertEqual(api_get.call_args_list[1].kwargs['timeout'], 60)
+        self.assertEqual(api_get.call_args_list[0].kwargs['timeout'], 30)
+        self.assertEqual(api_get.call_args_list[1].kwargs['timeout'], 30)
         self.assertEqual(get_dashboard_follow_up_summary(), resumo)
         self.assertEqual(api_get.call_count, 2)
+
+    @patch('core.views.api_get')
+    def test_resumo_follow_up_carrega_paginas_restantes_em_paralelo(self, api_get):
+        from threading import Barrier
+
+        cache.delete('dashboard:follow-up-resumo')
+        paginas_simultaneas = Barrier(2)
+
+        def carregar(_path, params, timeout):
+            offset = params['offset']
+            if offset == 0:
+                return {
+                    'cards': [{'cd_remessa': 1}],
+                    'total': 201,
+                }
+            paginas_simultaneas.wait(timeout=2)
+            return {'cards': [{'cd_remessa': offset}]}
+
+        api_get.side_effect = carregar
+
+        resumo = get_dashboard_follow_up_summary()
+
+        self.assertEqual(
+            [card['cd_remessa'] for card in resumo['cards']],
+            [1, 100, 200],
+        )
+        self.assertEqual(api_get.call_count, 3)
 
     def test_limite_do_dashboard_comporta_dataset_consolidado(self):
         from .views import DASHBOARD_GLOSAS_LIMIT

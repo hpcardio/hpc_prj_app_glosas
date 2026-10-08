@@ -52,7 +52,8 @@ DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
 DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 DASHBOARD_FOLLOW_UP_CACHE_KEY = "dashboard:follow-up-resumo"
-DASHBOARD_FOLLOW_UP_TIMEOUT = 60
+DASHBOARD_REQUEST_TIMEOUT = 15
+DASHBOARD_FOLLOW_UP_TIMEOUT = 30
 DASHBOARD_FOLLOW_UP_CACHE_SECONDS = 300
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
@@ -5649,11 +5650,9 @@ def get_dashboard_follow_up_summary(force_refresh=False):
         return cached
 
     limit = 100
-    offset = 0
-    resumo = None
-    cards = []
-    while resumo is None or offset < as_int_or_zero(resumo.get("total")):
-        pagina = api_get(
+
+    def carregar_pagina(offset):
+        return api_get(
             FOLLOW_UP_GLOSAS_PATH,
             {
                 "limit": limit,
@@ -5663,10 +5662,30 @@ def get_dashboard_follow_up_summary(force_refresh=False):
             },
             timeout=DASHBOARD_FOLLOW_UP_TIMEOUT,
         )
-        if resumo is None:
-            resumo = dict(pagina) if isinstance(pagina, dict) else {}
-        cards.extend(pagina.get("cards") or [])
-        offset += limit
+
+    primeira_pagina = carregar_pagina(0)
+    resumo = (
+        dict(primeira_pagina)
+        if isinstance(primeira_pagina, dict)
+        else {}
+    )
+    cards = list(primeira_pagina.get("cards") or [])
+    offsets = list(range(limit, as_int_or_zero(resumo.get("total")), limit))
+    if offsets:
+        paginas = {}
+        with ThreadPoolExecutor(max_workers=min(4, len(offsets))) as executor:
+            futures = {
+                offset: executor.submit(
+                    copy_context().run,
+                    carregar_pagina,
+                    offset,
+                )
+                for offset in offsets
+            }
+            for offset, future in futures.items():
+                paginas[offset] = future.result()
+        for offset in offsets:
+            cards.extend(paginas[offset].get("cards") or [])
 
     resumo["cards"] = cards
     cache.set(
@@ -5862,13 +5881,22 @@ def apply_acompanhamento_filters(registros, filters):
     return filtered
 
 
-def get_cached_dashboard_payload(cache_key, path, params=None, force_refresh=False):
+def get_cached_dashboard_payload(
+    cache_key,
+    path,
+    params=None,
+    force_refresh=False,
+    timeout=None,
+):
     if force_refresh:
         cache.delete(cache_key)
 
     payload = cache.get(cache_key)
     if payload is None:
-        payload = api_get(path, params)
+        if timeout is None:
+            payload = api_get(path, params)
+        else:
+            payload = api_get(path, params, timeout=timeout)
         cache.set(
             cache_key,
             payload,
@@ -5919,11 +5947,12 @@ def get_cached_api_payload(
     return payload
 
 
-def get_convenio_filter_options(force_refresh=False):
+def get_convenio_filter_options(force_refresh=False, timeout=None):
     payload = get_cached_api_payload(
         DASHBOARD_CONVENIOS_CACHE_KEY,
         CONVENIOS_PATH,
         force_refresh=force_refresh,
+        timeout=timeout,
     )
     rows = payload.get("convenios", []) if isinstance(payload, dict) else []
     return sorted(
@@ -6100,30 +6129,78 @@ def dashboard(request):
     prazos_convenio = []
     convenio_options = []
     dashboard_errors = []
+    filtros_resumo_follow_up = (
+        "tratativa",
+        "convenio",
+        "prestador",
+        "tipo_atendimento",
+        "motivo_glosa",
+    )
+    usar_resumo_follow_up = not any(
+        filtros.get(chave) for chave in filtros_resumo_follow_up
+    ) and not any(
+        chave in request.GET
+        for chave in ("periodo_inicio", "periodo_fim")
+    )
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        consultas = {
+            "prazos": executor.submit(
+                copy_context().run,
+                get_cached_dashboard_payload,
+                DASHBOARD_PRAZOS_CACHE_KEY,
+                PRAZOS_RECURSO_CONVENIO_PATH,
+                None,
+                force_refresh,
+                DASHBOARD_REQUEST_TIMEOUT,
+            ),
+            "convenios": executor.submit(
+                copy_context().run,
+                get_convenio_filter_options,
+                force_refresh,
+                DASHBOARD_REQUEST_TIMEOUT,
+            ),
+            "tiss": executor.submit(
+                copy_context().run,
+                get_cached_dashboard_payload,
+                DASHBOARD_TISS_CACHE_KEY,
+                settings.API_TISS_PATH,
+                {"limit": 600},
+                force_refresh,
+                DASHBOARD_REQUEST_TIMEOUT,
+            ),
+            "glosas": executor.submit(
+                copy_context().run,
+                get_cached_dashboard_payload,
+                DASHBOARD_GLOSAS_CACHE_KEY,
+                settings.API_REGISTRO_GLOSA_PATH,
+                {"limit": DASHBOARD_GLOSAS_LIMIT},
+                force_refresh,
+                DASHBOARD_REQUEST_TIMEOUT,
+            ),
+        }
+        if usar_resumo_follow_up:
+            consultas["resumo_follow_up"] = executor.submit(
+                copy_context().run,
+                get_dashboard_follow_up_summary,
+                force_refresh,
+            )
+
     try:
-        prazos_payload = get_cached_dashboard_payload(
-            DASHBOARD_PRAZOS_CACHE_KEY,
-            PRAZOS_RECURSO_CONVENIO_PATH,
-            force_refresh=force_refresh,
-        )
+        prazos_payload = consultas["prazos"].result()
         prazos_convenio = prazos_payload.get("convenios", [])
     except ApiError as exc:
         dashboard_errors.append(("Configuração por convênio", exc))
 
     try:
-        convenio_options = get_convenio_filter_options(force_refresh)
+        convenio_options = consultas["convenios"].result()
     except ApiError as exc:
         dashboard_errors.append(("Convênios", exc))
 
     tiss_motivos = []
     tiss_rows = []
     try:
-        tiss_payload = get_cached_dashboard_payload(
-            DASHBOARD_TISS_CACHE_KEY,
-            settings.API_TISS_PATH,
-            {"limit": 600},
-            force_refresh=force_refresh,
-        )
+        tiss_payload = consultas["tiss"].result()
         tiss_rows = tiss_payload.get("itens", []) if isinstance(tiss_payload, dict) else []
         tiss_motivos = [
             f"{item.get('codigo_termo')} - {item.get('termo')}"
@@ -6134,12 +6211,7 @@ def dashboard(request):
         dashboard_errors.append(("Motivos TISS", exc))
 
     try:
-        payload = get_cached_dashboard_payload(
-            DASHBOARD_GLOSAS_CACHE_KEY,
-            settings.API_REGISTRO_GLOSA_PATH,
-            {"limit": DASHBOARD_GLOSAS_LIMIT},
-            force_refresh=force_refresh,
-        )
+        payload = consultas["glosas"].result()
         registros = payload.get("glosas", []) if isinstance(payload, dict) else []
         registros = enrich_dashboard_motivos_glosa(registros, tiss_rows)
         opcoes_filtro = build_dashboard_filter_options(registros)
@@ -6154,24 +6226,9 @@ def dashboard(request):
             filtros.get("periodo_inicio"),
             filtros.get("periodo_fim"),
         )
-        filtros_resumo_follow_up = (
-            "tratativa",
-            "convenio",
-            "prestador",
-            "tipo_atendimento",
-            "motivo_glosa",
-        )
-        usar_resumo_follow_up = not any(
-            filtros.get(chave) for chave in filtros_resumo_follow_up
-        ) and not any(
-            chave in request.GET
-            for chave in ("periodo_inicio", "periodo_fim")
-        )
         if usar_resumo_follow_up:
             try:
-                resumo_follow_up = get_dashboard_follow_up_summary(
-                    force_refresh=force_refresh,
-                )
+                resumo_follow_up = consultas["resumo_follow_up"].result()
                 indicadores = apply_follow_up_summary_to_dashboard_indicators(
                     indicadores,
                     resumo_follow_up,
