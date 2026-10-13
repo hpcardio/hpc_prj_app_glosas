@@ -2992,6 +2992,28 @@ class FollowUpGlosasTests(TestCase):
             [3, 2],
         )
 
+    def test_nao_agrupa_remessas_analiticas_sem_processo(self):
+        cards = [
+            {
+                'conciliacao_remessa_id': None,
+                'cd_remessa': 24683,
+                'processo': {'numero_processo': None},
+            },
+            {
+                'conciliacao_remessa_id': None,
+                'cd_remessa': 25226,
+                'processo': {'numero_processo': None},
+            },
+        ]
+
+        processos = group_follow_up_glosas_by_process(cards)
+
+        self.assertEqual(len(processos), 2)
+        self.assertEqual(
+            [grupo['remessas'][0]['cd_remessa'] for grupo in processos],
+            [24683, 25226],
+        )
+
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
     def test_listagem_carrega_detalhamento_somente_ao_expandir(

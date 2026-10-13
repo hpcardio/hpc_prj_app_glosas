@@ -3703,11 +3703,15 @@ def group_follow_up_glosas_by_process(cards):
         numero_processo = str(
             processo.get("numero_processo") or ""
         ).strip()
-        key = (
-            f"processo:{numero_processo.casefold()}"
-            if numero_processo
-            else f"remessa:{card.get('conciliacao_remessa_id')}"
-        )
+        if numero_processo:
+            key = f"processo:{numero_processo.casefold()}"
+        elif card.get("conciliacao_remessa_id") is not None:
+            key = f"remessa:{card['conciliacao_remessa_id']}"
+        else:
+            # Cards analíticos (Maida/ISSEC) não possuem vínculo com a
+            # conciliação. A API os pagina individualmente por remessa;
+            # repetir ``remessa:None`` aqui colapsava todos eles em um card.
+            key = f"remessa-cogestao:{card.get('cd_remessa')}"
         if key not in grouped:
             grouped[key] = {
                 "processo": processo,
