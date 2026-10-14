@@ -20,6 +20,8 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from .payables_export import build_payables_workbook
+
 from .access import (
     ROUTE_PERMISSIONS,
     SCREEN_KEYS,
@@ -8727,6 +8729,31 @@ def _contas_pagar(request, modo):
         "data_inicio": (request.GET.get("data_inicio") or "").strip(),
         "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
+    if modo == "operacao" and request.GET.get("export") == "xlsx":
+        fornecedores = []
+        export_page = 1
+        try:
+            while True:
+                result = api_get(
+                    CONTAS_PAGAR_PATH,
+                    params={**filtros, "page": export_page, "page_size": 100},
+                    timeout=60,
+                )
+                fornecedores.extend(result.get("fornecedores", []))
+                if export_page >= int(result.get("total_pages") or 1):
+                    break
+                export_page += 1
+        except ApiError as exc:
+            messages.error(request, format_api_error(exc, "Exportação de contas vencidas"))
+            return redirect(f"{reverse(route_name)}?{urlencode(filtros)}")
+        response = HttpResponse(
+            build_payables_workbook(fornecedores),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="contas-vencidas.xlsx"'
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     try:
         payload = api_get(
             CONTAS_PAGAR_PATH,
@@ -8758,6 +8785,7 @@ def _contas_pagar(request, modo):
         "contas_pagar.html",
         {
             "modo": modo,
+            "export_url": f"?{urlencode({**filtros, 'export': 'xlsx'})}",
             "fornecedores": payload.get("fornecedores", []),
             "resumo": payload.get("resumo", {}),
             "historico": payload.get("historico", []),
