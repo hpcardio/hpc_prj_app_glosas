@@ -76,6 +76,7 @@
     <div class="panel-header payables-results-header">
       <div class="results-heading">
         <div><span class="panel-title">{% if modo == "operacao" %}Fornecedores por prioridade{% elif modo == "acompanhamento" %}Registros para acompanhamento{% else %}Registros para decisão gerencial{% endif %}</span>{% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} fornecedores exibidos</span>{% endif %}</div>
+        {% if modo == "operacao" %}<a class="btn btn-outline-secondary" href="{{ export_url }}">Exportar Excel</a>{% endif %}
         {% if fornecedores %}<div class="collapse-actions"><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-expand'))">Expandir</button><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-collapse'))">Colapsar todos</button></div>{% endif %}
       </div>
       {% if pagination.total %}
