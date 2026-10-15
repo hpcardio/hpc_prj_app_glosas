@@ -1,0 +1,8 @@
+<div id="follow-up-glosa-detail-{{ detalhe_dom_id }}" class="follow-up-glosa-card-content">
+  <p role="status">{% if detail_error %}N?o foi poss?vel carregar os itens da remessa. Tente novamente.{% else %}Nenhum detalhe foi retornado para esta remessa. Tente atualizar os dados.{% endif %}</p>
+  <button type="button" class="btn btn-outline-primary"
+    hx-get="{{ retry_url }}"
+    hx-target="#follow-up-glosa-detail-{{ detalhe_dom_id }}"
+    hx-select="#follow-up-glosa-detail-{{ detalhe_dom_id }}"
+    hx-swap="outerHTML" hx-disabled-elt="this">Tentar novamente</button>
+</div>

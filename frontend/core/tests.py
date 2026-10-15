@@ -2624,6 +2624,38 @@ class FollowUpGlosasTests(TestCase):
         }
         session.save()
 
+    @patch('core.views.api_get')
+    def test_detail_timeout_preserves_htmx_target_and_retry(self, api_get):
+        from core.services import ApiError
+        api_get.side_effect = ApiError('timeout', 504)
+        for query, target in [
+            ({'detalhar_processo': '2600033103', 'detalhar_remessa': '19697'}, 'cogestao-19697'),
+            ({'detalhar_vinculo': '12'}, '12'),
+        ]:
+            response = self.client.get('/follow-up-glosas/', query, HTTP_HX_REQUEST='true')
+            self.assertContains(response, f'id="follow-up-glosa-detail-{target}"')
+            self.assertContains(response, 'Tentar novamente')
+            self.assertNotContains(response, 'Nenhum processo com glosa')
+
+    @patch('core.views.api_get')
+    def test_detail_empty_then_retry_renders_patient(self, api_get):
+        query = {'detalhar_processo': '2600033103', 'detalhar_remessa': '19697', 'detalhe_id': 'cogestao-19697-abcdef012345'}
+        api_get.return_value = {'cards': [], 'total': 0}
+        response = self.client.get('/follow-up-glosas/', query, HTTP_HX_REQUEST='true')
+        self.assertContains(response, 'id="follow-up-glosa-detail-cogestao-19697-abcdef012345"')
+        self.assertContains(response, 'Tentar novamente')
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['conciliacao_remessa_id'] = None
+        card['cd_remessa'] = 19697
+        card['processo']['numero_processo'] = '2600033103'
+        api_get.return_value = payload
+        with patch('core.views.get_cached_api_payload', return_value={'itens': []}):
+            response = self.client.get('/follow-up-glosas/', query, HTTP_HX_REQUEST='true')
+        self.assertContains(response, 'id="follow-up-glosa-detail-cogestao-19697-abcdef012345"')
+        self.assertContains(response, 'Maria da Silva')
+        self.assertNotContains(response, 'Tentar novamente')
+
     def test_payload_preserva_identidade_da_linha_do_demonstrativo(self):
         payload = build_registro_glosa_payload(
             {
@@ -3063,7 +3095,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertNotContains(response, 'name="q"')
         self.assertContains(
             response,
-            'hx-get="/follow-up-glosas/?detalhar_vinculo=12"',
+            'hx-get="/follow-up-glosas/?detalhar_vinculo=12&amp;detalhe_id=12"',
         )
         self.assertContains(response, 'hx-trigger="follow-up-load once"')
         self.assertContains(response, '>Expandir</button>')
@@ -3242,7 +3274,7 @@ class FollowUpGlosasTests(TestCase):
         self.assertContains(
             response,
             'hx-get="/follow-up-glosas/?detalhar_processo='
-            'P058752/2026&amp;detalhar_remessa=16425"',
+            'P058752/2026&amp;detalhar_remessa=16425&amp;detalhe_id=',
         )
         self.assertContains(response, 'Carregando detalhamento da remessa...')
         self.assertNotContains(response, 'Maria da Silva')
