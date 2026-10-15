@@ -222,13 +222,13 @@
                 :aria-expanded="remessaOpen"
                 aria-controls="follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 {% if card.conciliacao_remessa_id %}
-                hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}"
+                hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}&amp;detalhe_id={{ card.detalhe_dom_id }}"
                 hx-trigger="follow-up-load once"
                 hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-swap="outerHTML"
                 {% elif not card.detalhes_carregados %}
-                hx-get="{% url 'follow_up_glosas' %}?detalhar_processo={{ processo_card.processo.numero_processo|urlencode }}&amp;detalhar_remessa={{ card.cd_remessa }}"
+                hx-get="{% url 'follow_up_glosas' %}?detalhar_processo={{ processo_card.processo.numero_processo|urlencode }}&amp;detalhar_remessa={{ card.cd_remessa }}&amp;detalhe_id={{ card.detalhe_dom_id }}"
                 hx-trigger="follow-up-load once"
                 hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"

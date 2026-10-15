@@ -1,3 +1,4 @@
+import re
 from calendar import monthrange
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -6717,6 +6718,9 @@ def follow_up_glosas(request):
         detalhar_vinculo
         or (detalhar_processo and detalhar_remessa)
     )
+    detalhe_solicitado = (request.GET.get("detalhe_id") or "").strip()
+    if not re.fullmatch(r"(?:[0-9]+|cogestao-[0-9]+-[a-f0-9]{12})", detalhe_solicitado):
+        detalhe_solicitado = ""
     page = as_positive_int(request.GET.get("page"), 1)
     limit = 1 if detalhar_card else 10
     offset = (page - 1) * limit
@@ -6784,6 +6788,8 @@ def follow_up_glosas(request):
             ]
         cards = prepare_follow_up_glosas_cards(cards_api)
         for card in cards:
+            if detalhar_card and detalhe_solicitado:
+                card["detalhe_dom_id"] = detalhe_solicitado
             card["detalhes_carregados"] = (
                 detalhar_card or bool(card.get("pacientes"))
             )
@@ -6811,10 +6817,23 @@ def follow_up_glosas(request):
             ),
         }
     except ApiError as exc:
+        if detalhar_card:
+            return render(request, "follow_up_glosa_detail_error.html", {
+                "detalhe_dom_id": detalhe_solicitado or (str(detalhar_vinculo) if detalhar_vinculo else f"cogestao-{detalhar_remessa}"),
+                "retry_url": request.get_full_path(),
+                "detail_error": True,
+            })
         if is_service_unavailable_error(exc):
             consulta_indisponivel = True
         else:
             messages.error(request, format_api_error(exc, "Follow-Up de Glosas"))
+
+    if detalhar_card and not cards:
+        return render(request, "follow_up_glosa_detail_error.html", {
+            "detalhe_dom_id": detalhe_solicitado or (str(detalhar_vinculo) if detalhar_vinculo else f"cogestao-{detalhar_remessa}"),
+            "retry_url": request.get_full_path(),
+            "detail_error": False,
+        })
 
     processos = group_follow_up_glosas_by_process(cards)
     base_query = {key: value for key, value in filtros.items() if value}
