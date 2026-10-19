@@ -77,3 +77,16 @@ def br_currency(value):
 
     formatted = f"{number:,.2f}"
     return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+@register.filter
+def motivo_com_descricao(value, description):
+    """Display a TISS code and description without changing its stored code."""
+    code = str(value or "").strip()
+    if not code or " - " in code:
+        return code
+    if isinstance(description, (list, tuple)):
+        description = next((row.get("termo", "") for row in description
+                            if str(row.get("codigo_termo", "")).strip() == code), "")
+    description = str(description or "").strip()
+    return f"{code} - {description}" if description else code

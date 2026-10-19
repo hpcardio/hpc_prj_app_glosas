@@ -427,9 +427,6 @@
                               <input type="hidden" name="qt_lancamento" value="{{ item.qt_lancamento }}">
                               <input type="hidden" name="vl_total_conta" value="{{ item.valor_limite_tratativa|default:item.vl_total_conta }}">
                               <input type="hidden" name="sn_glosado" :value="modal === 'acatar' ? 'not' : 'true'">
-                              <input type="hidden" name="processo_controle_fatura_gab" value="{{ item.processo_origem }}">
-                              <input type="hidden" name="data_glosa" value="{{ item.registro_glosa.data_glosa_input|default:item.data_glosa_input }}">
-                              <input type="hidden" name="dt_pagamento" value="{{ item.registro_glosa.dt_pagamento_oculto|default:item.dt_pagamento_input|default:item.data_glosa_input }}">
 
                               <div class="glosa-modal-header">
                                 <div>
@@ -444,25 +441,34 @@
                               </div>
                               <div class="glosa-section-stack">
                                 <section class="glosa-section">
-                                  <h3 x-text="modal === 'acatar' ? 'Tratamento por acato' : 'Processo de recurso'"></h3>
+                                  <h3>Processo original</h3>
                                   <div class="glosa-section-grid">
+                                    <div class="glosa-field glosa-field--wide">
+                                      <label>Processo / N Controle / N Fatura / N GAB (Processo Original) <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <input name="processo_controle_fatura_gab" value="{{ item.processo_origem }}" class="form-control form-control-readonly" readonly aria-readonly="true">
+                                    </div>
                                     <div class="glosa-field">
-                                      <label>Código da glosa TISS <span class="required-marker" aria-hidden="true">*</span></label>
+                                      <label>Data da glosa</label>
+                                      <input type="date" name="data_glosa" value="{{ item.registro_glosa.data_glosa_input|default:item.data_glosa_input }}" class="form-control form-control-readonly" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field">
+                                      <label>Dt pagamento</label>
+                                      <input type="date" name="dt_pagamento" value="{{ item.registro_glosa.dt_pagamento_oculto|default:item.dt_pagamento_input|default:item.data_glosa_input }}" class="form-control form-control-readonly" readonly aria-readonly="true">
+                                    </div>
+                                    <div class="glosa-field glosa-field--wide">
+                                      <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
                                       {% if item.motivo_glosa_codigo %}
                                       <input type="hidden" name="motivo_glosa" value="{{ item.motivo_glosa_codigo }}">
-                                      <input class="form-control form-control-readonly" value="{{ item.motivo_glosa_codigo }}" readonly aria-readonly="true">
+                                      <input class="form-control form-control-readonly" value="{{ item.motivo_glosa_codigo|motivo_com_descricao:item.motivo_glosa_descricao }}" readonly aria-readonly="true">
                                       {% else %}
-                                      <input name="motivo_glosa" class="form-control" x-model="motivoTratado" inputmode="numeric" pattern="[0-9]+" required>
+                                      <input name="motivo_glosa" class="form-control" x-model="motivoTratado" required>
                                       {% endif %}
                                     </div>
-                                    <div class="glosa-field glosa-field--wide">
-                                      <label>Descrição do motivo</label>
-                                      <input class="form-control form-control-readonly" value="{{ item.motivo_glosa_descricao|default:'Descrição TISS não localizada' }}" readonly aria-readonly="true">
-                                    </div>
-                                    <div class="glosa-field glosa-field--wide">
-                                      <label>Processo Origem</label>
-                                      <input class="form-control form-control-readonly" value="{{ item.processo_origem }}" readonly aria-readonly="true">
-                                    </div>
+                                  </div>
+                                </section>
+                                <section class="glosa-section">
+                                  <h3 x-text="modal === 'acatar' ? 'Tratamento por acato' : 'Processo de recurso'"></h3>
+                                  <div class="glosa-section-grid">
                                     <div class="glosa-field">
                                       <label>LOTE</label>
                                       <input name="numero_lote" class="form-control" maxlength="255" x-model="loteTratado" placeholder="Informe o lote, se houver">

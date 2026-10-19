@@ -2668,6 +2668,31 @@ class FollowUpGlosasTests(TestCase):
             'linha-303-48',
         )
 
+    @patch('core.views.get_cached_api_payload', return_value={'itens': []})
+    @patch('core.views.api_get')
+    def test_modal_preserva_campos_originais_visiveis(self, api_get, cached):
+        from html.parser import HTMLParser
+
+        class Fields(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.inputs = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == 'input':
+                    self.inputs.append(dict(attrs))
+
+        api_get.return_value = self._api_payload()
+        response = self.client.get('/follow-up-glosas/', {'detalhar_vinculo': '12'})
+        self.assertContains(response, 'Processo original')
+        parser = Fields()
+        parser.feed(response.content.decode())
+        for name in ('processo_controle_fatura_gab', 'data_glosa', 'dt_pagamento'):
+            fields = [field for field in parser.inputs if field.get('name') == name
+                      and 'form-control' in field.get('class', '')]
+            self.assertTrue(fields, name)
+            self.assertTrue(all(field.get('type') != 'hidden' for field in fields), name)
+
     def _api_payload(self):
         return {
             'cards': [
@@ -3667,9 +3692,9 @@ class FollowUpGlosasTests(TestCase):
             'CÓD. ITEM',
             'VALOR PROCESSADO',
             'VALOR LIBERADO',
-            'Descrição do motivo',
+            'Motivo da glosa',
             'VALOR GLOSADO INDEVIDAMENTE',
-            'Processo Origem',
+            'Processo original',
             'Qtd item',
             'Valor item',
             'Qtd glosada',
@@ -3749,7 +3774,7 @@ class FollowUpGlosasTests(TestCase):
         )
         self.assertContains(
             response,
-            'value="VALOR GLOSADO INDEVIDAMENTE" readonly',
+            'value="1714 - VALOR GLOSADO INDEVIDAMENTE" readonly',
         )
         self.assertNotContains(
             response,
@@ -3761,12 +3786,12 @@ class FollowUpGlosasTests(TestCase):
             "(modal === 'acatar' ? 'Registrar acato' : 'Registrar recurso')",
         )
         self.assertNotContains(response, 'list="tiss-motivo-options"')
-        self.assertNotContains(
+        self.assertContains(
             response,
             'Processo / N Controle / N Fatura / N GAB (Processo Original)',
         )
-        self.assertNotContains(response, '<label>Data da glosa')
-        self.assertNotContains(response, '<label>Dt pagamento')
+        self.assertContains(response, '<label>Data da glosa')
+        self.assertContains(response, '<label>Dt pagamento')
         self.assertContains(
             response,
             'name="processo_controle_fatura_gab" value="CONC-12"',
@@ -9485,3 +9510,16 @@ class CadastrarNotaTests(TestCase):
             {'download': 'false'},
         )
         upstream.close.assert_called_once_with()
+
+
+class MotivoGlosaDisplayTests(TestCase):
+    def test_descricao_tiss_preserva_codigo_e_texto_existente(self):
+        from core.templatetags.core_extras import motivo_com_descricao
+        options = [{'codigo_termo': '2601', 'termo': 'CODIFICAÇÃO INCORRETA'}]
+        label = '2601 - CODIFICAÇÃO INCORRETA'
+        self.assertEqual(motivo_com_descricao('2601', options), label)
+        self.assertEqual(motivo_com_descricao('2601', 'CODIFICAÇÃO INCORRETA'), label)
+        self.assertEqual(motivo_com_descricao(label, options), label)
+        self.assertEqual(motivo_com_descricao('9999', options), '9999')
+        self.assertEqual(motivo_com_descricao(None, options), '')
+        self.assertEqual(build_registro_glosa_payload({'motivo_glosa': label})['motivo_glosa'], '2601')

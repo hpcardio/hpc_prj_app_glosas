@@ -1164,6 +1164,13 @@
             if (!Object.prototype.hasOwnProperty.call(values, field.name)) return;
             const value = values[field.name] == null ? '' : String(values[field.name]);
             field.value = field.type === 'date' ? value.slice(0, 10) : value;
+            if (field.name === 'motivo_glosa' && field.list && value) {
+              const code = value.split(' - ', 1)[0].trim();
+              const option = Array.from(field.list.options).find(
+                (entry) => entry.value.split(' - ', 1)[0].trim() === code
+              );
+              if (option) field.value = option.value;
+            }
             field.defaultValue = field.value;
             field._x_model?.set?.(field.value);
           });

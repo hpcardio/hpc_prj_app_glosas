@@ -383,7 +383,7 @@
                                       </div>
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ conta.registro_recusa.motivo_glosa|default:'' }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
+                                        <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ conta.registro_recusa.motivo_glosa|motivo_com_descricao:tiss_motivos }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
                                       </div>
                                     </div>
                                   </section>
@@ -507,7 +507,7 @@
                                       </div>
                                       <div class="glosa-field glosa-field--wide">
                                         <label>Motivo da glosa <span class="required-marker" aria-hidden="true">*</span></label>
-                                        <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ conta.registro_acato.motivo_glosa|default:'' }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
+                                        <input name="motivo_glosa" list="tiss-motivo-options" class="form-control searchable-combobox" value="{{ conta.registro_acato.motivo_glosa|motivo_com_descricao:tiss_motivos }}" placeholder="Digite o código ou a descrição TISS" autocomplete="off" required>
                                       </div>
                                     </div>
                                   </section>
