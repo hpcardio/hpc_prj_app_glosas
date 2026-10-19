@@ -2692,6 +2692,14 @@ class FollowUpGlosasTests(TestCase):
                       and 'form-control' in field.get('class', '')]
             self.assertTrue(fields, name)
             self.assertTrue(all(field.get('type') != 'hidden' for field in fields), name)
+            if name == 'dt_pagamento':
+                self.assertTrue(all('readonly' not in field for field in fields))
+                self.assertTrue(all(field.get('x-model') == 'pagamentoTratado' for field in fields))
+        self.assertEqual(
+            build_registro_glosa_payload({'dt_pagamento': '2026-10-20'})['dt_pagamento'],
+            '2026-10-20',
+        )
+
 
     def _api_payload(self):
         return {

@@ -1142,6 +1142,7 @@
           [acato ? 'qtdAcatada' : 'qtdRecusada']: qtd,
           [acato ? 'valorAcatado' : 'valorRecusado']: valor,
           [acato ? 'dataAcato' : 'dataRecusa']: (payload.dt_recurso || '').slice(0, 10),
+          [acato ? 'pagamentoAcato' : 'pagamentoRecusa']: (payload.dt_pagamento || '').slice(0, 10),
           [acato ? 'motivoAcato' : 'motivoRecusa']: payload.motivo_glosa || '',
           [acato ? 'descricaoAcato' : 'descricaoRecusa']: payload.descricao_glosa || ''
         };
