@@ -3526,6 +3526,13 @@ def prepare_follow_up_glosas_cards(cards):
             ordem_atendimentos = []
             for item_data in paciente.get("itens") or []:
                 item = dict(item_data)
+                # A origem pode representar um lancamento enquanto a glosa
+                # agrega varias linhas do demonstrativo. O payload precisa
+                # comportar o total exibido, sem mudar o valor original na tela.
+                item["valor_limite_tratativa"] = str(max(
+                    Decimal(str(item.get("vl_total_conta") or 0)),
+                    Decimal(str(item.get("valor_glosa") or 0)),
+                ))
                 registro_original = item.get("registro_glosa") or {}
                 status_original = canonical_glosa_status(
                     registro_original

@@ -2701,6 +2701,35 @@ class FollowUpGlosasTests(TestCase):
         )
 
 
+    @patch('core.views.get_cached_api_payload', return_value={'itens': []})
+    @patch('core.views.api_get')
+    def test_grouped_glosa_submits_total_without_changing_display_value(self, api_get, cached):
+        from html.parser import HTMLParser
+        class Inputs(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.fields = {}
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'input' and attrs.get('name'):
+                    self.fields[attrs['name']] = attrs.get('value', '')
+        payload = self._api_payload()
+        item = payload['cards'][0]['pacientes'][0]['itens'][0]
+        item.update(vl_total_conta='3.23', valor_glosa='51.68', qt_lancamento='16', qtd_glosada='16')
+        api_get.return_value = payload
+        response = self.client.get('/follow-up-glosas/', {'detalhar_vinculo': '12'})
+        parser = Inputs()
+        parser.feed(response.content.decode())
+        self.assertEqual(parser.fields['vl_total_conta'], '51.68')
+        parser.fields.update(valor_glosado='51.68', qtd_glosada='16')
+        sent = build_registro_glosa_payload(parser.fields)
+        self.assertEqual(sent['valor'], 51.68)
+        self.assertEqual(sent['valor_recursado'], 51.68)
+        self.assertEqual(sent['qtd_registro'], 16)
+        self.assertContains(response, 'R$ 3,23')
+        self.assertContains(response, 'data-max-value="51.68"')
+        self.assertEqual(item['vl_total_conta'], '3.23')
+
     def _api_payload(self):
         return {
             'cards': [
