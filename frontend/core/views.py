@@ -6693,6 +6693,8 @@ def follow_up_glosas(request):
             )
 
     filtros = {
+        "nr_guia": (request.GET.get("nr_guia") or "").strip(),
+        "numero_lote": (request.GET.get("numero_lote") or "").strip(),
         "processo_original": (
             request.GET.get("processo_original") or ""
         ).strip(),
@@ -6765,6 +6767,7 @@ def follow_up_glosas(request):
                     if value
                 }
             )
+        api_params.update({key: filtros[key] for key in ("nr_guia", "numero_lote") if filtros[key]})
         response = api_get(
             FOLLOW_UP_GLOSAS_PATH,
             params=api_params,
@@ -7450,6 +7453,7 @@ def conta_atendimento(request):
         "cd_remessa",
         "cd_atendimento",
         "nr_guia",
+        "numero_lote",
         "nm_paciente",
         "nm_convenio",
         "descricao",
