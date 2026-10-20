@@ -16,7 +16,7 @@
   searchError: false,
   submitSearch(event) {
     const formData = new FormData(event.currentTarget);
-    const fields = ['processo', 'cd_remessa', 'cd_atendimento', 'nr_guia', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
+    const fields = ['processo', 'cd_remessa', 'cd_atendimento', 'nr_guia', 'numero_lote', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
     const hasCriteria = fields.some((field) => String(formData.get(field) || '').trim());
     if (!hasCriteria) {
       event.preventDefault();
@@ -45,6 +45,10 @@
       <div class="filter-group">
         <label>Guia</label>
         <input name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Ex: 123456">
+      </div>
+      <div class="filter-group">
+        <label for="triagem-lote">Lote ISSEC</label>
+        <input id="triagem-lote" name="numero_lote" value="{{ filtros.numero_lote }}" class="form-control" placeholder="Número do lote ISSEC" maxlength="100">
       </div>
       <div class="filter-group">
         <label>Paciente</label>

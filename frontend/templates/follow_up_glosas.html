@@ -38,6 +38,14 @@
         <input id="follow-up-glosa-remessa" name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" inputmode="numeric" placeholder="Código da remessa">
       </div>
       <div class="filter-group">
+        <label for="follow-up-guia">Guia</label>
+        <input id="follow-up-guia" name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Número da guia" maxlength="100">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-lote">Lote ISSEC</label>
+        <input id="follow-up-lote" name="numero_lote" value="{{ filtros.numero_lote }}" class="form-control" placeholder="Número do lote ISSEC" maxlength="100">
+      </div>
+      <div class="filter-group">
         <label for="follow-up-glosa-atendimento">Atendimento</label>
         <input id="follow-up-glosa-atendimento" name="cd_atendimento" value="{{ filtros.cd_atendimento }}" class="form-control" inputmode="numeric" placeholder="Código do atendimento">
       </div>
@@ -222,13 +230,13 @@
                 :aria-expanded="remessaOpen"
                 aria-controls="follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 {% if card.conciliacao_remessa_id %}
-                hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}&amp;detalhe_id={{ card.detalhe_dom_id }}"
+                hx-get="{% url 'follow_up_glosas' %}?detalhar_vinculo={{ card.conciliacao_remessa_id }}&amp;detalhe_id={{ card.detalhe_dom_id }}{% if filtros.nr_guia %}&amp;nr_guia={{ filtros.nr_guia|urlencode }}{% endif %}{% if filtros.numero_lote %}&amp;numero_lote={{ filtros.numero_lote|urlencode }}{% endif %}"
                 hx-trigger="follow-up-load once"
                 hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-swap="outerHTML"
                 {% elif not card.detalhes_carregados %}
-                hx-get="{% url 'follow_up_glosas' %}?detalhar_processo={{ processo_card.processo.numero_processo|urlencode }}&amp;detalhar_remessa={{ card.cd_remessa }}&amp;detalhe_id={{ card.detalhe_dom_id }}"
+                hx-get="{% url 'follow_up_glosas' %}?detalhar_processo={{ processo_card.processo.numero_processo|urlencode }}&amp;detalhar_remessa={{ card.cd_remessa }}&amp;detalhe_id={{ card.detalhe_dom_id }}{% if filtros.nr_guia %}&amp;nr_guia={{ filtros.nr_guia|urlencode }}{% endif %}{% if filtros.numero_lote %}&amp;numero_lote={{ filtros.numero_lote|urlencode }}{% endif %}"
                 hx-trigger="follow-up-load once"
                 hx-target="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"
                 hx-select="#follow-up-glosa-detail-{{ card.detalhe_dom_id }}"

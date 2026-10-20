@@ -221,8 +221,8 @@ class ContaAtendimentoRegistroTests(TestCase):
         triagem = (templates_dir / 'conta_atendimento.html').read_text()
         follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
 
-        self.assertEqual(triagem.count('name="numero_lote"'), 3)
-        self.assertEqual(follow_up.count('name="numero_lote"'), 1)
+        self.assertEqual(triagem.count('name="numero_lote"'), 4)
+        self.assertEqual(follow_up.count('name="numero_lote"'), 2)
         self.assertNotIn('name="numero_lote" required', triagem)
         self.assertNotIn('name="numero_lote" required', follow_up)
         self.assertIn("url 'conta_atendimento_recurso_pdf'", triagem)
@@ -715,6 +715,36 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(response.status_code, 200)
         chamadas = get_cached_api_payload.call_args_list
         self.assertEqual(chamadas[1].args[2]['nr_guia'], 'GUIA-20')
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.get_convenio_filter_options')
+    def test_triagem_encaminha_lote_para_consulta_e_paginacao(
+        self,
+        get_convenio_filter_options,
+        get_cached_api_payload,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+        get_convenio_filter_options.return_value = []
+        get_cached_api_payload.side_effect = [
+            {'itens': []},
+            {'atendimentos': [], 'total': 0, 'limit': 10, 'offset': 0},
+        ]
+
+        response = self.client.get(
+            '/conta-atendimento/',
+            {'numero_lote': '30700'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        chamadas = get_cached_api_payload.call_args_list
+        self.assertEqual(chamadas[1].args[2]['numero_lote'], '30700')
+        self.assertEqual(response.context['pagination']['query']['numero_lote'], '30700')
+        self.assertContains(response, 'Lote ISSEC')
 
     def test_payload_normaliza_lote_sem_torna_lo_obrigatorio(self):
         com_lote = build_registro_glosa_payload(
@@ -2623,6 +2653,20 @@ class FollowUpGlosasTests(TestCase):
             'telas_permitidas': list(SCREEN_KEYS),
         }
         session.save()
+
+    @patch('core.views.api_get')
+    def test_guide_lot_filters_reach_api_and_detail(self, api_get):
+        api_get.return_value = {'cards': [], 'total': 0}
+        filters = {'nr_guia': '00123', 'numero_lote': '30700'}
+        response = self.client.get('/follow-up-glosas/', filters)
+        self.assertContains(response, 'name="nr_guia"')
+        self.assertContains(response, 'name="numero_lote"')
+        calls = [c for c in api_get.call_args_list if c.kwargs.get('params', {}).get('agrupar_por_processo')]
+        self.assertEqual(calls[0].kwargs['params']['nr_guia'], '00123')
+        self.assertEqual(response.context['pagination']['query']['numero_lote'], '30700')
+        api_get.reset_mock()
+        self.client.get('/follow-up-glosas/', {**filters, 'detalhar_processo': '2600033271', 'detalhar_remessa': '19848'})
+        self.assertTrue(any(c.kwargs.get('params', {}).get('numero_lote') == '30700' for c in api_get.call_args_list))
 
     @patch('core.views.api_get')
     def test_detail_timeout_preserves_htmx_target_and_retry(self, api_get):
