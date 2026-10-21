@@ -17,8 +17,24 @@
         <input id="follow-up-glosa-processo-recurso" name="processo_recurso" value="{{ filtros.processo_recurso }}" class="form-control" placeholder="Número do recurso">
       </div>
       <div class="filter-group">
+        <label for="follow-up-lote">Lote ISSEC</label>
+        <input id="follow-up-lote" name="numero_lote" value="{{ filtros.numero_lote }}" class="form-control" placeholder="Número do lote ISSEC" maxlength="100">
+      </div>
+      <div class="filter-group">
         <label for="follow-up-glosa-numero-protocolo">Protocolo TRUE</label>
         <input id="follow-up-glosa-numero-protocolo" name="numero_protocolo" value="{{ filtros.numero_protocolo }}" class="form-control" inputmode="numeric" placeholder="Número do protocolo">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-glosa-remessa">Remessa</label>
+        <input id="follow-up-glosa-remessa" name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" inputmode="numeric" placeholder="Código da remessa">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-glosa-atendimento">Atendimento</label>
+        <input id="follow-up-glosa-atendimento" name="cd_atendimento" value="{{ filtros.cd_atendimento }}" class="form-control" inputmode="numeric" placeholder="Código do atendimento">
+      </div>
+      <div class="filter-group">
+        <label for="follow-up-guia">Guia</label>
+        <input id="follow-up-guia" name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Número da guia" maxlength="100">
       </div>
       <div class="filter-group">
         <label for="follow-up-glosa-paciente">Paciente</label>
@@ -32,22 +48,6 @@
           <option value="{{ convenio }}" {% if filtros.convenio == convenio %}selected{% endif %}>{{ convenio }}</option>
           {% endfor %}
         </select>
-      </div>
-      <div class="filter-group">
-        <label for="follow-up-glosa-remessa">Remessa</label>
-        <input id="follow-up-glosa-remessa" name="cd_remessa" value="{{ filtros.cd_remessa }}" class="form-control" inputmode="numeric" placeholder="Código da remessa">
-      </div>
-      <div class="filter-group">
-        <label for="follow-up-guia">Guia</label>
-        <input id="follow-up-guia" name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Número da guia" maxlength="100">
-      </div>
-      <div class="filter-group">
-        <label for="follow-up-lote">Lote ISSEC</label>
-        <input id="follow-up-lote" name="numero_lote" value="{{ filtros.numero_lote }}" class="form-control" placeholder="Número do lote ISSEC" maxlength="100">
-      </div>
-      <div class="filter-group">
-        <label for="follow-up-glosa-atendimento">Atendimento</label>
-        <input id="follow-up-glosa-atendimento" name="cd_atendimento" value="{{ filtros.cd_atendimento }}" class="form-control" inputmode="numeric" placeholder="Código do atendimento">
       </div>
       <div class="filter-group">
         <label for="follow-up-glosa-tipo-atendimento">Tipo Atendimento</label>
