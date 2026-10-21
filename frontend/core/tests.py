@@ -3583,7 +3583,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20260930-triagem-itens-modal',
+            '?v=20261021-followup-filtros',
             base_template.read_text(),
         )
 
