@@ -183,7 +183,9 @@
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ processo_card.valor_total_tratado|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR PENDENTE</small><strong>R$ {{ processo_card.valor_glosa_pendente|br_currency }}</strong></span>
           </button>
-          <span class="follow-up-glosa-pdf-slot">
+          <span class="follow-up-glosa-pdf-slot"
+            data-recurso-pdf-url="{% if processo_card.processo.numero_processo %}{% url 'follow_up_glosas_recurso_pdf' %}?processo_original={{ processo_card.processo.numero_processo|urlencode }}{% endif %}"
+            data-recurso-processo="{{ processo_card.processo.numero_processo|default:'' }}">
             {% if processo_card.possui_recurso %}
             <a
               class="follow-up-glosa-pdf-action"

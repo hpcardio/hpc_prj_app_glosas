@@ -905,6 +905,7 @@
         window.resetGlosaFormToInitialState(form);
       }
       if (form && data.ok) {
+        window.updateFollowUpPdfAfterSave(form, data);
         window.applyOperationState(form, data);
         form.closest('.glosa-modal')?.querySelector('.glosa-modal-close')?.click();
       }
@@ -1074,6 +1075,29 @@
       link.textContent = 'PDF';
       actions.appendChild(link);
       window.syncTriagemProcessPdfLinks();
+    };
+
+    window.updateFollowUpPdfAfterSave = function (form, data) {
+      if (!data.ok) return;
+      const payload = data.payload || {};
+      const tipo = payload.sn_glosado || data.operationType;
+      const results = Array.isArray(payload.itens) ? payload.itens : [payload];
+      const savedResource = results.some((item) =>
+        item?.id && (item.sn_glosado || tipo) === 'true'
+      );
+      if (!savedResource) return;
+      const card = form.closest('[data-follow-up-expansion-kind="processo"]');
+      const slot = card?.querySelector('.follow-up-glosa-pdf-slot');
+      if (!slot?.dataset.recursoPdfUrl || slot.querySelector('a')) return;
+      const link = document.createElement('a');
+      link.className = 'follow-up-glosa-pdf-action';
+      link.href = slot.dataset.recursoPdfUrl;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = 'Gerar PDF consolidado do recurso';
+      link.setAttribute('aria-label', `Gerar PDF dos recursos do processo ${slot.dataset.recursoProcesso}`);
+      link.textContent = 'PDF';
+      slot.appendChild(link);
     };
 
     window.applyOperationState = function (form, data) {
