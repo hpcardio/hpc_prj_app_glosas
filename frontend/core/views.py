@@ -8760,19 +8760,15 @@ def _contas_pagar(request, modo):
         "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
     if modo == "operacao" and request.GET.get("export") == "xlsx":
-        fornecedores = []
-        export_page = 1
         try:
-            while True:
-                result = api_get(
-                    CONTAS_PAGAR_PATH,
-                    params={**filtros, "page": export_page, "page_size": 100},
-                    timeout=60,
-                )
-                fornecedores.extend(result.get("fornecedores", []))
-                if export_page >= int(result.get("total_pages") or 1):
-                    break
-                export_page += 1
+            result = api_get(
+                CONTAS_PAGAR_PATH,
+                params={**filtros, "exportar": "true"},
+                timeout=60,
+            )
+            if int(result.get("total_pages") or 1) != 1:
+                raise ApiError("A API de exporta??o precisa ser atualizada.")
+            fornecedores = result.get("fornecedores", [])
         except ApiError as exc:
             messages.error(request, format_api_error(exc, "Exportação de contas vencidas"))
             return redirect(f"{reverse(route_name)}?{urlencode(filtros)}")
