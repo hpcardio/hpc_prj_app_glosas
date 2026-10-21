@@ -54,7 +54,8 @@ def build_payables_workbook(fornecedores):
                 title.get("descricao_conta") or "",
             ])
             row_number += 1
-            for cell in sheet[row_number]:
+            for column in range(1, len(HEADERS) + 1):
+                cell = sheet.cell(row=row_number, column=column)
                 # API text must stay literal, including values beginning with '='.
                 if isinstance(cell.value, str):
                     cell.data_type = "s"

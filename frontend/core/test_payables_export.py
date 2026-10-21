@@ -16,13 +16,14 @@ class PayablesExportTests(TestCase):
     url = "/financeiro/contas-a-pagar/operacao/"
 
     @patch("core.views.api_get")
-    def test_exports_all_pages_with_applied_filters(self, api_get):
+    def test_exports_all_suppliers_in_one_request_with_applied_filters(self, api_get):
         first = existing_tests.ContasPagarTests.payload()
-        first["total_pages"] = 2
+        first["total_pages"] = 1
         second = deepcopy(first)
         second["fornecedores"][0]["codigo_fornecedor"] = 20
         second["fornecedores"][0]["titulos"][0]["codigo_parcela"] = 100
-        api_get.side_effect = [first, second]
+        first["fornecedores"].extend(second["fornecedores"])
+        api_get.return_value = first
         filters = dict(q="Essencial", criticidade="criticos", status="NEGOCIACAO",
                        data_inicio="2026-01-01", data_fim="2026-12-31")
         response = self.client.get(self.url, {**filters, "page": 9, "export": "xlsx"})
@@ -40,8 +41,8 @@ class PayablesExportTests(TestCase):
         self.assertEqual(sheet["R2"].value, "Em atraso")
         self.assertEqual(sheet["S2"].value, "Medicamentos")
         self.assertEqual(sheet["P2"].data_type, "n")
-        for page, call in enumerate(api_get.call_args_list, 1):
-            self.assertEqual(call.kwargs["params"], {**filters, "page": page, "page_size": 100})
+        api_get.assert_called_once()
+        self.assertEqual(api_get.call_args.kwargs["params"], {**filters, "exportar": "true"})
 
     def test_literal_text_statuses_and_missing_dates(self):
         supplier = existing_tests.ContasPagarTests.payload()["fornecedores"][0]
@@ -71,7 +72,7 @@ class PayablesExportTests(TestCase):
     def test_api_failure_never_downloads_partial_workbook(self, api_get):
         payload = existing_tests.ContasPagarTests.payload()
         payload["total_pages"] = 2
-        api_get.side_effect = [payload, ApiError("Falha na API")]
+        api_get.return_value = payload
         response = self.client.get(self.url, {"q": "Essencial", "export": "xlsx"})
         self.assertEqual(response.status_code, 302)
         self.assertNotIn("export=", response.url)
@@ -103,3 +104,11 @@ class PayablesExportTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith("/login/"))
         api_get.assert_not_called()
+
+    @patch("core.views.api_get")
+    def test_api_error_preserves_filters_without_download(self, api_get):
+        api_get.side_effect = ApiError("Falha na API")
+        response = self.client.get(self.url, {"q": "Essencial", "export": "xlsx"})
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("export=", response.url)
+        self.assertIn("q=Essencial", response.url)
