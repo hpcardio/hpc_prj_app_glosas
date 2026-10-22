@@ -241,7 +241,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn('Acatar selecionados', template)
         self.assertIn('window.triagemBatchTreatment', template)
         self.assertGreaterEqual(template.count('glosa-values-columns'), 3)
-        self.assertEqual(template.count('name="processo_recurso"'), 3)
+        self.assertEqual(template.count('name="processo_recurso"'), 4)
         action_group_start = template.index(
             '<div class="account-action-buttons">'
         )
@@ -667,7 +667,7 @@ class ContaAtendimentoRegistroTests(TestCase):
             template.index('name="processo"'),
             template.index('name="cd_remessa"'),
         )
-        self.assertIn("'processo', 'cd_remessa'", template)
+        self.assertIn("'processo', 'processo_recurso', 'numero_protocolo'", template)
         self.assertIn('PDF do processo', template)
         self.assertIn(
             "processos_pdf_resultado",
@@ -9604,3 +9604,29 @@ class MotivoGlosaDisplayTests(TestCase):
         self.assertEqual(motivo_com_descricao('9999', options), '9999')
         self.assertEqual(motivo_com_descricao(None, options), '')
         self.assertEqual(build_registro_glosa_payload({'motivo_glosa': label})['motivo_glosa'], '2601')
+
+
+class ReceitaCertaLayoutTests(TestCase):
+    def test_titulo_e_ordem_filtros_triagem(self):
+        templates = Path(__file__).resolve().parent.parent / 'templates'
+        self.assertIn('<title>Receita Certa</title>', (templates / 'base.html').read_text())
+        template = (templates / 'conta_atendimento.html').read_text()
+        fields = ['processo', 'processo_recurso', 'numero_lote', 'numero_protocolo',
+                  'cd_remessa', 'cd_atendimento', 'nr_guia', 'nm_paciente', 'nm_convenio']
+        positions = [template.index('name="' + field + '"') for field in fields]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('triagem-filter-grid', template)
+        self.assertIn('name="descricao"', template)
+        self.assertIn('name="tp_atendimento"', template)
+
+    def test_total_operacao_usa_saldo_atual_e_preserva_historico(self):
+        from django.template.loader import render_to_string
+        from decimal import Decimal
+        context = {'modo':'operacao','filtros':{},'resumo':{
+            'valor_a_pagar_ate_hoje':Decimal('123.45'),
+            'valor_vencido_inicial':Decimal('999.99')}}
+        html = render_to_string('contas_pagar.html', context)
+        self.assertIn('123,45', html)
+        self.assertNotIn('999,99', html)
+        context['modo'] = 'acompanhamento'
+        self.assertIn('999,99', render_to_string('contas_pagar.html', context))

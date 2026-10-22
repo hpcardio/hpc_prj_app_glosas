@@ -7450,6 +7450,8 @@ def conta_atendimento(request):
     page = as_positive_int(filtros.pop("page", None), 1)
     search_fields = {
         "processo",
+        "processo_recurso",
+        "numero_protocolo",
         "cd_remessa",
         "cd_atendimento",
         "nr_guia",

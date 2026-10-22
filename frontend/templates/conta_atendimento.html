@@ -16,7 +16,7 @@
   searchError: false,
   submitSearch(event) {
     const formData = new FormData(event.currentTarget);
-    const fields = ['processo', 'cd_remessa', 'cd_atendimento', 'nr_guia', 'numero_lote', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
+    const fields = ['processo', 'processo_recurso', 'numero_protocolo', 'cd_remessa', 'cd_atendimento', 'nr_guia', 'numero_lote', 'nm_paciente', 'nm_convenio', 'descricao', 'tp_atendimento'];
     const hasCriteria = fields.some((field) => String(formData.get(field) || '').trim());
     if (!hasCriteria) {
       event.preventDefault();
@@ -29,10 +29,22 @@
   }
 }">
   <form class="remessa-filters" method="get" @submit="submitSearch($event)" @input="searchError = false" @change="searchError = false">
-    <div class="filter-row">
+    <div class="filter-row triagem-filter-grid">
       <div class="filter-group">
-        <label>Processo</label>
+        <label>Proc. Original</label>
         <input name="processo" value="{{ filtros.processo }}" class="form-control" placeholder="Número do processo">
+      </div>
+      <div class="filter-group">
+        <label for="triagem-processo_recurso">Proc. Recurso</label>
+        <input id="triagem-processo_recurso" name="processo_recurso" value="{{ filtros.processo_recurso }}" class="form-control" placeholder="Número do recurso" maxlength="100">
+      </div>
+      <div class="filter-group">
+        <label for="triagem-lote">Lote ISSEC</label>
+        <input id="triagem-lote" name="numero_lote" value="{{ filtros.numero_lote }}" class="form-control" placeholder="Número do lote ISSEC" maxlength="100">
+      </div>
+      <div class="filter-group">
+        <label for="triagem-numero_protocolo">Protocolo TRUE</label>
+        <input id="triagem-numero_protocolo" name="numero_protocolo" value="{{ filtros.numero_protocolo }}" class="form-control" placeholder="Número do protocolo" maxlength="100">
       </div>
       <div class="filter-group">
         <label>Remessa</label>
@@ -45,10 +57,6 @@
       <div class="filter-group">
         <label>Guia</label>
         <input name="nr_guia" value="{{ filtros.nr_guia }}" class="form-control" placeholder="Ex: 123456">
-      </div>
-      <div class="filter-group">
-        <label for="triagem-lote">Lote ISSEC</label>
-        <input id="triagem-lote" name="numero_lote" value="{{ filtros.numero_lote }}" class="form-control" placeholder="Número do lote ISSEC" maxlength="100">
       </div>
       <div class="filter-group">
         <label>Paciente</label>
