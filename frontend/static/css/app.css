@@ -14999,3 +14999,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Triagem: filtros ordenados e responsivos. */
+
+.remessa-filters .filter-row.triagem-filter-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+.triagem-filter-grid .filter-group { min-width:0; }
+.triagem-filter-grid .filter-actions { grid-column:1 / -1; justify-content:flex-end; }
+@media(max-width:1200px) { .remessa-filters .filter-row.triagem-filter-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:760px) { .remessa-filters .filter-row.triagem-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:480px) { .remessa-filters .filter-row.triagem-filter-grid { grid-template-columns:minmax(0,1fr); } }
