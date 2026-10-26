@@ -1,3 +1,4 @@
+from .payables_priority import (AGES, priority_options, extra_filters, month_start, decorate_suppliers, decorate_matrix, trend_history)
 import re
 from calendar import monthrange
 from concurrent.futures import ThreadPoolExecutor
@@ -8679,6 +8680,23 @@ def conciliacoes_financeiras(request):
 
 def _contas_pagar(request, modo):
     route_name = f"contas_pagar_{modo}"
+    if request.method == "POST" and modo == "gestao":
+        try:
+            if request.POST.get("form_action") != "orcamento_salvar":
+                return HttpResponse(status=400)
+            if not request.POST.get("competencia"):
+                raise ValueError("Competência obrigatória.")
+            competencia = month_start(request.POST.get("competencia"))
+            api_put(f"{CONTAS_PAGAR_PATH}/orcamento/{competencia}",
+                    {"valor": request.POST.get("valor_orcamento") or ""})
+            messages.success(request, "Orçamento mensal salvo. Nenhum pagamento foi executado.")
+        except ValueError:
+            messages.error(request, "Competência inválida.")
+        except ApiError as exc:
+            messages.error(request, format_api_error(exc, "Orçamento mensal"))
+        query = request.GET.copy()
+        query["competencia"] = request.POST.get("competencia", "")
+        return redirect(f"{reverse(route_name)}?{query.urlencode()}")
     if request.method == "POST":
         codigo = as_int_or_none(request.POST.get("codigo_fornecedor"))
         action = request.POST.get("form_action")
@@ -8761,6 +8779,7 @@ def _contas_pagar(request, modo):
         "data_inicio": (request.GET.get("data_inicio") or "").strip(),
         "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
+    filtros.update(extra_filters(request.GET))
     if modo == "operacao" and request.GET.get("export") == "xlsx":
         try:
             result = api_get(
@@ -8791,10 +8810,32 @@ def _contas_pagar(request, modo):
     except ApiError as exc:
         payload = {"fornecedores": [], "total": 0, "total_pages": 1, "resumo": {}, "historico": []}
         messages.error(request, format_api_error(exc, "Contas a Pagar"))
+    decorate_suppliers(payload.get("fornecedores", []))
+    matriz = None
+    try:
+        competencia = month_start(request.GET.get("competencia"))
+    except ValueError:
+        competencia = month_start(None)
+        messages.error(request, "Competência inválida; exibindo o mês atual.")
+    if modo == "gestao":
+        try:
+            matriz = api_get(f"{CONTAS_PAGAR_PATH}/matriz",
+                params={**filtros, "competencia": competencia}, timeout=60)
+            if "linhas" not in matriz:
+                matriz = None
+            else:
+                decorate_matrix(matriz, filtros)
+        except ApiError as exc:
+            messages.error(request, format_api_error(exc, "Matriz de prioridades"))
     total_pages = max(int(payload.get("total_pages") or 1), 1)
     if page > total_pages:
-        return redirect(f"{reverse(route_name)}?{urlencode({**filtros, 'page': total_pages})}")
+        redirect_filters = {**filtros, "page": total_pages}
+        if modo == "gestao":
+            redirect_filters["competencia"] = competencia[:7]
+        return redirect(f"{reverse(route_name)}?{urlencode(redirect_filters)}")
     query = {key: value for key, value in filtros.items() if value and value != "todos"}
+    if modo == "gestao":
+        query["competencia"] = competencia[:7]
     pagination = {
         "page": page,
         "total": int(payload.get("total") or 0),
@@ -8813,6 +8854,11 @@ def _contas_pagar(request, modo):
         "contas_pagar.html",
         {
             "modo": modo,
+            "matriz": matriz,
+            "competencia_mes": competencia[:7],
+            "niveis_criticidade": priority_options(),
+            "faixas_atraso": AGES,
+            "evolucao": trend_history(payload.get("historico", [])),
             "export_url": f"?{urlencode({**filtros, 'export': 'xlsx'})}",
             "fornecedores": payload.get("fornecedores", []),
             "resumo": payload.get("resumo", {}),
@@ -8833,7 +8879,7 @@ def contas_pagar_acompanhamento(request):
     return _contas_pagar(request, "acompanhamento")
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def contas_pagar_gestao(request):
     return _contas_pagar(request, "gestao")
 
@@ -8847,15 +8893,22 @@ def fornecedores_criticos(request):
         else:
             try:
                 critico = request.POST.get("critico") == "1"
+                nivel = request.POST.get("nivel_criticidade")
+                if nivel is not None and nivel not in {"1", "2", "3", "4", "5"}:
+                    messages.error(request, "Selecione um nível de 1 a 5.")
+                    return redirect(reverse("fornecedores_criticos"))
+                classificacao = ({"nivel_criticidade": int(nivel),
+                                 "justificativa": request.POST.get("justificativa", "")}
+                                if nivel is not None else {"critico": critico})
                 api_patch(
                     f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}/criticidade",
-                    {"critico": critico},
+                    classificacao,
                 )
                 messages.success(
                     request,
-                    "Fornecedor marcado como crítico."
-                    if critico
-                    else "Criticidade removida do fornecedor.",
+                    "Classificação atualizada." if nivel is not None else (
+                        "Fornecedor marcado como crítico." if critico
+                        else "Criticidade removida do fornecedor."),
                 )
             except ApiError as exc:
                 messages.error(
@@ -8871,6 +8924,7 @@ def fornecedores_criticos(request):
         "q": (request.GET.get("q") or "").strip(),
         "criticidade": request.GET.get("criticidade") or "todos",
     }
+    filtros.update({key: value for key, value in extra_filters(request.GET).items() if key == "nivel_criticidade"})
     try:
         payload = api_get(
             CONTAS_PAGAR_PATH,
@@ -8894,6 +8948,7 @@ def fornecedores_criticos(request):
             request,
             format_api_error(exc, "Fornecedores críticos"),
         )
+    decorate_suppliers(payload.get("fornecedores", []))
     total_pages = max(int(payload.get("total_pages") or 1), 1)
     query = {
         key: value
@@ -8926,6 +8981,7 @@ def fornecedores_criticos(request):
         request,
         "fornecedores_criticos.html",
         {
+            "niveis_criticidade": priority_options(),
             "fornecedores": payload.get("fornecedores", []),
             "filtros": filtros,
             "pagination": pagination,

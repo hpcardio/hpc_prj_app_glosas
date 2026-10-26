@@ -1,29 +1,32 @@
 {% extends "base.html" %}
-{% load core_extras %}
+{% load core_extras static %}
 {% block breadcrumb_label %}Administrativo · Contas a Pagar{% endblock %}
 {% block page_title %}Fornecedores críticos{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/payables-priority.css' %}?v=1">
 <section class="critical-suppliers-page">
   <header class="critical-suppliers-story">
     <span>CRITÉRIO DE CONTINUIDADE ASSISTENCIAL</span>
-    <h2>Classifique como crítico o fornecedor cuja interrupção possa comprometer a operação do hospital.</h2>
+    <h2>Classifique o impacto de cada fornecedor na continuidade do hospital.</h2>
     <p>A classificação alimenta automaticamente a prioridade das filas de Operação, Acompanhamento e Gestão de Contas a Pagar.</p>
   </header>
 
   <form method="get" class="panel filter-panel critical-suppliers-filters">
     <label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Pesquise pelo nome ou código"></label>
     <label class="filter-group"><span>Classificação</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
+    {% include "partials/payables_priority_filters.html" %}
     <div class="filter-actions"><button class="btn btn-primary" type="submit">Pesquisar</button><a class="btn btn-outline-secondary" href="{% url 'fornecedores_criticos' %}">Limpar</a></div>
   </form>
 
+  <details class="panel priority-criteria"><summary>Critérios dos cinco níveis de criticidade</summary><ol reversed>{% for option in niveis_criticidade %}<li><strong>{{ option.label }}:</strong> {{ option.criterio }}</li>{% endfor %}</ol><p>Críticos antigos ficam a revisar, preservando prioridade equivalente ao topo da fila até avaliação. Nenhum nível é inferido automaticamente.</p></details>
   <section class="panel critical-suppliers-panel">
     <div class="panel-header"><div class="results-heading"><div><span class="panel-title">Cadastro de criticidade</span><span class="results-subtitle">{{ pagination.total }} fornecedor(es) · classificação manual conforme orientação da direção</span></div></div></div>
     <div class="critical-suppliers-list">
       {% for fornecedor in fornecedores %}
       <article class="critical-supplier-card {% if fornecedor.critico %}is-critical{% endif %}">
         <div class="critical-supplier-identity"><span class="critical-supplier-code">{{ fornecedor.codigo_fornecedor }}</span><div><small>FORNECEDOR</small><strong>{{ fornecedor.nome_fornecedor }}</strong><span>{{ fornecedor.titulos|length }} título(s) · saldo a pagar R$ {{ fornecedor.saldo_a_pagar|br_currency }}</span></div></div>
-        <div class="critical-supplier-status"><span class="payables-badge {% if fornecedor.critico %}is-critical{% endif %}">{% if fornecedor.critico %}CRÍTICO{% else %}NÃO CRÍTICO{% endif %}</span><small>{% if fornecedor.critico %}Prioridade máxima na fila{% else %}Prioridade por tempo de atraso{% endif %}</small></div>
-        <form method="post">{% csrf_token %}<input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="critico" value="{% if fornecedor.critico %}0{% else %}1{% endif %}"><button class="btn {% if fornecedor.critico %}btn-outline-secondary{% else %}btn-primary{% endif %}" type="submit">{% if fornecedor.critico %}Remover criticidade{% else %}Cadastrar como crítico{% endif %}</button></form>
+        <div class="critical-supplier-status"><span class="priority-badge priority-level-{{ fornecedor.nivel_criticidade|default:'pending' }}">{% if fornecedor.nivel_criticidade %}{{ fornecedor.nivel_criticidade }} · {% endif %}{{ fornecedor.criticidade_label }}</span><small>{{ fornecedor.classificado_por|default:'Sem revisão registrada' }}{% if fornecedor.data_classificacao %} · {{ fornecedor.data_classificacao|api_date }}{% endif %}</small>{% if fornecedor.justificativa_criticidade %}<span class="priority-classification-note">{{ fornecedor.justificativa_criticidade }}</span>{% endif %}</div>
+        <details class="priority-review"><summary>Classificar criticidade</summary><form method="post">{% csrf_token %}<input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><label>Nível<select class="form-select" name="nivel_criticidade" required><option value="">Selecione</option>{% for option in niveis_criticidade %}<option value="{{ option.value }}" {% if fornecedor.nivel_criticidade == option.nivel %}selected{% endif %}>{{ option.value }} · {{ option.label }}</option>{% endfor %}</select></label><label>Justificativa<textarea class="form-control" name="justificativa" maxlength="2000" required>{{ fornecedor.justificativa_criticidade }}</textarea></label><button class="btn btn-primary" type="submit">Salvar classificação</button></form></details>
       </article>
       {% empty %}<div class="empty-state"><strong>Nenhum fornecedor encontrado.</strong><span>Informe parte do nome ou o código para pesquisar.</span></div>{% endfor %}
     </div>

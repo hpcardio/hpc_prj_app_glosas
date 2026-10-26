@@ -7,6 +7,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from .payables_priority import AGES, decorate_suppliers
+
 
 HEADERS = (
     "Prioridade", "Fornecedor", "Código do fornecedor", "Criticidade",
@@ -14,6 +16,7 @@ HEADERS = (
     "Pagar agora do fornecedor", "Saldo a negociar do fornecedor",
     "Título", "Parcela", "Documento", "Emissão", "Lançamento", "Vencimento",
     "Dias em atraso", "Valor", "Saldo a pagar", "Status", "Descrição",
+    "Nível de criticidade", "Classificação", "Faixa de atraso do título",
 )
 
 
@@ -31,7 +34,7 @@ def build_payables_workbook(fornecedores):
     sheet.title = "Contas vencidas"
     sheet.append(HEADERS)
     row_number = 1
-    for priority, supplier in enumerate(fornecedores, 1):
+    for priority, supplier in enumerate(decorate_suppliers(fornecedores), 1):
         for title in supplier.get("titulos", []):
             balance = _money(title.get("saldo_a_pagar"))
             days = int(title.get("dias_vencidos") or 0)
@@ -52,6 +55,8 @@ def build_payables_workbook(fornecedores):
                 _money(title.get("valor_total")), balance,
                 "Pago" if balance <= 0 else "Em atraso" if days > 0 else "A vencer",
                 title.get("descricao_conta") or "",
+                supplier.get("nivel_criticidade"), supplier["criticidade_label"],
+                next((label for level, label in AGES if days > {5:120, 4:90, 3:60, 2:30, 1:0}[level]), "Sem atraso"),
             ])
             row_number += 1
             for column in range(1, len(HEADERS) + 1):

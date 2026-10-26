@@ -1,0 +1,36 @@
+.priority-matrix,.priority-budget,.priority-trend{padding:24px;margin:20px 0;color:#163e4f}
+.priority-section-heading{display:flex;justify-content:space-between;gap:24px;align-items:start;flex-wrap:wrap}
+.priority-section-heading h2,.priority-trend h2{font-size:20px;margin:0 0 8px}
+.priority-section-heading p,.priority-caption{color:#536a75;font-size:13px;line-height:1.6}
+.priority-table-scroll{overflow-x:auto;margin:18px 0;border:1px solid #d7e3e8;border-radius:12px}
+.priority-table{width:100%;min-width:850px;border-collapse:collapse;table-layout:fixed;font-size:13px}
+.priority-table caption{text-align:left;padding:12px;color:#526875;caption-side:bottom}
+.priority-table th,.priority-table td{padding:12px 8px;text-align:center;border:1px solid #d7e3e8;vertical-align:middle;overflow-wrap:anywhere}
+.priority-table th:first-child{width:160px;text-align:left}
+.priority-table thead,.priority-table tfoot{background:#edf4f7}
+.priority-cell a{display:flex;flex-direction:column;gap:5px;color:inherit;text-decoration:none;min-height:94px;justify-content:center;border-radius:6px}
+.priority-cell a:hover{outline:2px solid currentColor;outline-offset:3px}
+.priority-cell a:focus-visible{outline:3px solid #111;outline-offset:3px}
+.priority-cell strong{font-size:19px}.priority-cell small{font-weight:700;font-size:11px}
+.priority-color-red{background:#b91c1c;color:#fff}.priority-color-yellow{background:#facc15;color:#352c06}.priority-color-blue{background:#13396b;color:#fff}.priority-color-green{background:#d7efc6;color:#214a12}.priority-color-neutral{background:#f7f9fa;color:#34464e}
+.priority-badge{display:inline-flex;border-radius:16px;padding:5px 10px;font-size:12px;font-weight:700;white-space:normal}
+.priority-level-5{background:#fee2e2;color:#a71919}.priority-level-4{background:#fff2bf;color:#775600}.priority-level-3{background:#e2ecfc;color:#143e77}.priority-level-2{background:#e2f3d7;color:#315923}.priority-level-1{background:#eef1f4;color:#465667}.priority-level-pending{background:#f4e9ff;color:#663387}
+.priority-notice{background:#fff8df;border-left:4px solid #bd8c06;padding:12px 16px;border-radius:6px}
+.priority-budget-form{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:18px 0}.priority-budget-form label{display:grid;gap:6px}
+.priority-budget-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:20px 0}.priority-budget-summary>span{display:grid;gap:8px;border:1px solid #d7e3e8;border-radius:10px;padding:16px;font-size:13px}.priority-budget-summary strong{font-size:20px}
+.priority-budget-table small{display:block;font-size:11px;margin-top:8px;color:#536a75}
+.priority-trend-row{display:grid;grid-template-columns:100px 1fr 160px;gap:16px;align-items:center;margin:14px 0;font-size:13px}.priority-trend-track{background:#edf4f5;border-radius:5px;height:16px}.priority-trend-track>div{height:16px;background:#21738a;border-radius:5px}
+.payables-page .payables-filters,.critical-suppliers-page .critical-suppliers-filters{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));height:auto;max-height:none}
+.priority-review{min-width:240px}.priority-review summary{cursor:pointer;color:#1b6e86;font-weight:600;padding:10px}.priority-review form{display:grid;gap:10px;padding:12px}.priority-review label{display:grid;gap:5px}.priority-criteria{margin:14px 0}.priority-criteria li{margin:10px 0;line-height:1.6}.priority-classification-note{display:block;margin-top:6px;font-size:11px;color:#526875}
+@media(max-width:760px){.priority-matrix,.priority-budget,.priority-trend{padding:14px}.priority-budget-summary{grid-template-columns:1fr}.priority-trend-row{grid-template-columns:82px 1fr;gap:8px}.priority-trend-row strong{grid-column:2}.critical-supplier-card{flex-wrap:wrap}.priority-review{min-width:0;width:100%}}
+
+/* Keep wide tables inside their own scroll area on narrow screens. */
+.priority-matrix,.priority-budget,.priority-trend{min-width:0;max-width:100%;width:100%;box-sizing:border-box}
+.priority-section-heading>*{min-width:0;max-width:100%}
+.priority-section-heading h2,.priority-section-heading p,.priority-notice{overflow-wrap:anywhere;white-space:normal}
+.priority-table-scroll{min-width:0;max-width:100%;width:100%}
+.payables-record-identity>.priority-badge{white-space:nowrap;justify-self:start}
+@media(max-width:1550px){.payables-page--operation .payables-record-identity>.priority-badge{grid-column:2}}
+
+.payables-page{min-width:0;grid-template-columns:minmax(0,1fr)}
+.payables-page>.panel{min-width:0}
