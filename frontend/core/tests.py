@@ -1824,7 +1824,7 @@ class ContasPagarTests(TestCase):
         self.assertNotContains(response, 'Análise gerencial do registro')
         self.assertContains(response, 'Títulos do fornecedor')
         self.assertContains(response, 'Página')
-        self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
+        self.assertEqual(api_get.call_args_list[0].kwargs['params']['page_size'], 20)
 
     @patch('core.views.api_get')
     def test_acompanhamento_exibe_operacao_do_card(self, api_get):

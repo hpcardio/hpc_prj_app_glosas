@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% load core_extras %}
+{% load core_extras static %}
 {% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
 {% block page_title %}{% if modo == "operacao" %}Contas vencidas{% elif modo == "acompanhamento" %}Acompanhamento do passivo{% else %}Gestão de Contas a Pagar{% endif %}{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/payables-priority.css' %}?v=1">
 <section class="payables-page{% if modo == 'operacao' %} payables-page--operation{% endif %}">
   <nav class="payables-tabs" aria-label="Visões de Contas a Pagar">
     <a class="payables-tab {% if modo == 'operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}">
@@ -34,6 +35,7 @@
     <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
     <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
     <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
+    {% include "partials/payables_priority_filters.html" %}
     <div class="filter-actions"><button class="btn btn-primary payables-search-button" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
   </form>
 
@@ -55,6 +57,7 @@
     <article class="is-balance"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h7M9 17h5"></path></svg></span><small>{% if modo == "operacao" %}SALDO A NEGOCIAR{% else %}SALDO PARA NEGOCIAÇÃO{% endif %}</small></div><strong>R$ {{ resumo.saldo_negociar|br_currency }}</strong><span>{% if modo == "operacao" %}Restante após o pagamento previsto{% else %}Valor aberto após o pagamento imediato.{% endif %}</span></article>
   </div>
 
+  {% if modo == "gestao" %}{% include "partials/payables_matrix.html" %}{% endif %}
   {% if modo == "gestao" %}
   <section class="payables-management-grid">
     <article class="panel payables-cash-card">
@@ -72,6 +75,8 @@
   </section>
   {% endif %}
 
+  {% if modo == "acompanhamento" and not filtros.data_inicio and not filtros.data_fim %}{% include "partials/payables_trend.html" %}{% endif %}
+  {% if filtros.faixa_atraso %}<p class="priority-notice">Títulos limitados à faixa selecionada. Os totais do fornecedor e os indicadores gerais mantêm seu escopo original; consulte a matriz para o total do quadrante.</p>{% endif %}
   <section class="panel payables-list-panel">
     <div class="panel-header payables-results-header">
       <div class="results-heading">
@@ -81,7 +86,7 @@
       </div>
       {% if pagination.total %}
       <div class="results-toolbar payables-results-toolbar">
-        {% if modo == "operacao" %}<span class="payables-order-note"><small>Ordenar por</small><strong>Prioridade (críticos primeiro)</strong></span>{% endif %}
+        {% if modo == "operacao" %}<span class="payables-order-note"><small>Ordenar por</small><strong>Criticidade e maior atraso</strong></span>{% endif %}
         <div class="pagination-control">
           {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
           <form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="payables-page">Página</label><select id="payables-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>
@@ -97,11 +102,11 @@
           <span class="payables-record-identity">
             <span class="payables-priority">#{{ pagination.start|add:forloop.counter0 }}</span>
             <span class="payables-supplier"><strong>{{ fornecedor.nome_fornecedor }}</strong><small>FORNECEDOR {{ fornecedor.codigo_fornecedor }}</small></span>
-            <span class="payables-criticality{% if fornecedor.critico %} is-critical{% endif %}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"></path><path d="M12 9v4M12 16h.01"></path></svg>{% if fornecedor.critico %}Crítico{% else %}Não crítico{% endif %}</span>
+            <span class="priority-badge priority-level-{{ fornecedor.nivel_criticidade|default:'pending' }}">{% if fornecedor.nivel_criticidade %}{{ fornecedor.nivel_criticidade }} · {% endif %}{{ fornecedor.criticidade_label }}</span>
           </span>
           <span class="payables-record-pills">
             <span class="payables-record-pill is-danger"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6" ry="3"></ellipse><path d="M6 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"></path></svg></span><span><small>Total em atraso</small><strong>R$ {{ fornecedor.valor_total_vencido|br_currency }}</strong></span></span>
-            <span class="payables-record-pill"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16v12H4zM4 11h16"></path></svg></span><span><small>Maior atraso</small><strong>{{ fornecedor.dias_atraso }} dias</strong></span></span>
+            <span class="payables-record-pill"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16v12H4zM4 11h16"></path></svg></span><span><small>Maior atraso</small><strong>{{ fornecedor.dias_atraso }} dias</strong><small>{{ fornecedor.atraso_label }}</small></span></span>
             <span class="payables-record-pill is-payment"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><span><small>Pagar agora</small><strong>R$ {{ fornecedor.pagamento_imediato|br_currency }}</strong></span></span>
             <span class="payables-record-pill is-balance"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h7M9 17h5"></path></svg></span><span><small>Saldo a negociar</small><strong>R$ {{ fornecedor.saldo_negociar|br_currency }}</strong></span></span>
           </span>

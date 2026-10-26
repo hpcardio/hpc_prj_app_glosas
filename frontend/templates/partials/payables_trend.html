@@ -1,0 +1,4 @@
+{% load core_extras %}
+<section class="panel priority-trend"><h2>Evolução do saldo vencido</h2><p>Posições registradas nas consultas, sem interpolação. As janelas de novos vencidos se sobrepõem e não devem ser somadas.</p>
+{% for item in evolucao %}<div class="priority-trend-row"><span>{{ item.data_referencia|api_date }}</span><div class="priority-trend-track"><div style="width: {{ item.largura }}%"></div></div><strong>R$ {{ item.valor_vencido|br_currency }}</strong></div>{% empty %}<p>A série histórica começa com a primeira consulta.</p>{% endfor %}
+<p class="priority-caption">Uma redução de saldo não identifica, por si só, pagamento ou renegociação. Consulte os registros dos títulos para confirmar os movimentos.</p></section>

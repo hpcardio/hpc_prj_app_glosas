@@ -1,0 +1,5 @@
+<label class="filter-group"><span>Nível de criticidade</span><select name="nivel_criticidade" class="form-select"><option value="todos">Todos os níveis</option>{% for option in niveis_criticidade %}<option value="{{ option.value }}" {% if filtros.nivel_criticidade == option.value %}selected{% endif %}>{{ option.value }} · {{ option.label }}</option>{% endfor %}<option value="pendente" {% if filtros.nivel_criticidade == 'pendente' %}selected{% endif %}>Críticos a revisar</option></select></label>
+{% if modo %}
+<label class="filter-group"><span>Atraso do título</span><select name="faixa_atraso" class="form-select"><option value="todos">Todas as faixas</option>{% for value,label in faixas_atraso %}<option value="{{ value }}" {% if filtros.faixa_atraso == value|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label class="filter-group"><span>Saldo em aberto</span><select name="somente_vencidos" class="form-select"><option value="false">Vencidos e correntes</option><option value="true" {% if filtros.somente_vencidos == 'true' %}selected{% endif %}>Somente vencidos</option></select></label>
+{% endif %}
