@@ -14413,11 +14413,11 @@ body:not(.sidebar-collapsed) .indicator-grid {
   stroke-width: 2;
 }
 
-.payables-page--operation .payables-kpis {
+.payables-kpis.payables-kpis--operational {
   gap: 10px;
 }
 
-.payables-page--operation .payables-kpis article {
+.payables-kpis.payables-kpis--operational article {
   min-height: 118px;
   align-content: start;
   padding: 15px;
@@ -14425,28 +14425,28 @@ body:not(.sidebar-collapsed) .indicator-grid {
   box-shadow: 0 5px 16px rgba(39, 74, 68, 0.05);
 }
 
-.payables-page--operation .payables-kpis .is-alert {
+.payables-kpis.payables-kpis--operational .is-alert {
   border: 1px solid #f0d1d0;
   border-top: 3px solid #d24d52;
   background: linear-gradient(145deg, #fff 40%, #fff3f3);
 }
 
-.payables-page--operation .payables-kpis .is-alert strong,
-.payables-page--operation .payables-kpis .is-alert small {
+.payables-kpis.payables-kpis--operational .is-alert strong,
+.payables-kpis.payables-kpis--operational .is-alert small {
   color: #b92d39;
 }
 
-.payables-page--operation .payables-kpis .is-primary {
+.payables-kpis.payables-kpis--operational .is-primary {
   border: 1px solid #c8e6df;
   border-top: 3px solid #13927e;
   background: linear-gradient(145deg, #fff 40%, #eefaf7);
 }
 
-.payables-page--operation .payables-kpis .is-primary strong {
+.payables-kpis.payables-kpis--operational .is-primary strong {
   color: #087465;
 }
 
-.payables-page--operation .payables-kpi-icon {
+.payables-kpis--operational .payables-kpi-icon {
   width: 31px;
   height: 31px;
   flex-basis: 31px;
@@ -14454,12 +14454,12 @@ body:not(.sidebar-collapsed) .indicator-grid {
   border-radius: 9px;
 }
 
-.payables-page--operation .payables-kpi-icon svg {
+.payables-kpis--operational .payables-kpi-icon svg {
   width: 17px;
   height: 17px;
 }
 
-.payables-page--operation .payables-kpis strong {
+.payables-kpis.payables-kpis--operational strong {
   font-size: clamp(1.08rem, 1.45vw, 1.32rem);
 }
 
