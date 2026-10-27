@@ -8908,21 +8908,24 @@ def contas_pagar_gestao(request):
 @require_http_methods(["GET", "POST"])
 def fornecedores_criticos(request):
     if request.method == "POST":
-        codigo = as_int_or_none(request.POST.get("codigo_fornecedor"))
+        identificador = (request.POST.get("codigo_fornecedor") or "").strip()
+        sem_cadastro = bool(re.fullmatch(r"sem-cadastro-[A-Za-z0-9_-]{1,1987}", identificador))
+        codigo = identificador if sem_cadastro else as_int_or_none(identificador)
         if not codigo:
             messages.error(request, "Fornecedor inválido.")
         else:
             try:
                 critico = request.POST.get("critico") == "1"
                 nivel = request.POST.get("nivel_criticidade")
-                if nivel is not None and nivel not in {"1", "2", "3", "4", "5"}:
+                if (sem_cadastro or nivel is not None) and nivel not in {"1", "2", "3", "4", "5"}:
                     messages.error(request, "Selecione um nível de 1 a 5.")
                     return redirect(reverse("fornecedores_criticos"))
                 classificacao = ({"nivel_criticidade": int(nivel),
                                  "justificativa": request.POST.get("justificativa", "")}
                                 if nivel is not None else {"critico": critico})
                 api_patch(
-                    f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}/criticidade",
+                    (f"{CONTAS_PAGAR_PATH}/sem-cadastro/{codigo}/criticidade"
+                     if sem_cadastro else f"{CONTAS_PAGAR_PATH}/fornecedores/{codigo}/criticidade"),
                     classificacao,
                 )
                 messages.success(

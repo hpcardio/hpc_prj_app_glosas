@@ -122,7 +122,7 @@
         </button>
         <div id="payables-record-{{ fornecedor.codigo_fornecedor }}" class="payables-details" x-show="open" x-cloak>
           <section class="payables-titles-section">
-            <header><div><strong>Títulos do fornecedor</strong><span>{{ fornecedor.titulos|length }} título(s) no período selecionado</span></div><span>{% if fornecedor.sem_cadastro %}Cadastre o fornecedor no MV para habilitar classificação e pagamentos complementares.{% else %}Expanda um título para consultar e informar pagamentos{% endif %}</span></header>
+            <header><div><strong>Títulos do fornecedor</strong><span>{{ fornecedor.titulos|length }} título(s) no período selecionado</span></div><span>{% if fornecedor.sem_cadastro %}Classifique este registro em Fornecedores críticos. Pagamentos complementares exigem cadastro no MV.{% else %}Expanda um título para consultar e informar pagamentos{% endif %}</span></header>
             <div class="payables-title-list">
               {% if modo == "operacao" and fornecedor.titulos %}<div class="payables-title-table-head" aria-hidden="true"><span></span><span>Título / Parcela</span><span>Documento</span><span>Emissão</span><span>Lançamento</span><span>Vencimento</span><span>Dias em atraso</span><span>Valor</span><span>Saldo a pagar</span><span>Status</span></div>{% endif %}
               {% for titulo in fornecedor.titulos %}

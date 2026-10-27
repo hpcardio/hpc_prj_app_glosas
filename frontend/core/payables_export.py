@@ -119,7 +119,7 @@ def build_payables_workbook(fornecedores):
                 priority, supplier.get("nome_fornecedor") or "",
                 "Sem cadastro no MV" if supplier.get("sem_cadastro")
                 else str(supplier.get("codigo_fornecedor") or ""),
-                "Sem classificação" if supplier.get("sem_cadastro")
+                "Sem classificação" if supplier.get("criticidade_pendente")
                 else "Crítico" if supplier.get("critico") else "Não crítico",
                 _money(supplier.get("valor_total_vencido")),
                 int(supplier.get("dias_atraso") or 0),
