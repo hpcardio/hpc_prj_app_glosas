@@ -117,8 +117,10 @@ def build_payables_workbook(fornecedores):
             days = int(title.get("dias_vencidos") or 0)
             sheet.append([
                 priority, supplier.get("nome_fornecedor") or "",
-                str(supplier.get("codigo_fornecedor") or ""),
-                "Crítico" if supplier.get("critico") else "Não crítico",
+                "Sem cadastro no MV" if supplier.get("sem_cadastro")
+                else str(supplier.get("codigo_fornecedor") or ""),
+                "Sem classificação" if supplier.get("sem_cadastro")
+                else "Crítico" if supplier.get("critico") else "Não crítico",
                 _money(supplier.get("valor_total_vencido")),
                 int(supplier.get("dias_atraso") or 0),
                 _money(supplier.get("pagamento_imediato")),
