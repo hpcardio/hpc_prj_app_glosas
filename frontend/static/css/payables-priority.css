@@ -12,7 +12,7 @@
 .priority-cell a:hover{outline:2px solid currentColor;outline-offset:3px}
 .priority-cell a:focus-visible{outline:3px solid #111;outline-offset:3px}
 .priority-cell strong{font-size:19px}.priority-cell small{font-weight:700;font-size:11px}
-.priority-color-red{background:#b91c1c;color:#fff}.priority-color-yellow{background:#facc15;color:#352c06}.priority-color-blue{background:#13396b;color:#fff}.priority-color-green{background:#d7efc6;color:#214a12}.priority-color-neutral{background:#f7f9fa;color:#34464e}
+.priority-color-red{background:#c00000;color:#fff}.priority-color-yellow{background:#ffc000;color:#111}.priority-color-blue{background:#0e5266;color:#fff}.priority-color-green{background:#3f7f23;color:#fff}.priority-color-neutral{background:#fff;color:#111}
 .priority-badge{display:inline-flex;border-radius:16px;padding:5px 10px;font-size:12px;font-weight:700;white-space:normal}
 .priority-level-5{background:#fee2e2;color:#a71919}.priority-level-4{background:#fff2bf;color:#775600}.priority-level-3{background:#e2ecfc;color:#143e77}.priority-level-2{background:#e2f3d7;color:#315923}.priority-level-1{background:#eef1f4;color:#465667}.priority-level-pending{background:#f4e9ff;color:#663387}
 .priority-notice{background:#fff8df;border-left:4px solid #bd8c06;padding:12px 16px;border-radius:6px}
