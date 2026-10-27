@@ -34,3 +34,21 @@
 
 .payables-page{min-width:0;grid-template-columns:minmax(0,1fr)}
 .payables-page>.panel{min-width:0}
+
+/* Supplier selection stays inside the filter, with an inline checklist. */
+.payables-filters .payables-supplier-filter { grid-column: span 2; min-width: 0; }
+.supplier-picker-field { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; min-height: 44px; padding: .5rem; border: 1px solid #cbdbe3; border-radius: 6px; background: #fff; }
+.supplier-picker-field:focus-within { outline: 2px solid #1b7088; outline-offset: 2px; }
+.supplier-picker-chips { display: contents; }
+.supplier-picker-chip { display: inline-flex; gap: .4rem; align-items: center; max-width: 100%; padding: .3rem .5rem; border-radius: 6px; background: #e5f3f1; color: #154b46; font-size: .8rem; }
+.supplier-picker-chip > span { overflow-wrap: anywhere; }
+.supplier-picker-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 1.2rem; line-height: 1; min-width: 28px; min-height: 28px; }
+.supplier-picker-search { min-width: 130px; width: 100%; flex: 1 1 180px; border: 0; outline: none; background: transparent; padding: .35rem; color: inherit; }
+.supplier-picker-results { max-height: 230px; overflow-y: auto; border: 1px solid #cbdbe3; border-radius: 6px; background: #fff; margin-top: .3rem; }
+.supplier-picker-results[hidden] { display: none; }
+.payables-filters .supplier-picker-option { display: flex; align-items: center; gap: .6rem; padding: .65rem; cursor: pointer; font-size: .8rem; }
+.supplier-picker-option + .supplier-picker-option { border-top: 1px solid #e5edf0; }
+.supplier-picker-option input { flex: 0 0 auto; accent-color: #147e70; }
+.supplier-picker-option span { overflow-wrap: anywhere; }
+.payables-supplier-filter > small { color: #526c77; font-size: .72rem; }
+@media (max-width: 700px) { .payables-filters .payables-supplier-filter { grid-column: 1 / -1; } }

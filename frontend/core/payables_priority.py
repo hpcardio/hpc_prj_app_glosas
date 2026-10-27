@@ -101,7 +101,7 @@ def decorate_matrix(matrix, filters):
     for row in matrix.get("linhas", []):
         for cell in row["celulas"]:
             query = {
-                **filters,
+                **{key: value for key, value in filters.items() if key != "quadrante"},
                 "nivel_criticidade": cell["nivel"],
                 "faixa_atraso": cell["faixa"],
                 "somente_vencidos": "true",

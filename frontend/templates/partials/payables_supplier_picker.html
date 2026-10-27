@@ -1,0 +1,15 @@
+<div class="filter-group payables-supplier-filter" data-supplier-picker>
+  <label id="supplier-picker-label" for="supplier-picker-search">Fornecedor</label>
+  <div class="supplier-picker-field">
+    <div class="supplier-picker-chips" data-supplier-chips>{% for item in selecionados_fornecedores %}<span class="supplier-picker-chip">{{ item.nome }}</span>{% endfor %}</div>
+    <input id="supplier-picker-search" class="supplier-picker-search" type="search" value="{{ filtros.q }}" placeholder="Pesquisar e marcar fornecedores" autocomplete="off" aria-describedby="supplier-picker-help">
+  </div>
+  <input type="hidden" name="fornecedores_ids" value="{{ filtros.fornecedores_ids }}" data-supplier-ids>
+  <input type="hidden" name="q" value="{{ filtros.q }}" data-supplier-query>
+  <small id="supplier-picker-help">Pesquise por nome ou código e marque os fornecedores. Remova pelo ×.</small>
+  <div class="supplier-picker-results" data-supplier-results role="group" aria-label="Fornecedores encontrados" hidden></div>
+  <small data-supplier-status role="status" aria-live="polite"></small>
+  {{ opcoes_fornecedores|json_script:"supplier-picker-options" }}
+  {{ selecionados_fornecedores|json_script:"supplier-picker-selected" }}
+  <noscript>Ative o JavaScript para pesquisar e alterar a seleção de fornecedores.</noscript>
+</div>
