@@ -45,16 +45,16 @@ class UnregisteredSupplierTests(TestCase):
         self.assertNotContains(response, 'name="form_action" value="pagamento_excluir"')
 
     @patch('core.views.api_get')
-    def test_unregistered_supplier_has_registration_notice_not_classification_form(self, api_get):
+    def test_unregistered_supplier_has_classification_form(self, api_get):
         api_get.return_value = self.payload()
         response = self.client.get('/administrativo/fornecedores-criticos/')
         self.assertContains(response, 'CSRF')
-        self.assertContains(response, 'Cadastre o fornecedor no MV')
-        self.assertNotContains(response, 'Salvar classifica\u00e7\u00e3o')
+        self.assertNotContains(response, 'Cadastre o fornecedor no MV')
+        self.assertContains(response, 'Salvar classifica\u00e7\u00e3o')
 
     @patch('core.views.api_post')
     @patch('core.views.api_patch')
-    def test_forged_forms_do_not_send_synthetic_identity_to_mutations(self, api_patch, api_post):
+    def test_synthetic_classification_uses_separate_route_but_payments_remain_blocked(self, api_patch, api_post):
         key = self.payload()['fornecedores'][0]['codigo_fornecedor']
         self.client.post('/administrativo/fornecedores-criticos/', {
             'codigo_fornecedor': key, 'nivel_criticidade': '4', 'justificativa': 'Teste',
@@ -64,5 +64,27 @@ class UnregisteredSupplierTests(TestCase):
             'codigo_parcela': '99', 'valor_pago': '100', 'data_pagamento': '2026-10-27',
             'banco': 'Teste', 'agencia': '1', 'numero_conta': '1',
         })
-        api_patch.assert_not_called()
+        api_patch.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/sem-cadastro/' + key + '/criticidade',
+            {'nivel_criticidade': 4, 'justificativa': 'Teste'},
+        )
         api_post.assert_not_called()
+
+    def test_explicit_level_survives_decoration_and_excel(self):
+        supplier = self.payload()['fornecedores'][0]
+        supplier.update(nivel_criticidade=5, critico=True, classificado_por='Financeiro')
+        book = load_workbook(BytesIO(build_payables_workbook([supplier])))
+        self.assertEqual(supplier['nivel_criticidade'], 5)
+        self.assertEqual(book.active['E2'].value, '5 - Extrema')
+        self.assertEqual(book.active['G2'].value, 'Q2')
+        self.assertEqual(book['Contas vencidas']['D2'].value, 'Crítico')
+        self.assertEqual(book['Contas vencidas']['C2'].value, 'Sem cadastro no MV')
+
+    @patch('core.views.api_patch')
+    def test_unregistered_classification_requires_level_and_valid_identity(self, api_patch):
+        for fields in [
+            {'codigo_fornecedor': 'sem-cadastro-bm9tZTpDU1JG', 'critico': '1'},
+            {'codigo_fornecedor': 'sem-cadastro-../../x', 'nivel_criticidade': '5'},
+        ]:
+            self.client.post('/administrativo/fornecedores-criticos/', fields)
+        api_patch.assert_not_called()

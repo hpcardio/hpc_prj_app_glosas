@@ -74,13 +74,11 @@ def decorate_suppliers(suppliers):
     ages = dict(AGES)
     for item in suppliers:
         level = item.get("nivel_criticidade")
-        if item.get("sem_cadastro"):
-            level = None
-        elif level is None and not item.get("critico"):
+        if level is None and not item.get("sem_cadastro") and not item.get("critico"):
             level = 1
         item["nivel_criticidade"] = level
         item["criticidade_label"] = (
-            "Sem classificação" if item.get("sem_cadastro")
+            "Sem classificação" if item.get("sem_cadastro") and level is None
             else labels.get(level, "Crítico · revisar nível")
         )
         item["criticidade_pendente"] = level is None
