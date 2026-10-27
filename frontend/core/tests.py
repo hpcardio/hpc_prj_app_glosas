@@ -9619,14 +9619,42 @@ class ReceitaCertaLayoutTests(TestCase):
         self.assertIn('name="descricao"', template)
         self.assertIn('name="tp_atendimento"', template)
 
-    def test_total_operacao_usa_saldo_atual_e_preserva_historico(self):
+    def test_totais_operacao_e_gestao_preservam_historico(self):
         from django.template.loader import render_to_string
         from decimal import Decimal
-        context = {'modo':'operacao','filtros':{},'resumo':{
-            'valor_a_pagar_ate_hoje':Decimal('123.45'),
-            'valor_vencido_inicial':Decimal('999.99')}}
-        html = render_to_string('contas_pagar.html', context)
-        self.assertIn('123,45', html)
-        self.assertNotIn('999,99', html)
-        context['modo'] = 'acompanhamento'
-        self.assertIn('999,99', render_to_string('contas_pagar.html', context))
+
+        resumo = {
+            'valor_a_pagar_ate_hoje': Decimal('123.45'),
+            'valor_vencido_inicial': Decimal('999.99'),
+            'valor_vencido_atual': Decimal('100.00'),
+            'novos_vencidos_7d': Decimal('25.00'),
+            'pagamento_imediato': Decimal('10.00'),
+            'saldo_negociar': Decimal('90.00'),
+        }
+        for filtros in ({}, {'data_inicio': '2026-10-01', 'data_fim': '2026-10-27'}):
+            cards = []
+            for modo in ('operacao', 'gestao'):
+                with self.subTest(modo=modo, filtros=filtros):
+                    html = render_to_string('contas_pagar.html', {
+                        'modo': modo, 'filtros': filtros, 'resumo': resumo,
+                    })
+                    kpis = html.split('<div class="payables-kpis', 1)[1].split('\n  </div>', 1)[0]
+                    cards.append('<div class="payables-kpis' + kpis + '</div>')
+                    self.assertNotIn('999,99', kpis)
+                    for label in ('DIVIDA VENCIDA', 'NOVA DIVIDA VENCIDA - 7 DIAS',
+                                  'PAGAR AGORA', 'SALDO A NEGOCIAR'):
+                        self.assertIn(label, kpis)
+                    for amount in ('100,00', '25,00', '10,00', '90,00'):
+                        self.assertIn(amount, kpis)
+                    if not filtros:
+                        self.assertIn('TOTAL A PAGAR', kpis)
+                        self.assertIn('123,45', kpis)
+                    else:
+                        self.assertNotIn('TOTAL A PAGAR', kpis)
+            self.assertHTMLEqual(cards[0], cards[1])
+        html = render_to_string('contas_pagar.html', {
+            'modo': 'acompanhamento', 'filtros': {}, 'resumo': resumo,
+        })
+        self.assertIn('999,99', html)
+        self.assertNotIn('TOTAL A PAGAR', html)
+        self.assertNotIn('payables-kpis--operational', html)
