@@ -6,9 +6,9 @@
   </div>
   <input type="hidden" name="fornecedores_ids" value="{{ filtros.fornecedores_ids }}" data-supplier-ids>
   <input type="hidden" name="q" value="{{ filtros.q }}" data-supplier-query>
-  <small id="supplier-picker-help">Pesquise por nome ou código e marque os fornecedores. Remova pelo ×.</small>
+  <small id="supplier-picker-help" class="supplier-picker-assistive">Pesquise por nome ou código e marque os fornecedores. Remova pelo ×.</small>
   <div class="supplier-picker-results" data-supplier-results role="group" aria-label="Fornecedores encontrados" hidden></div>
-  <small data-supplier-status role="status" aria-live="polite"></small>
+  <small data-supplier-status class="supplier-picker-assistive" role="status" aria-live="polite"></small>
   {{ opcoes_fornecedores|json_script:"supplier-picker-options" }}
   {{ selecionados_fornecedores|json_script:"supplier-picker-selected" }}
   <noscript>Ative o JavaScript para pesquisar e alterar a seleção de fornecedores.</noscript>

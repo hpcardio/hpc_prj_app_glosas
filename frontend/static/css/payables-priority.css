@@ -35,20 +35,62 @@
 .payables-page{min-width:0;grid-template-columns:minmax(0,1fr)}
 .payables-page>.panel{min-width:0}
 
-/* Supplier selection stays inside the filter, with an inline checklist. */
-.payables-filters .payables-supplier-filter { grid-column: span 2; min-width: 0; }
-.supplier-picker-field { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; min-height: 44px; padding: .5rem; border: 1px solid #cbdbe3; border-radius: 6px; background: #fff; }
+/* Keep labels and controls aligned even when supplier chips wrap. */
+.payables-page .payables-filters--selection {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px 12px;
+}
+.payables-filters--selection > .filter-group { min-width: 0; }
+.payables-filters--selection .payables-supplier-filter,
+.payables-filters--selection .payables-order-filter { grid-column: span 2; }
+.payables-filters--selection > .filter-actions { align-self: end; padding-bottom: 0; min-width: 0; flex-wrap: wrap; }
+.payables-filters--selection > .filter-actions .btn { min-height: 38px; padding-inline: .65rem; font-size: .875rem; }
+.payables-supplier-filter > label {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: inherit;
+}
+.supplier-picker-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  align-items: center;
+  min-width: 0;
+  min-height: 38px;
+  padding: .375rem .75rem;
+  border: 1px solid #cbdbe3;
+  border-radius: 6px;
+  background: #fff;
+}
 .supplier-picker-field:focus-within { outline: 2px solid #1b7088; outline-offset: 2px; }
 .supplier-picker-chips { display: contents; }
-.supplier-picker-chip { display: inline-flex; gap: .4rem; align-items: center; max-width: 100%; padding: .3rem .5rem; border-radius: 6px; background: #e5f3f1; color: #154b46; font-size: .8rem; }
-.supplier-picker-chip > span { overflow-wrap: anywhere; }
-.supplier-picker-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 1.2rem; line-height: 1; min-width: 28px; min-height: 28px; }
-.supplier-picker-search { min-width: 130px; width: 100%; flex: 1 1 180px; border: 0; outline: none; background: transparent; padding: .35rem; color: inherit; }
+.supplier-picker-chip { display: inline-flex; gap: .4rem; align-items: center; max-width: 100%; padding: .15rem .4rem; border-radius: 6px; background: #e5f3f1; color: #154b46; font-size: .8rem; }
+.supplier-picker-chip > span { overflow-wrap: anywhere; min-width: 0; }
+.supplier-picker-chip button { flex-shrink: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 1.2rem; line-height: 1; min-width: 28px; min-height: 28px; }
+.supplier-picker-search { min-width: 0; width: 100%; flex: 1 1 180px; border: 0; outline: none; background: transparent; padding: 0; color: inherit; font: inherit; line-height: 1.5; }
 .supplier-picker-results { max-height: 230px; overflow-y: auto; border: 1px solid #cbdbe3; border-radius: 6px; background: #fff; margin-top: .3rem; }
 .supplier-picker-results[hidden] { display: none; }
-.payables-filters .supplier-picker-option { display: flex; align-items: center; gap: .6rem; padding: .65rem; cursor: pointer; font-size: .8rem; }
+.payables-filters .supplier-picker-option { display: flex; align-items: center; gap: .6rem; padding: .65rem; cursor: pointer; font-size: .8rem; text-transform: none; letter-spacing: normal; }
 .supplier-picker-option + .supplier-picker-option { border-top: 1px solid #e5edf0; }
 .supplier-picker-option input { flex: 0 0 auto; accent-color: #147e70; }
 .supplier-picker-option span { overflow-wrap: anywhere; }
 .payables-supplier-filter > small { color: #526c77; font-size: .72rem; }
-@media (max-width: 700px) { .payables-filters .payables-supplier-filter { grid-column: 1 / -1; } }
+/* Instructions and idle selection count remain available to screen readers. */
+.supplier-picker-assistive { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 1500px) {
+  .payables-page .payables-filters--selection { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1000px) {
+  .payables-page .payables-filters--selection { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .payables-filters--selection .payables-order-filter { grid-column: auto; }
+  .payables-filters--selection > .filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+@media (max-width: 600px) {
+  .payables-page .payables-filters--selection { grid-template-columns: minmax(0, 1fr); }
+  .payables-filters--selection .payables-supplier-filter { grid-column: 1 / -1; }
+}

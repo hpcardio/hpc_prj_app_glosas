@@ -30,7 +30,7 @@
     {% if modo == "operacao" %}<aside class="payables-story-note">Mais controle<br>para a saúde<br>financeira do seu hospital.<span></span></aside>{% endif %}
   </header>
 
-  <form method="get" class="panel filter-panel payables-filters">
+  <form method="get" class="panel filter-panel payables-filters{% if modo == 'operacao' or modo == 'gestao' %} payables-filters--selection{% endif %}">
     {% if modo == "operacao" or modo == "gestao" %}{% include "partials/payables_supplier_picker.html" %}{% else %}<label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>{% endif %}
     {% if modo == "gestao" %}
     <label class="filter-group"><span>Quadrante</span><select class="form-select" name="quadrante"><option value="">Todos os quadrantes</option>{% for numero in quadrantes %}<option value="{{ numero }}" {% if filtros.quadrante == numero %}selected{% endif %}>Q{{ numero }}</option>{% endfor %}</select></label>
@@ -42,7 +42,7 @@
     <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
     {% include "partials/payables_priority_filters.html" %}
     {% if modo == "operacao" or modo == "gestao" %}
-    <label class="filter-group"><span>Ordenar por</span><select class="form-select" name="ordenar"><option value="prioridade">Criticidade e maior atraso</option><option value="maior_valor_vencido" {% if filtros.ordenar == 'maior_valor_vencido' %}selected{% endif %}>Maior valor vencido</option></select></label>
+    <label class="filter-group payables-order-filter"><span>Ordenar por</span><select class="form-select" name="ordenar"><option value="prioridade">Criticidade e maior atraso</option><option value="maior_valor_vencido" {% if filtros.ordenar == 'maior_valor_vencido' %}selected{% endif %}>Maior valor vencido</option></select></label>
     {% endif %}
     <div class="filter-actions"><button class="btn btn-primary payables-search-button" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
   </form>

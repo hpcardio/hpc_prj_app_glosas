@@ -38,6 +38,7 @@
       const term = normalize(search.value.trim());
       results.replaceChildren();
       results.hidden = !term;
+      status.classList.toggle("supplier-picker-assistive", !term);
       if (!term) {
         status.textContent = selected.size ? `${selected.size} fornecedor(es) selecionado(s).` : "Todos os fornecedores.";
         return;
