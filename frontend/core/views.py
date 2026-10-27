@@ -8780,6 +8780,14 @@ def _contas_pagar(request, modo):
         "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
     filtros.update(extra_filters(request.GET))
+    if modo in {"operacao", "gestao"}:
+        for key in ("fornecedores_ids", "quadrante", "ordenar"):
+            value = (request.GET.get(key) or "").strip()
+            if value and value not in {"todos", "prioridade"}:
+                filtros[key] = value
+    if modo == "gestao":
+        filtros["criticidade"] = "todos"
+
     if modo == "operacao" and request.GET.get("export") == "xlsx":
         try:
             result = api_get(
@@ -8804,7 +8812,8 @@ def _contas_pagar(request, modo):
     try:
         payload = api_get(
             CONTAS_PAGAR_PATH,
-            params={**filtros, "page": page, "page_size": 20},
+            params={**filtros, "page": page, "page_size": 20,
+                    **({"incluir_opcoes": "true"} if modo in {"operacao", "gestao"} else {})},
             timeout=60,
         )
     except ApiError as exc:
@@ -8827,6 +8836,15 @@ def _contas_pagar(request, modo):
                 decorate_matrix(matriz, filtros)
         except ApiError as exc:
             messages.error(request, format_api_error(exc, "Matriz de prioridades"))
+    opcoes_fornecedores = payload.get("opcoes_fornecedores", [])
+    nomes = {str(item["codigo"]): item["nome"] for item in opcoes_fornecedores}
+    selecionados_fornecedores = [
+        {"codigo": codigo, "nome": nomes.get(codigo, "Fornecedor " + codigo)}
+        for codigo in dict.fromkeys(
+            codigo.strip() for codigo in filtros.get("fornecedores_ids", "").split(",")
+            if codigo.strip()
+        )
+    ]
     total_pages = max(int(payload.get("total_pages") or 1), 1)
     if page > total_pages:
         redirect_filters = {**filtros, "page": total_pages}
@@ -8854,6 +8872,9 @@ def _contas_pagar(request, modo):
         "contas_pagar.html",
         {
             "modo": modo,
+            "opcoes_fornecedores": opcoes_fornecedores,
+            "selecionados_fornecedores": selecionados_fornecedores,
+            "quadrantes": [str(n) for n in range(1, 26)],
             "matriz": matriz,
             "competencia_mes": competencia[:7],
             "niveis_criticidade": priority_options(),

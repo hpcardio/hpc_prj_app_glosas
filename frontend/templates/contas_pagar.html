@@ -4,6 +4,7 @@
 {% block page_title %}{% if modo == "operacao" %}Contas vencidas{% elif modo == "acompanhamento" %}Acompanhamento do passivo{% else %}Gestão de Contas a Pagar{% endif %}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/payables-priority.css' %}?v=1">
+<script defer src="{% static 'js/payables-supplier-picker.js' %}"></script>
 <section class="payables-page{% if modo == 'operacao' %} payables-page--operation{% endif %}">
   <nav class="payables-tabs" aria-label="Visões de Contas a Pagar">
     <a class="payables-tab {% if modo == 'operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}">
@@ -30,12 +31,19 @@
   </header>
 
   <form method="get" class="panel filter-panel payables-filters">
-    <label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>
+    {% if modo == "operacao" or modo == "gestao" %}{% include "partials/payables_supplier_picker.html" %}{% else %}<label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>{% endif %}
+    {% if modo == "gestao" %}
+    <label class="filter-group"><span>Quadrante</span><select class="form-select" name="quadrante"><option value="">Todos os quadrantes</option>{% for numero in quadrantes %}<option value="{{ numero }}" {% if filtros.quadrante == numero %}selected{% endif %}>Q{{ numero }}</option>{% endfor %}</select></label>
+    {% else %}
     <label class="filter-group"><span>Criticidade</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
+    {% endif %}
     <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
     <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
     <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
     {% include "partials/payables_priority_filters.html" %}
+    {% if modo == "operacao" or modo == "gestao" %}
+    <label class="filter-group"><span>Ordenar por</span><select class="form-select" name="ordenar"><option value="prioridade">Criticidade e maior atraso</option><option value="maior_valor_vencido" {% if filtros.ordenar == 'maior_valor_vencido' %}selected{% endif %}>Maior valor vencido</option></select></label>
+    {% endif %}
     <div class="filter-actions"><button class="btn btn-primary payables-search-button" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
   </form>
 
@@ -76,7 +84,7 @@
   {% endif %}
 
   {% if modo == "acompanhamento" and not filtros.data_inicio and not filtros.data_fim %}{% include "partials/payables_trend.html" %}{% endif %}
-  {% if filtros.faixa_atraso %}<p class="priority-notice">Títulos limitados à faixa selecionada. Os totais do fornecedor e os indicadores gerais mantêm seu escopo original; consulte a matriz para o total do quadrante.</p>{% endif %}
+  {% if filtros.faixa_atraso or filtros.quadrante %}<p class="priority-notice">Títulos limitados à faixa selecionada. Os totais do fornecedor e os indicadores gerais mantêm seu escopo original; consulte a matriz para o total do quadrante.</p>{% endif %}
   <section class="panel payables-list-panel">
     <div class="panel-header payables-results-header">
       <div class="results-heading">
@@ -86,7 +94,7 @@
       </div>
       {% if pagination.total %}
       <div class="results-toolbar payables-results-toolbar">
-        {% if modo == "operacao" %}<span class="payables-order-note"><small>Ordenar por</small><strong>Criticidade e maior atraso</strong></span>{% endif %}
+        {% if modo == "operacao" %}<span class="payables-order-note"><small>Ordenar por</small><strong>{% if filtros.ordenar == "maior_valor_vencido" %}Maior valor vencido{% else %}Criticidade e maior atraso{% endif %}</strong></span>{% endif %}
         <div class="pagination-control">
           {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
           <form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="payables-page">Página</label><select id="payables-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>
