@@ -173,7 +173,7 @@ class PriorityTests(TestCase):
 
         supplier = ContasPagarTests.payload()["fornecedores"][0]
         supplier["nivel_criticidade"] = 4
-        sheet = load_workbook(BytesIO(build_payables_workbook([supplier]))).active
+        sheet = load_workbook(BytesIO(build_payables_workbook([supplier])))["Contas vencidas"]
         self.assertEqual(sheet["D2"].value, "Crítico")
         self.assertEqual(sheet["S2"].value, "Medicamentos")
         self.assertEqual(sheet["T2"].value, 4)
