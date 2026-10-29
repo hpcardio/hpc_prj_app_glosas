@@ -1,9 +1,12 @@
 from django.urls import path
 
-from . import views, petrobras
+from . import views, petrobras, openfinance
 
 urlpatterns = [
     path("follow-up-glosas/petrobras/<path:endpoint>", petrobras.bridge, name="petrobras_bridge"),
+    path('financeiro/saldos-extratos/', openfinance.screen, name='openfinance'),
+    path('financeiro/saldos-extratos/titulares/<uuid:owner_id>/conectar/', openfinance.connect_token, name='openfinance_connect'),
+    path('financeiro/saldos-extratos/titulares/<uuid:owner_id>/vincular/', openfinance.attach, name='openfinance_attach'),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path(

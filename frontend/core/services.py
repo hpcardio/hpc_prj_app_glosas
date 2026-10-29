@@ -34,13 +34,14 @@ def api_request(
     path: str,
     token: str | None = None,
     timeout: int | float | None = None,
+    extra_headers: dict | None = None,
     **kwargs,
 ):
     try:
         response = requests.request(
             method,
             f"{settings.API_BASE_URL}{path}",
-            headers=api_headers(token),
+            headers={**api_headers(token),**(extra_headers or {})},
             timeout=timeout or settings.API_TIMEOUT,
             **kwargs,
         )
