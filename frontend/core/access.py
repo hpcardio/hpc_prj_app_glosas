@@ -136,6 +136,7 @@ SCREEN_KEYS = tuple(
 )
 
 ROUTE_PERMISSIONS = {
+    "petrobras_bridge": "follow_up_glosas",
     "dashboard": "indicadores",
     "follow_up_glosas": "follow_up_glosas",
     "follow_up_glosas_recurso_pdf": "follow_up_glosas",

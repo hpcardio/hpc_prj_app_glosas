@@ -1,8 +1,9 @@
 from django.urls import path
 
-from . import views
+from . import views, petrobras
 
 urlpatterns = [
+    path("follow-up-glosas/petrobras/<path:endpoint>", petrobras.bridge, name="petrobras_bridge"),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path(

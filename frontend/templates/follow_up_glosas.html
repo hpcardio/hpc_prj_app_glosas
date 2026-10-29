@@ -4,6 +4,7 @@
 {% block page_title %}Follow-Up de Glosas{% endblock %}
 {% block content %}
 {% now "Y-m-d" as data_atual %}
+{% if petrobras_enabled %}{% include "partials/petrobras_followup.html" %}{% endif %}
 
 <section class="panel filter-panel follow-up-glosa-page" x-data="{ loading: false }">
   <form class="remessa-filters" method="get" @submit="loading = true">

@@ -1,0 +1,28 @@
+/* Scoped to the Petrobras integration; existing payer cards keep their styles. */
+.petrobras-panel { margin-bottom: 1.25rem; }
+.petrobras-panel .panel-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.petrobras-panel label { display: block; min-width: 0; font-size: .9rem; }
+.petrobras-panel .form-control, .petrobras-panel .form-select {
+  display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%;
+  min-height: 40px; margin-top: 5px; padding: 8px 10px; font: inherit;
+  color: #183c4d; background: #fff; border: 1px solid #c9dbe3; border-radius: 6px;
+}
+.petrobras-panel .btn { padding: 9px 14px; min-height: 40px; border: 1px solid #b9cfd9; border-radius: 6px; background: #fff; color: #15536b; font: inherit; cursor: pointer; }
+.petrobras-panel .btn-primary { background: #1d7187; border-color: #1d7187; color: #fff; }
+.petrobras-panel :is(button,input,select,textarea,summary):focus-visible { outline: 2px solid #1d7187; outline-offset: 3px; }
+.petrobras-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(155px,1fr)); gap: 12px; align-items: end; margin: 20px 0; }
+.petrobras-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0; }
+.petrobras-actions > * { min-width: 0; max-width: 100%; }
+.petrobras-card { border: 1px solid #cedfe5; border-radius: 10px; padding: 18px; margin: 14px 0; background: #fff; }
+.petrobras-card h3 { font-size: 1rem; margin-bottom: 12px; }
+.petrobras-comparison { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.petrobras-card dl { display: grid; grid-template-columns: minmax(110px,1fr) 2fr; gap: 6px; }
+.petrobras-card dd { margin: 0; overflow-wrap: anywhere; }
+.petrobras-card textarea { width: 100%; min-height: 85px; }
+.petrobras-warning { color: #9a3412; }
+.petrobras-panel [role=status] { white-space: pre-line; }
+.petrobras-panel button:disabled { opacity: .55; cursor: default; }
+.petrobras-card details { margin: 14px 0; }
+.petrobras-card pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; }
+@media(max-width:700px) { .petrobras-comparison, .petrobras-card dl { grid-template-columns: 1fr; } }
+@media(max-width:480px) { .petrobras-filters { grid-template-columns: 1fr; } .petrobras-actions > label { width: 100%; } }
