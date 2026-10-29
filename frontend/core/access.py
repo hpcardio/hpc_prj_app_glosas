@@ -129,6 +129,11 @@ SCREEN_GROUPS = (
     },
 )
 
+RESTRICTED_KEYS = {'spu_automacao'}
+SCREEN_GROUPS = SCREEN_GROUPS + ({'label': 'Automação', 'screens': (
+    {'key': 'spu_automacao', 'label': 'Desktop SPU', 'route_name': 'spu_recaptcha_viewer'},
+)},)
+
 SCREEN_KEYS = tuple(
     screen["key"]
     for group in SCREEN_GROUPS
@@ -137,6 +142,12 @@ SCREEN_KEYS = tuple(
 
 ROUTE_PERMISSIONS = {
     "petrobras_bridge": "follow_up_glosas",
+    "spu_recaptcha_status": "spu_automacao",
+    "spu_recaptcha_viewer": "spu_automacao",
+    "spu_novnc_asset": "spu_automacao",
+    "openfinance": "contas_pagar_gestao",
+    "openfinance_connect": "contas_pagar_gestao",
+    "openfinance_attach": "contas_pagar_gestao",
     "dashboard": "indicadores",
     "follow_up_glosas": "follow_up_glosas",
     "follow_up_glosas_recurso_pdf": "follow_up_glosas",
@@ -189,7 +200,7 @@ def allowed_screen_keys(user):
         return set(SCREEN_KEYS)
     permissions = user.get("telas_permitidas")
     if permissions is None:
-        return set(SCREEN_KEYS)
+        return set(SCREEN_KEYS) - RESTRICTED_KEYS
     return set(permissions).intersection(SCREEN_KEYS)
 
 
@@ -221,8 +232,8 @@ def first_allowed_url(user):
 def build_screen_groups(selected_keys=None, full_access=False):
     selected = (
         set(SCREEN_KEYS)
-        if full_access or selected_keys is None
-        else set(selected_keys)
+        if full_access
+        else (set(SCREEN_KEYS) - RESTRICTED_KEYS if selected_keys is None else set(selected_keys))
     )
     return [
         {
@@ -248,4 +259,6 @@ def screen_access_context(request):
             for screen_key in SCREEN_KEYS
         },
         "is_ti_user": is_ti(user),
+        "spu_access_allowed": "spu_automacao" in allowed and user.get("ativo") is True,
+        "openfinance_allowed": is_ti(user) or "contas_pagar_gestao" in (user.get("telas_permitidas") or []),
     }

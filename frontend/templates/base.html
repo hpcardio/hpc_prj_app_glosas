@@ -86,14 +86,14 @@
         class="nav-group"
         x-data="{ open: false, requestOpen: false, payableOpen: false }"
         x-init="
-          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao'].includes('{{ request.resolver_match.url_name }}');
+          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'openfinance'].includes('{{ request.resolver_match.url_name }}');
           requestOpen = ['workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular'].includes('{{ request.resolver_match.url_name }}');
           payableOpen = ['contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao'].includes('{{ request.resolver_match.url_name }}');
         "
       >
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }"
           :aria-expanded="sidebarOpen && open"
           title="Financeiro"
@@ -102,6 +102,9 @@
           <span class="nav-label">Financeiro</span>
         </button>
         <div class="nav-submenu" x-show="open">
+          {% if openfinance_allowed %}
+          <a class="nav-subitem {% if request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}" href="{% url 'openfinance' %}" title="Saldos e extratos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18M5 10v8m5-8v8m4-8v8m5-8v8M3 21h18M3 6l9-4 9 4"></path></svg></span><span class="nav-label">Saldos e extratos</span></a>
+          {% endif %}
           {% if screen_access.conciliacao_manual %}
           <a class="nav-subitem {% if request.resolver_match.url_name == 'conciliacao_faturamento' %}is-active{% endif %}" href="{% url 'conciliacao_faturamento' %}" title="Conciliação Manual"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13"></path><path d="M14 4l3 3-3 3"></path><path d="M20 17H7"></path><path d="M10 14l-3 3 3 3"></path></svg></span><span class="nav-label">Conciliação Manual</span></a>
           {% endif %}
@@ -274,7 +277,7 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
-  {% if request.session.api_user %}
+  {% if spu_access_allowed %}
   <div
     id="spu-recaptcha-layer"
     class="spu-recaptcha-layer"
@@ -379,7 +382,12 @@
             cache: 'no-store',
             headers: { 'Accept': 'application/json' }
           });
-          if (!response.ok) return;
+          if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+              layer.hidden = true; restore.hidden = true; frame.src = "about:blank";
+            }
+            return;
+          }
           const status = await response.json();
           pollDelay = Math.max(2000, Number(status.poll_seconds || 5) * 1000);
           applyStatus(status);

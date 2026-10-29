@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import Resolver404, resolve
 from django.utils.cache import patch_cache_control
@@ -51,10 +52,15 @@ class ApiSessionMiddleware:
             return redirect(f"/login/?{query}")
 
         if not is_public and access_token:
+            try:
+                route_name = resolve(request.path_info).url_name
+            except Resolver404:
+                route_name = None
+            spu_route = route_name in {'spu_recaptcha_status', 'spu_recaptcha_viewer', 'spu_novnc_asset'}
             user = request.session.get("api_user") or {}
             telas_permitidas = set(user.get("telas_permitidas") or ())
             deve_atualizar_permissoes = (
-                "telas_permitidas" not in user
+                spu_route or "telas_permitidas" not in user
                 or (
                     "acompanhamento_particular" not in telas_permitidas
                     and bool(
@@ -68,10 +74,12 @@ class ApiSessionMiddleware:
                     user = api_get(
                         "/usuarios/me",
                         token=access_token,
+                        **({'timeout': 5} if spu_route else {}),
                     )
                     request.session["api_user"] = user
                 except ApiError:
-                    pass
+                    if spu_route:
+                        return HttpResponse('Acesso ao desktop SPU não autorizado.', status=403)
             try:
                 route_name = resolve(request.path_info).url_name
             except Resolver404:

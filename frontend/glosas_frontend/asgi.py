@@ -60,14 +60,14 @@ class AuthenticatedSpuProxy:
                         "subprotocol": upstream.subprotocol,
                     }
                 )
-                await _relay_websocket(receive, send, upstream)
+                await _relay_websocket(receive, send, upstream, scope)
         except Exception:
             LOGGER.exception("Falha no proxy WebSocket do desktop SPU.")
             with suppress(Exception):
                 await send({"type": "websocket.close", "code": 1011})
 
 
-async def _relay_websocket(receive, send, upstream):
+async def _relay_websocket(receive, send, upstream, scope=None):
     async def client_to_upstream():
         while True:
             message = await receive()
@@ -95,6 +95,15 @@ async def _relay_websocket(receive, send, upstream):
         asyncio.create_task(client_to_upstream()),
         asyncio.create_task(upstream_to_client()),
     }
+    if scope is not None:
+        async def guard():
+            while True:
+                await asyncio.sleep(5)
+                if not await _has_api_session(scope) or not await _recaptcha_is_active():
+                    await send({'type': 'websocket.close', 'code': 4401})
+                    await upstream.close()
+                    return
+        tasks.add(asyncio.create_task(guard()))
     done, pending = await asyncio.wait(
         tasks,
         return_when=asyncio.FIRST_COMPLETED,
@@ -119,7 +128,8 @@ async def _has_api_session(scope) -> bool:
     @sync_to_async(thread_sensitive=True)
     def session_is_authenticated():
         session = engine.SessionStore(session_key=session_cookie.value)
-        return bool(session.get("api_access_token"))
+        from core.spu_access import token_can_use_spu
+        return token_can_use_spu(session.get("api_access_token"))
 
     return await session_is_authenticated()
 

@@ -1,3 +1,4 @@
+from .spu_access import require_spu_permission
 from .payables_priority import (AGES, priority_options, extra_filters, month_start, decorate_suppliers, decorate_matrix, trend_history)
 import re
 from calendar import monthrange
@@ -130,6 +131,7 @@ ACOMPANHAMENTO_PARTICULAR_PATH = (
 
 
 @require_GET
+@require_spu_permission
 def spu_recaptcha_status(request):
     try:
         status = get_spu_recaptcha_status()
@@ -160,6 +162,7 @@ def spu_recaptcha_status(request):
 
 @xframe_options_sameorigin
 @require_GET
+@require_spu_permission
 def spu_recaptcha_viewer(request):
     try:
         status = get_spu_recaptcha_status()
@@ -198,6 +201,7 @@ def spu_recaptcha_viewer(request):
 
 @xframe_options_sameorigin
 @require_GET
+@require_spu_permission
 def spu_novnc_asset(request, asset_path):
     parts = asset_path.split("/")
     if not asset_path or any(part in {"", ".", ".."} for part in parts):
