@@ -1,0 +1,31 @@
+{% load static %}
+<section id="petrobras-followup" class="panel petrobras-panel" data-base="{% url 'petrobras_bridge' endpoint='status' %}" data-convenio="{{ filtros.convenio }}" data-readonly="{% if request.session.api_user.perfil == 'leitura' %}true{% else %}false{% endif %}">
+  <div class="panel-header"><div><h2 class="panel-title">Saúde Petrobras · integração TISS</h2><p>Demonstrativos da operadora e conferência com o Oracle.</p></div>
+    <button type="button" class="btn btn-outline-primary" data-action="refresh">Atualizar consulta</button></div>
+  <p data-role="message" role="status" aria-live="polite"></p>
+  <details><summary>Sincronização de demonstrativos</summary>
+    <p>Consulte a competência na Petrobras. Os identificadores retornados pela operadora permitem buscar os itens; o cruzamento Oracle utiliza guia e TUSS.</p>
+    <div class="petrobras-actions">
+      <label>Competência <input type="month" class="form-control" data-role="competencia"></label>
+      <button type="button" class="btn btn-outline-primary" data-action="discover">Consultar competência na Petrobras</button>
+      <label>Protocolo <select class="form-select" data-role="protocol"><option value="">Selecione</option></select></label>
+      <button type="button" class="btn btn-primary" data-action="sync">Sincronizar protocolo</button>
+      <label>Outro protocolo <input class="form-control" data-role="new-protocol" maxlength="12"></label>
+      <button type="button" class="btn btn-outline-primary" data-action="add-protocol">Adicionar</button>
+    </div>
+    <div data-role="runs"></div>
+  </details>
+  <form data-role="filters" class="petrobras-filters">
+    <label>Guia <input name="guia" class="form-control" maxlength="100"></label>
+    <label>TUSS <input name="tuss" class="form-control" maxlength="20"></label>
+    <label>Cruzamento <select name="cruzamento" class="form-select"><option value="">Todos</option><option value="conciliado">Conciliado</option><option value="nao_localizado">Não localizado no Oracle</option><option value="ambiguo">Correspondência ambígua</option><option value="dados_insuficientes">Dados insuficientes</option></select></label>
+    <label>Recurso <select name="recurso" class="form-select"><option value="">Todos</option><option value="rascunho">Rascunho</option><option value="protocolado">Protocolado</option><option value="em_analise">Em análise</option><option value="respondido">Respondido</option><option value="envio_incerto">Envio não confirmado</option><option value="transmitindo">Transmissão iniciada</option></select></label>
+    <label>Prazo até <input name="prazo_ate" type="date" class="form-control"></label>
+    <button class="btn btn-primary">Filtrar Petrobras</button>
+  </form>
+  <div data-role="cards"></div>
+  <div class="petrobras-actions"><button type="button" class="btn btn-outline-secondary" data-action="previous">Anterior</button><span data-role="count"></span><button type="button" class="btn btn-outline-secondary" data-action="next">Próxima</button></div>
+  <form hidden>{% csrf_token %}</form>
+</section>
+<link rel="stylesheet" href="{% static 'css/petrobras-followup.css' %}">
+<script src="{% static 'js/petrobras-followup.js' %}" defer></script>

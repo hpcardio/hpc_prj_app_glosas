@@ -175,3 +175,9 @@ CACHES = {
         ),
     }
 }
+
+# Roll out only after API migration/configuration.
+PETROBRAS_ENABLED = env_bool("PETROBRAS_ENABLED", False)
+
+# Multipart/base64 Petrobras uploads remain separately bounded by the API.
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", "8388608"))

@@ -6881,6 +6881,7 @@ def follow_up_glosas(request):
         request,
         "follow_up_glosas.html",
         {
+            "petrobras_enabled": settings.PETROBRAS_ENABLED,
             "cards": cards,
             "processos": processos,
             "filtros": filtros,
