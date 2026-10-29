@@ -4,10 +4,10 @@
     <button type="button" class="btn btn-outline-primary" data-action="refresh">Atualizar consulta</button></div>
   <p data-role="message" role="status" aria-live="polite"></p>
   <details><summary>Sincronização de demonstrativos</summary>
-    <p>Consulte a competência na Petrobras. Os identificadores retornados pela operadora permitem buscar os itens; o cruzamento Oracle utiliza guia e TUSS.</p>
+    <p>Importe os demonstrativos da competência diretamente da Petrobras. O cruzamento utiliza a guia do prestador e o procedimento, com conferência da carteira. Retornos parciais permanecem sinalizados.</p>
     <div class="petrobras-actions">
       <label>Competência <input type="month" class="form-control" data-role="competencia"></label>
-      <button type="button" class="btn btn-outline-primary" data-action="discover">Consultar competência na Petrobras</button>
+      <button type="button" class="btn btn-outline-primary" data-action="discover">Importar competência da Petrobras</button>
       <label>Protocolo <select class="form-select" data-role="protocol"><option value="">Selecione</option></select></label>
       <button type="button" class="btn btn-primary" data-action="sync">Sincronizar protocolo</button>
       <label>Outro protocolo <input class="form-control" data-role="new-protocol" maxlength="12"></label>
