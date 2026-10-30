@@ -1,6 +1,8 @@
 /* Scoped to the Petrobras integration; existing payer cards keep their styles. */
-.petrobras-panel { margin-bottom: 1.25rem; }
-.petrobras-panel .panel-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.petrobras-panel { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #cedfe5; }
+.petrobras-panel > summary { cursor: pointer; font-weight: 600; color: #183c4d; }
+.petrobras-panel > summary::marker { color: #1d7187; }
+.petrobras-help { color: #526d79; font-size: .9rem; }
 .petrobras-panel label { display: block; min-width: 0; font-size: .9rem; }
 .petrobras-panel .form-control, .petrobras-panel .form-select {
   display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%;
