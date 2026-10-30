@@ -41,10 +41,32 @@
   function button(parent, text, fn, disabled=false) { const b=el('button',text,parent,'btn btn-outline-primary');b.type='button';b.disabled=disabled;b.addEventListener('click',()=>action(fn));return b; }
   function input(parent, label, type, val='', max) {const l=el('label',label,parent);const n=el(type==='textarea'?'textarea':'input',null,l,'form-control');if(type!=='textarea')n.type=type;n.value=val||'';if(max)n.maxLength=max;return n;}
   function select(parent,label,options){const l=el('label',label,parent),s=el('select',null,l,'form-select');options.forEach(([v,t])=>{const o=el('option',t,s);o.value=v;});return s;}
+  const expandedCards = new Set();
   function card(row) {
-    const box=el('article',null,get('cards'),'petrobras-card');
-    el('h3',`Guia ${row.guia_prestador || row.guia_operadora || 'não discriminada'} · ${row.tuss || 'Glosa de '+row.fonte.escopo}`,box);
-    el('p',`${labels[row.cruzamento] || row.cruzamento} · Recurso: ${labels[row.recurso_estado] || row.recurso_estado}`,box);
+    const record = el('details', null, get('cards'), 'petrobras-card follow-up-glosa-card');
+    record.open = expandedCards.has(row.id);
+    record.addEventListener('toggle', () => {
+      if (record.open) expandedCards.add(row.id);
+      else expandedCards.delete(row.id);
+    });
+    const header = el('summary', null, record, 'follow-up-glosa-card-header petrobras-card-header');
+    const chevron = el('span', '\u25b6', header, 'follow-up-glosa-chevron');
+    chevron.setAttribute('aria-hidden', 'true');
+    function field(label, value, extraClass='') {
+      const group = el('span', null, header, 'follow-up-glosa-card-field '+extraClass);
+      el('small', label, group);
+      const text = el('strong', value || 'N\u00e3o informado', group);
+      text.title = text.textContent;
+    }
+    field('GUIA DO PRESTADOR', row.guia_prestador || row.guia_operadora);
+    field('PROCEDIMENTO', [row.tuss, row.fonte.descricao].filter(Boolean).join(' \u00b7 '));
+    field('CRUZAMENTO', labels[row.cruzamento] || row.cruzamento);
+    field('RECURSO', labels[row.recurso_estado] || row.recurso_estado);
+    field('VALOR GLOSADO', money(row.valor_glosa), 'follow-up-glosa-card-value follow-up-glosa-card-value--danger');
+    if (row.fonte.cobertura === 'parcial_nao_confirmada' || !row.presente_na_fonte || row.erro_oracle || (row.fonte.avisos || []).length) {
+      el('span', 'Revisar avisos', header, 'petrobras-card-alert');
+    }
+    const box = el('div', null, record, 'follow-up-glosa-card-body petrobras-card-body');
     if(!row.presente_na_fonte)el('p','Não consta na última versão do demonstrativo; histórico preservado.',box,'petrobras-warning');
     if(row.fonte.cobertura==='parcial_nao_confirmada')el('p','Retorno parcial da operadora. Os totais gerais podem incluir outras guias.',box,'petrobras-warning');
     (row.fonte.avisos||[]).forEach(message=>el('p',message,box,'petrobras-warning'));
