@@ -2,10 +2,12 @@
 (() => {
   'use strict';
   const root = document.getElementById('petrobras-followup');
-  if (!root) return;
-  if (root.dataset.convenio && !root.dataset.convenio.toUpperCase().includes('PETROBRAS')) { root.hidden = true; return; }
+  const results = document.getElementById('petrobras-results');
+  if (!root || !results) return;
+  if (root.dataset.convenio && !root.dataset.convenio.toUpperCase().includes('PETROBRAS')) { root.hidden = true; results.hidden = true; return; }
+  root.closest('.content')?.classList.add('follow-up-operator-content');
   const base = root.dataset.base.replace(/status$/, '');
-  const get = role => root.querySelector(`[data-role="${role}"]`);
+  const get = role => root.querySelector(`[data-role="${role}"]`) || results.querySelector(`[data-role="${role}"]`);
   const controls = get('controls');
   let keyboardNavigation = false;
   document.addEventListener('keydown', event => {
@@ -42,8 +44,8 @@
   function input(parent, label, type, val='', max) {const l=el('label',label,parent);const n=el(type==='textarea'?'textarea':'input',null,l,'form-control');if(type!=='textarea')n.type=type;n.value=val||'';if(max)n.maxLength=max;return n;}
   function select(parent,label,options){const l=el('label',label,parent),s=el('select',null,l,'form-select');options.forEach(([v,t])=>{const o=el('option',t,s);o.value=v;});return s;}
   const expandedCards = new Set();
-  function card(row) {
-    const record = el('details', null, get('cards'), 'petrobras-card follow-up-glosa-card');
+  function card(row, parent) {
+    const record = el('details', null, parent, 'petrobras-card follow-up-glosa-card');
     record.open = expandedCards.has(row.id);
     record.addEventListener('toggle', () => {
       if (record.open) expandedCards.add(row.id);
@@ -111,11 +113,103 @@
     if(['envio_incerto','transmitindo'].includes(row.recurso_estado)){el('p','Confira o protocolo no portal antes de qualquer nova tentativa.',box,'petrobras-warning');const link=el('a','Abrir portal Petrobras',box);link.href='https://portaltiss.saudepetrobras.com.br/saudeweb/seguranca/login';link.target='_blank';link.rel='noopener noreferrer';}
   }
   const documentTypes = ['Comprovante de elegibilidade','Laudo do profissional de saúde','Pedido do profissional de saúde','Relatório do profissional de saúde','Prescrição do profissional de saúde','Comprovante de comparecimento (assinatura)','Embalagem/rótulo de materiais ou medicamentos','Comprovante de entrega de medicamentos','Notas fiscais','Boletim anestésico','Selos hemoterápicos','Exames de imagem','Exames de análises clínicas','Termo de consentimento','Guia de cobrança de taxa','Autorização prévia','Relatório de Auditoria'].map((label,i)=>{const code=String(i+1).padStart(2,'0');return [code,`${code} · ${label}`];});
-  async function refresh(){const params=new URLSearchParams();for(const [key,value] of new FormData(get('filters'))){if(String(value).trim())params.set(key,String(value).trim());}params.set('offset',offset);params.set('limit',20);const data=await api('glosas?'+params);total=data.total;get('cards').replaceChildren();data.items.forEach(card);if(!data.items.length)el('p','Nenhuma glosa importada para estes filtros.',get('cards'));get('count').textContent=`${total?offset+1:0}–${Math.min(offset+20,total)} de ${total}`;root.querySelector('[data-action=previous]').disabled=offset===0;root.querySelector('[data-action=next]').disabled=offset+20>=total;}
+  const expandedGroups = new Set();
+  let expansionLevel = 0;
+  const sumGlosa = rows => rows.some(r => r.valor_glosa == null || !Number.isFinite(Number(r.valor_glosa)))
+    ? null : rows.reduce((total, row) => total + Math.round(Number(row.valor_glosa) * 100), 0) / 100;
+  function grouped(rows, key) {
+    const groups = new Map();
+    rows.forEach(row => {
+      const id = JSON.stringify(key(row));
+      if (!groups.has(id)) groups.set(id, []);
+      groups.get(id).push(row);
+    });
+    return groups;
+  }
+  function groupCard(parent, key, level, fields) {
+    const classes = ['follow-up-glosa-card', 'follow-up-glosa-remessa', 'follow-up-glosa-patient'];
+    const headers = ['follow-up-glosa-card-header', 'follow-up-glosa-remessa-header', 'follow-up-glosa-patient-header'];
+    const bodies = ['follow-up-glosa-card-body', 'follow-up-glosa-remessa-body', 'follow-up-glosa-patient-body'];
+    const group = el('details', null, parent, classes[level]+' petrobras-group');
+    group.dataset.level = level;
+    group.open = expandedGroups.has(key) || expansionLevel > level;
+    group.addEventListener('toggle', () => {
+      if (!group.isConnected) return;
+      if (group.open) expandedGroups.add(key); else expandedGroups.delete(key);
+    });
+    const header = el('summary', null, group, headers[level]+' petrobras-group-header');
+    const arrow = el('span', '\u25b6', header, 'follow-up-glosa-chevron');
+    arrow.setAttribute('aria-hidden', 'true');
+    fields.forEach(([label, value, extra='']) => {
+      const field = el('span', null, header, 'follow-up-glosa-card-field '+extra);
+      el('small', label, field);
+      const text = el('strong', value == null || value === '' ? 'N\u00e3o informado' : String(value), field);
+      text.title = text.textContent;
+    });
+    return el('div', null, group, bodies[level]+' petrobras-group-body');
+  }
+  function renderGroups(rows) {
+    const target = get('cards'); target.replaceChildren();
+    const danger = 'follow-up-glosa-card-value follow-up-glosa-card-value--danger';
+    for (const [demoKey, demoRows] of grouped(rows, r => [r.demonstrativo || 'registro-'+r.id])) {
+      const first = demoRows[0];
+      const demo = groupCard(target, demoKey, 0, [
+        ['DEMONSTRATIVO', first.demonstrativo], ['CONV\u00caNIO', 'SA\u00daDE PETROBRAS'],
+        ['REGISTROS', demoRows.length], ['COBERTURA', demoRows.some(r => r.fonte.cobertura === 'parcial_nao_confirmada') ? 'Retorno parcial' : 'Consultar detalhes'],
+        ['VALOR GLOSADO', money(sumGlosa(demoRows)), danger],
+      ]);
+      for (const [protocolKey, protocolRows] of grouped(demoRows, r => [r.fonte.protocolo || 'registro-'+r.id])) {
+        const protocol = groupCard(demo, demoKey+protocolKey, 1, [
+          ['PROTOCOLO', protocolRows[0].fonte.protocolo],
+          ['REMESSA', [...new Set(protocolRows.map(r => r.oracle?.cd_remessa).filter(v => v != null))].join(', ')],
+          ['REGISTROS', protocolRows.length], ['VALOR GLOSADO', money(sumGlosa(protocolRows)), danger],
+        ]);
+        for (const [patientKey, patientRows] of grouped(protocolRows, r => [r.fonte.carteira || '', r.guia_prestador || r.guia_operadora || 'registro-'+r.id, r.oracle?.cd_atendimento || ''])) {
+          const row = patientRows[0];
+          const patient = groupCard(protocol, demoKey+protocolKey+patientKey, 2, [
+            ['PACIENTE', row.oracle?.nm_paciente], ['GUIA DO PRESTADOR', row.guia_prestador],
+            ['CARTEIRA', row.fonte.carteira], ['C\u00d3D. ATENDIMENTO', row.oracle?.cd_atendimento],
+            ['TIPO ATENDIMENTO', row.oracle?.tp_atendimento],
+          ]);
+          patientRows.forEach(row => card(row, patient));
+        }
+      }
+    }
+    if (!rows.length) el('p', 'Nenhuma glosa importada para estes filtros.', target);
+    const totals = get('totals'); totals.replaceChildren();
+    [['QUANTIDADE DE GLOSAS', rows.length], ['VALOR GLOSADO', money(sumGlosa(rows))], ['COM V\u00cdNCULO ORACLE', rows.filter(r => r.cruzamento === 'conciliado').length]].forEach(([label, value], index) => {
+      const tile = el('span', null, totals, 'result-total'+(index === 1 ? ' result-total--value' : ''));
+      el('span', label, tile); el('strong', String(value), tile);
+    });
+  }
+  async function refresh() {
+    const params = new URLSearchParams();
+    for (const [key,value] of new FormData(get('filters'))) {
+      if (String(value).trim()) params.set(key, String(value).trim());
+    }
+    params.set('offset',offset); params.set('limit',20);
+    const data = await api('glosas?'+params); total = data.total;
+    renderGroups(data.items);
+    get('count').textContent = `${total ? offset+1 : 0}\u2013${Math.min(offset+20,total)} de ${total} registros`;
+    results.querySelector('[data-action=previous]').disabled = offset === 0;
+    results.querySelector('[data-action=next]').disabled = offset+20 >= total;
+  }
   async function protocols(){const rows=await api('protocolos');const s=get('protocol'),selected=s.value;s.replaceChildren();el('option','Selecione',s).value='';rows.forEach(r=>{const o=el('option',r.numero,s);o.value=r.id;});s.value=selected;}
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
   const actions={refresh:async()=>{await refresh();await runs();notice('Consulta atualizada.');},discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});await protocols();await refresh();await runs();notice(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`,r.situacao==='parcial');},sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');try{const r=await api(`protocolos/${id}/sincronizar`,'POST',{});await refresh();notice(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`,r.situacao==='parcial');}finally{await runs();}},'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},previous:async()=>{offset=Math.max(0,offset-20);await refresh();notice('Página anterior.');},next:async()=>{if(offset+20<total)offset+=20;await refresh();notice('Próxima página.');}};
-  root.querySelectorAll('[data-action]').forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly&&['discover','sync','add-protocol'].includes(b.dataset.action))b.disabled=true;});
+  actions.expand = async () => {
+    expansionLevel = Math.min(expansionLevel + 1, 3);
+    results.querySelectorAll('.petrobras-group').forEach(group => {
+      if (Number(group.dataset.level) < expansionLevel) group.open = true;
+    });
+    notice('N\u00edvel expandido.');
+  };
+  actions.collapse = async () => {
+    expansionLevel = 0; expandedGroups.clear(); expandedCards.clear();
+    results.querySelectorAll('details').forEach(group => { group.open = false; });
+    notice('Registros recolhidos.');
+  };
+  [...root.querySelectorAll('[data-action]'), ...results.querySelectorAll('[data-action]')].forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly&&['discover','sync','add-protocol'].includes(b.dataset.action))b.disabled=true;});
   get('filters').addEventListener('submit',e=>{e.preventDefault();offset=0;action(async()=>{await refresh();notice('Filtros aplicados.');});});
   action(async()=>{config=await api('status');if(!config.habilitado){notice('Integração Petrobras ainda não habilitada neste ambiente.');return;}await protocols();await refresh();await runs();notice(config.mapeamento_guia==='pendente'?'Mapeamento da guia Oracle pendente de validação. Os registros importados continuam disponíveis.':'Dados Petrobras carregados.');});
 })();
