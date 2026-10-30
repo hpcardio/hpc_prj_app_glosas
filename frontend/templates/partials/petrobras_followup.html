@@ -24,10 +24,7 @@
     <button class="btn btn-primary">Filtrar demonstrativos</button>
   </form>
   </details>
-  <p data-role="message" role="status" aria-live="polite"></p>
-  <div data-role="cards"></div>
-  <div class="petrobras-actions"><button type="button" class="btn btn-outline-secondary" data-action="previous">Anterior</button><span data-role="count"></span><button type="button" class="btn btn-outline-secondary" data-action="next">Próxima</button></div>
   <form hidden>{% csrf_token %}</form>
 </div>
-<link rel="stylesheet" href="{% static 'css/petrobras-followup.css' %}?v=20261030-record-cards">
-<script src="{% static 'js/petrobras-followup.js' %}?v=20261030-record-cards" defer></script>
+<link rel="stylesheet" href="{% static 'css/petrobras-followup.css' %}?v=20261030-hierarchy">
+<script src="{% static 'js/petrobras-followup.js' %}?v=20261030-hierarchy" defer></script>

@@ -48,3 +48,31 @@
 .petrobras-card pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; }
 @media(max-width:700px) { .petrobras-comparison, .petrobras-card dl { grid-template-columns: 1fr; } }
 @media(max-width:480px) { .petrobras-filters { grid-template-columns: 1fr; } .petrobras-actions > label { width: 100%; } }
+
+.petrobras-results { margin-top: 0; padding-top: 18px; }
+.petrobras-results-toolbar { margin: 12px 0; }
+.petrobras-group > .petrobras-group-header { grid-template-columns: 18px repeat(5,minmax(0,1fr)); list-style: none; }
+.petrobras-group.follow-up-glosa-remessa > .petrobras-group-header { grid-template-columns: 18px repeat(4,minmax(0,1fr)); }
+.petrobras-group-header::-webkit-details-marker { display: none; }
+.petrobras-group[open] > summary > .follow-up-glosa-chevron { transform: rotate(90deg); }
+.petrobras-group-body { min-width: 0; display: grid; gap: 10px; padding: 10px; }
+.petrobras-group-body > .petrobras-card { margin: 0; }
+.petrobras-results [hidden] { display: none; }
+@media(max-width:900px) {
+  .petrobras-group > .petrobras-group-header,
+  .petrobras-group.follow-up-glosa-remessa > .petrobras-group-header { grid-template-columns: 14px repeat(2,minmax(0,1fr)); }
+  .petrobras-group-header > .follow-up-glosa-chevron { grid-row: 1 / span 3; }
+  .petrobras-group-header .follow-up-glosa-card-value { text-align: left; }
+  .petrobras-group-header .follow-up-glosa-card-field strong { white-space: normal; overflow-wrap: anywhere; }
+}
+@media(max-width:480px) {
+  .petrobras-group > .petrobras-group-header,
+  .petrobras-group.follow-up-glosa-remessa > .petrobras-group-header { grid-template-columns: 12px minmax(0,1fr); }
+  .petrobras-group-header > .follow-up-glosa-chevron { grid-row: 1 / span 5; }
+  .petrobras-group-body { padding: 6px; }
+}
+
+/* Two result sources must remain reachable below the common filters. */
+.content.follow-up-operator-content { overflow-y: auto; }
+.follow-up-operator-content > .results-summary-panel { flex: 0 0 auto; }
+.follow-up-operator-content > .results-summary-panel > .results-list { max-height: 65vh; }
