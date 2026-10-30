@@ -83,3 +83,30 @@ class PetrobrasTests(SimpleTestCase):
         self.assertNotIn("<script>alert(1)</script>", html)
         self.assertIn("petrobras-followup.js", html)
         self.assertIn("petrobras-followup.css", html)
+
+
+    @patch("core.petrobras.api_request")
+    def test_empty_optional_filters_are_not_forwarded(self, api):
+        api.return_value = Mock(
+            content=b'{"total":242,"items":[]}', status_code=200,
+            headers={"Content-Type": "application/json"},
+        )
+        req = self.request()
+        req.GET = req.GET.copy()
+        req.GET.update({"prazo_ate": "", "tuss": " ", "offset": "0"})
+        self.assertEqual(petrobras.bridge(req, "glosas").status_code, 200)
+        self.assertEqual(api.call_args.kwargs["params"], {"offset": "0"})
+
+    @patch("core.petrobras.api_request")
+    def test_valid_deadline_is_preserved(self, api):
+        api.return_value = Mock(
+            content=b'{"total":1,"items":[]}', status_code=200,
+            headers={"Content-Type": "application/json"},
+        )
+        req = self.request()
+        req.GET = req.GET.copy()
+        req.GET["prazo_ate"] = "2026-10-30"
+        petrobras.bridge(req, "glosas")
+        self.assertEqual(
+            api.call_args.kwargs["params"], {"prazo_ate": "2026-10-30"}
+        )

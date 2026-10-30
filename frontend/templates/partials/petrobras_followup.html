@@ -1,10 +1,10 @@
 {% load static %}
-<details id="petrobras-followup" class="petrobras-panel" data-base="{% url 'petrobras_bridge' endpoint='status' %}" data-convenio="{{ filtros.convenio }}" data-readonly="{% if request.session.api_user.perfil == 'leitura' %}true{% else %}false{% endif %}">
+<div id="petrobras-followup" class="petrobras-panel" data-base="{% url 'petrobras_bridge' endpoint='status' %}" data-convenio="{{ filtros.convenio }}" data-readonly="{% if request.session.api_user.perfil == 'leitura' %}true{% else %}false{% endif %}">
+  <details data-role="controls">
   <summary>Demonstrativos da operadora</summary>
   <div class="petrobras-actions">
     <button type="button" class="btn btn-outline-primary" data-action="refresh">Atualizar consulta</button>
   </div>
-  <p data-role="message" role="status" aria-live="polite"></p>
   <p class="petrobras-help">Consulte os demonstrativos importados ou sincronize uma competência e acompanhe os retornos da operadora.</p>
   <div class="petrobras-actions">
     <label>Competência <input type="month" class="form-control" data-role="competencia"></label>
@@ -16,16 +16,18 @@
   </div>
   <div data-role="runs"></div>
   <form data-role="filters" class="petrobras-filters">
-    <label>Guia <input name="guia" class="form-control" maxlength="100"></label>
+    <label>Guia <input name="guia" class="form-control" maxlength="100" value="{{ filtros.nr_guia }}"></label>
     <label>TUSS <input name="tuss" class="form-control" maxlength="20"></label>
     <label>Cruzamento <select name="cruzamento" class="form-select"><option value="">Todos</option><option value="conciliado">Conciliado</option><option value="nao_localizado">Não localizado no Oracle</option><option value="ambiguo">Correspondência ambígua</option><option value="dados_insuficientes">Dados insuficientes</option></select></label>
     <label>Recurso <select name="recurso" class="form-select"><option value="">Todos</option><option value="rascunho">Rascunho</option><option value="protocolado">Protocolado</option><option value="em_analise">Em análise</option><option value="respondido">Respondido</option><option value="envio_incerto">Envio não confirmado</option><option value="transmitindo">Transmissão iniciada</option></select></label>
     <label>Prazo até <input name="prazo_ate" type="date" class="form-control"></label>
     <button class="btn btn-primary">Filtrar demonstrativos</button>
   </form>
+  </details>
+  <p data-role="message" role="status" aria-live="polite"></p>
   <div data-role="cards"></div>
   <div class="petrobras-actions"><button type="button" class="btn btn-outline-secondary" data-action="previous">Anterior</button><span data-role="count"></span><button type="button" class="btn btn-outline-secondary" data-action="next">Próxima</button></div>
   <form hidden>{% csrf_token %}</form>
-</details>
-<link rel="stylesheet" href="{% static 'css/petrobras-followup.css' %}">
-<script src="{% static 'js/petrobras-followup.js' %}" defer></script>
+</div>
+<link rel="stylesheet" href="{% static 'css/petrobras-followup.css' %}?v=20261030-filters">
+<script src="{% static 'js/petrobras-followup.js' %}?v=20261030-filters" defer></script>

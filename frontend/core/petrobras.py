@@ -25,7 +25,9 @@ def bridge(request, endpoint):
         and request.session.get("api_user", {}).get("perfil") == "leitura"
     ):
         return JsonResponse({"detail": "Perfil de leitura."}, status=403)
-    kwargs = {"params": request.GET.dict()} if request.method == "GET" else {}
+    kwargs = {"params": {
+        key: value for key, value in request.GET.items() if value.strip()
+    }} if request.method == "GET" else {}
     if request.method != "GET":
         try:
             kwargs["json"] = json.loads(request.body or b"{}")

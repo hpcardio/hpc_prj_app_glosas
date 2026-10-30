@@ -6,6 +6,18 @@
   if (root.dataset.convenio && !root.dataset.convenio.toUpperCase().includes('PETROBRAS')) { root.hidden = true; return; }
   const base = root.dataset.base.replace(/status$/, '');
   const get = role => root.querySelector(`[data-role="${role}"]`);
+  const controls = get('controls');
+  let keyboardNavigation = false;
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Tab') keyboardNavigation = true;
+  });
+  document.addEventListener('pointerdown', () => { keyboardNavigation = false; });
+  controls.addEventListener('pointerleave', event => {
+    const keyboardFocus = keyboardNavigation && controls.contains(document.activeElement);
+    if (event.pointerType === 'mouse' && !keyboardFocus) {
+      controls.open = false;
+    }
+  });
   const readOnly = root.dataset.readonly === 'true';
   const token = root.querySelector('[name=csrfmiddlewaretoken]').value;
   const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no Oracle',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada'};
@@ -77,7 +89,7 @@
     if(['envio_incerto','transmitindo'].includes(row.recurso_estado)){el('p','Confira o protocolo no portal antes de qualquer nova tentativa.',box,'petrobras-warning');const link=el('a','Abrir portal Petrobras',box);link.href='https://portaltiss.saudepetrobras.com.br/saudeweb/seguranca/login';link.target='_blank';link.rel='noopener noreferrer';}
   }
   const documentTypes = ['Comprovante de elegibilidade','Laudo do profissional de saúde','Pedido do profissional de saúde','Relatório do profissional de saúde','Prescrição do profissional de saúde','Comprovante de comparecimento (assinatura)','Embalagem/rótulo de materiais ou medicamentos','Comprovante de entrega de medicamentos','Notas fiscais','Boletim anestésico','Selos hemoterápicos','Exames de imagem','Exames de análises clínicas','Termo de consentimento','Guia de cobrança de taxa','Autorização prévia','Relatório de Auditoria'].map((label,i)=>{const code=String(i+1).padStart(2,'0');return [code,`${code} · ${label}`];});
-  async function refresh(){const params=new URLSearchParams(new FormData(get('filters')));params.set('offset',offset);params.set('limit',20);const data=await api('glosas?'+params);total=data.total;get('cards').replaceChildren();data.items.forEach(card);if(!data.items.length)el('p','Nenhuma glosa importada para estes filtros.',get('cards'));get('count').textContent=`${total?offset+1:0}–${Math.min(offset+20,total)} de ${total}`;root.querySelector('[data-action=previous]').disabled=offset===0;root.querySelector('[data-action=next]').disabled=offset+20>=total;}
+  async function refresh(){const params=new URLSearchParams();for(const [key,value] of new FormData(get('filters'))){if(String(value).trim())params.set(key,String(value).trim());}params.set('offset',offset);params.set('limit',20);const data=await api('glosas?'+params);total=data.total;get('cards').replaceChildren();data.items.forEach(card);if(!data.items.length)el('p','Nenhuma glosa importada para estes filtros.',get('cards'));get('count').textContent=`${total?offset+1:0}–${Math.min(offset+20,total)} de ${total}`;root.querySelector('[data-action=previous]').disabled=offset===0;root.querySelector('[data-action=next]').disabled=offset+20>=total;}
   async function protocols(){const rows=await api('protocolos');const s=get('protocol'),selected=s.value;s.replaceChildren();el('option','Selecione',s).value='';rows.forEach(r=>{const o=el('option',r.numero,s);o.value=r.id;});s.value=selected;}
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
   const actions={refresh:async()=>{await refresh();await runs();notice('Consulta atualizada.');},discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});await protocols();await refresh();await runs();notice(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`,r.situacao==='parcial');},sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');try{const r=await api(`protocolos/${id}/sincronizar`,'POST',{});await refresh();notice(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`,r.situacao==='parcial');}finally{await runs();}},'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},previous:async()=>{offset=Math.max(0,offset-20);await refresh();notice('Página anterior.');},next:async()=>{if(offset+20<total)offset+=20;await refresh();notice('Próxima página.');}};
