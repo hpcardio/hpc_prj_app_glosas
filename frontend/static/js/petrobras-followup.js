@@ -48,7 +48,7 @@
     (row.fonte.motivos||[]).forEach(m=>el('p',`Motivo ${m.codigo || ''}${m.valor != null ? ' · '+money(m.valor):''}`,src));
     el('strong',`Oracle · ${labels[row.cruzamento] || row.cruzamento}`,dst);
     if(row.oracle)facts(dst,[['Paciente',row.oracle.nm_paciente],['Atendimento',row.oracle.cd_atendimento],['Remessa',row.oracle.cd_remessa],['Conta',row.oracle.cd_reg],['Lançamento',row.oracle.cd_lancamento],['Guia',row.oracle.nr_guia],['Carteira',row.oracle.nr_carteira],['CD_PRO_FAT',row.oracle.cd_pro_fat],['Data lançamento',row.oracle.data_realizacao],['Quantidade',row.oracle.quantidade],['Valor',money(row.oracle.valor)]]);
-    else el('p',`Sem vínculo confirmado pela chave carteira + guia do prestador + procedimento. Candidatos: ${row.candidatos}.`,dst);
+    else el('p',`Sem vínculo confirmado pela chave carteira + senha + procedimento. Candidatos: ${row.candidatos}.`,dst);
     (row.divergencias||[]).forEach(d=>el('p',d,dst,'petrobras-warning'));
     el('p',`Prazo: ${row.prazo || 'Não confirmado'}${row.origem_prazo ? ' · '+row.origem_prazo:''}`,box);
     if(row.recurso_protocolo)el('p',`Protocolo do recurso: ${row.recurso_protocolo}`,box);
