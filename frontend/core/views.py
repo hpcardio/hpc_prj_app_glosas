@@ -24,6 +24,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .payables_export import build_payables_workbook
+from . import petrobras
 
 from .access import (
     ROUTE_PERMISSIONS,
@@ -3718,7 +3719,10 @@ def group_follow_up_glosas_by_process(cards):
         numero_processo = str(
             processo.get("numero_processo") or ""
         ).strip()
-        if numero_processo:
+        if numero_processo and processo.get("origem"):
+            # Payer demonstrativos never merge with an internal process.
+            key = f"{processo['origem']}:{numero_processo.casefold()}"
+        elif numero_processo:
             key = f"processo:{numero_processo.casefold()}"
         elif card.get("conciliacao_remessa_id") is not None:
             key = f"remessa:{card['conciliacao_remessa_id']}"
@@ -6843,6 +6847,42 @@ def follow_up_glosas(request):
         else:
             messages.error(request, format_api_error(exc, "Follow-Up de Glosas"))
 
+    petrobras_indisponivel = False
+    if not detalhar_card and petrobras.follow_up_aplicavel(filtros):
+        # Payer cards follow the standard cards in the same paginated list:
+        # page N shows the remaining slots after the standard groups.
+        processos_padrao = len(group_follow_up_glosas_by_process(cards))
+        try:
+            dados_petrobras = petrobras.follow_up_pagina(
+                filtros,
+                max(offset - total, 0),
+                max(limit - processos_padrao, 0),
+            )
+        except ApiError:
+            petrobras_indisponivel = True
+        else:
+            cards.extend(
+                petrobras.follow_up_campos_extras(
+                    prepare_follow_up_glosas_cards(
+                        petrobras.follow_up_cards(dados_petrobras)
+                    )
+                )
+            )
+            total += as_int_or_zero(dados_petrobras.get("total"))
+            glosado = as_float_or_zero(
+                dados_petrobras.get("valor_total_glosado")
+            )
+            tratado = as_float_or_zero(
+                dados_petrobras.get("valor_total_tratado")
+            )
+            resumo["quantidade_glosas"] += as_int_or_zero(
+                dados_petrobras.get("quantidade_glosas")
+            )
+            resumo["valor_total_glosado"] += glosado
+            resumo["valor_total_tratado"] += tratado
+            resumo["valor_total_recursado"] += tratado
+            resumo["valor_total_pendente"] += glosado - tratado
+
     if detalhar_card and not cards:
         return render(request, "follow_up_glosa_detail_error.html", {
             "detalhe_dom_id": detalhe_solicitado or (str(detalhar_vinculo) if detalhar_vinculo else f"cogestao-{detalhar_remessa}"),
@@ -6886,6 +6926,7 @@ def follow_up_glosas(request):
         "follow_up_glosas.html",
         {
             "petrobras_enabled": settings.PETROBRAS_ENABLED,
+            "petrobras_indisponivel": petrobras_indisponivel,
             "cards": cards,
             "processos": processos,
             "filtros": filtros,

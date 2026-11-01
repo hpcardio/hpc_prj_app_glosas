@@ -49,30 +49,20 @@
 @media(max-width:700px) { .petrobras-comparison, .petrobras-card dl { grid-template-columns: 1fr; } }
 @media(max-width:480px) { .petrobras-filters { grid-template-columns: 1fr; } .petrobras-actions > label { width: 100%; } }
 
-.petrobras-results { margin-top: 0; padding-top: 18px; }
-.petrobras-results-toolbar { margin: 12px 0; }
-.petrobras-group > .petrobras-group-header { grid-template-columns: 18px repeat(5,minmax(0,1fr)); list-style: none; }
-.petrobras-group.follow-up-glosa-remessa > .petrobras-group-header { grid-template-columns: 18px repeat(4,minmax(0,1fr)); }
-.petrobras-group-header::-webkit-details-marker { display: none; }
-.petrobras-group[open] > summary > .follow-up-glosa-chevron { transform: rotate(90deg); }
-.petrobras-group-body { min-width: 0; display: grid; gap: 10px; padding: 10px; }
-.petrobras-group-body > .petrobras-card { margin: 0; }
-.petrobras-results [hidden] { display: none; }
-@media(max-width:900px) {
-  .petrobras-group > .petrobras-group-header,
-  .petrobras-group.follow-up-glosa-remessa > .petrobras-group-header { grid-template-columns: 14px repeat(2,minmax(0,1fr)); }
-  .petrobras-group-header > .follow-up-glosa-chevron { grid-row: 1 / span 3; }
-  .petrobras-group-header .follow-up-glosa-card-value { text-align: left; }
-  .petrobras-group-header .follow-up-glosa-card-field strong { white-space: normal; overflow-wrap: anywhere; }
+/* Payer items live in the standard Follow-Up cards; the appeal opens here. */
+.petrobras-item-status { display: block; margin-top: 4px; color: #526d79; font-size: .75rem; }
+.petrobras-dialog { width: min(980px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 20px; border: 1px solid #cedfe5; border-radius: 8px; color: #183c4d; overflow: auto; }
+.petrobras-dialog::backdrop { background: rgba(24, 60, 77, .45); }
+.petrobras-dialog-header { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.petrobras-dialog-header h2 { margin: 0; font-size: 1.1rem; }
+.petrobras-dialog label { display: block; min-width: 0; font-size: .9rem; }
+.petrobras-dialog .form-control, .petrobras-dialog .form-select {
+  display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%;
+  min-height: 40px; margin-top: 5px; padding: 8px 10px; font: inherit;
+  color: #183c4d; background: #fff; border: 1px solid #c9dbe3; border-radius: 6px;
 }
-@media(max-width:480px) {
-  .petrobras-group > .petrobras-group-header,
-  .petrobras-group.follow-up-glosa-remessa > .petrobras-group-header { grid-template-columns: 12px minmax(0,1fr); }
-  .petrobras-group-header > .follow-up-glosa-chevron { grid-row: 1 / span 5; }
-  .petrobras-group-body { padding: 6px; }
-}
-
-/* Two result sources must remain reachable below the common filters. */
-.content.follow-up-operator-content { overflow-y: auto; }
-.follow-up-operator-content > .results-summary-panel { flex: 0 0 auto; }
-.follow-up-operator-content > .results-summary-panel > .results-list { max-height: 65vh; }
+.petrobras-dialog .btn { padding: 9px 14px; min-height: 40px; border: 1px solid #b9cfd9; border-radius: 6px; background: #fff; color: #15536b; font: inherit; cursor: pointer; }
+.petrobras-dialog button:disabled { opacity: .55; cursor: default; }
+.petrobras-dialog :is(button,input,select,textarea,summary,a):focus-visible { outline: 2px solid #1d7187; outline-offset: 3px; }
+.petrobras-appeal h3 { margin: 18px 0 8px; font-size: 1rem; }
+@media(max-width:480px) { .petrobras-dialog { padding: 14px; } .petrobras-dialog-header { flex-wrap: wrap; } }
