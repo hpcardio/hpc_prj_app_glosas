@@ -70,8 +70,6 @@
   {% if petrobras_enabled %}{% include "partials/petrobras_followup.html" %}{% endif %}
 </section>
 
-{% if petrobras_enabled %}{% include "partials/petrobras_results.html" %}{% endif %}
-
 <section class="panel results-summary-panel">
   <div class="panel-header">
     <div class="results-heading">
@@ -148,6 +146,9 @@
     </div>
   </div>
 
+  {% if petrobras_indisponivel %}
+    <p class="petrobras-warning" role="status">Demonstrativos Petrobras temporariamente indisponíveis; os demais registros foram carregados.</p>
+  {% endif %}
   {% if consulta_indisponivel %}
     <div class="service-unavailable">
       <div class="service-unavailable-icon" aria-hidden="true">!</div>
@@ -176,7 +177,7 @@
             aria-controls="follow-up-process-remessas-{{ forloop.counter }}"
           >
           <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
-          <span class="follow-up-glosa-card-field"><small>PROCESSO</small><strong>{{ processo_card.processo.numero_processo|default:"-" }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>{{ processo_card.processo.rotulo|default:"PROCESSO" }}</small><strong>{{ processo_card.processo.numero_processo|default:"-" }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ processo_card.convenio }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>COMP. PROD.</small><strong>{{ processo_card.competencia_producao|default:"-" }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>DT. ABERTURA</small><strong>{{ processo_card.processo.data_abertura_formatada|default:"-" }}</strong></span>
@@ -247,10 +248,10 @@
                 {% endif %}
               >
                 <span class="follow-up-glosa-chevron" :class="{ 'is-open': remessaOpen }">&#9654;</span>
-                <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>#{{ card.cd_remessa }}</strong></span>
-                <span class="follow-up-glosa-card-field"><small>PROTOCOLO TRUE</small><strong>{{ card.numero_protocolo|default:"-" }}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>{% if card.cd_remessa %}#{{ card.cd_remessa }}{% else %}Não informado{% endif %}</strong></span>
+                <span class="follow-up-glosa-card-field"><small>{% if card.origem == "petrobras" %}PROTOCOLO{% else %}PROTOCOLO TRUE{% endif %}</small><strong>{{ card.numero_protocolo|default:"-" }}</strong></span>
                 <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ card.data_competencia_formatada }}</strong></span>
-                <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>R$ {{ card.valor_itens|br_currency }}</strong></span>
+                <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong>{% if card.valor_itens is None %}Não informado{% else %}R$ {{ card.valor_itens|br_currency }}{% endif %}</strong></span>
                 <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>VALOR GLOSADO</small><strong>R$ {{ card.valor_glosado|br_currency }}</strong></span>
                 <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR TRATADO</small><strong>R$ {{ card.valor_total_tratado|br_currency }}</strong></span>
                 <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>TOTAL PENDENTE</small><strong>R$ {{ card.valor_glosa_pendente|br_currency }}</strong></span>
@@ -275,19 +276,20 @@
               <span class="follow-up-glosa-card-field"><small>TIPO ATENDIMENTO</small><strong>{{ atendimento.tp_atendimento|default:"-" }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>DT. ATENDIMENTO</small><strong>{{ atendimento.dt_atendimento_formatada|default:"-" }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>DT. ALTA</small><strong>{{ atendimento.dt_alta_formatada|default:"-" }}</strong></span>
+              {% for rotulo, valor in atendimento.campos_extras %}<span class="follow-up-glosa-card-field"><small>{{ rotulo }}</small><strong>{{ valor }}</strong></span>{% endfor %}
             </button>
 
             <template x-if="patientOpen">
               <div class="follow-up-glosa-patient-body">
                 <div class="follow-up-glosa-records-scroll">
                   <h4 class="follow-up-glosa-subsection-title">Itens Glosados</h4>
-                  <div class="follow-up-batch-toolbar">
+                  {% if card.origem != "petrobras" %}<div class="follow-up-batch-toolbar">
                     <span x-text="selectedForms.length ? `${selectedForms.length} item(ns) selecionado(s)` : 'Selecione dois ou mais itens para tratamento conjunto'"></span>
                     <div>
                       <button type="button" class="btn-glosar" :disabled="selectedForms.length < 2" @click="openBatch('recursar')">Recursar selecionados</button>
                       <button type="button" class="btn-acatar" :disabled="selectedForms.length < 2" @click="openBatch('acatar')">Acatar selecionados</button>
                     </div>
-                  </div>
+                  </div>{% endif %}
                   <div class="account-groups">
                   {% for grupo_procedimento in atendimento.grupos_procedimento %}
                   <section class="account-group-section follow-up-glosa-grupo-procedimento">
@@ -369,11 +371,11 @@
                     <tr class="item-row">
                       <td class="cell-mono">{{ item.codigo_item|default:"-" }}</td>
                       <td class="col-desc">{{ item.descricao|default:"-" }}</td>
-                      <td class="cell-valor">R$ {{ item.vl_total_conta|br_currency }}</td>
-                      <td class="cell-mono cell-center">{{ item.qt_lancamento|floatformat:"-2"|default:"-" }}</td>
-                      <td class="cell-valor">R$ {{ item.valor_processado|br_currency }}</td>
+                      <td class="cell-valor">{% if item.vl_total_conta is None %}Não informado{% else %}R$ {{ item.vl_total_conta|br_currency }}{% endif %}</td>
+                      <td class="cell-mono cell-center">{% if item.qt_lancamento is None %}Não informado{% else %}{{ item.qt_lancamento|floatformat:"-2"|default:"-" }}{% endif %}</td>
+                      <td class="cell-valor">{% if item.valor_processado is None %}Não informado{% else %}R$ {{ item.valor_processado|br_currency }}{% endif %}</td>
                       <td class="cell-valor cell-valor--danger">R$ {{ item.valor_glosa|br_currency }}</td>
-                      <td class="cell-valor">R$ {{ item.valor_liberado|br_currency }}</td>
+                      <td class="cell-valor">{% if item.valor_liberado is None %}Não informado{% else %}R$ {{ item.valor_liberado|br_currency }}{% endif %}</td>
                       <td class="cell-valor cell-valor--treated">R$ {{ item.valor_total_tratado|br_currency }}</td>
                       <td class="account-action-cell">
                         <div class="follow-up-glosa-actions">
@@ -392,6 +394,9 @@
                             {% endif %}
                             <span>Selecionar</span>
                           </label>
+                          {% elif item.petrobras %}
+                          <button type="button" class="btn-glosar {% if item.petrobras.recurso_estado != 'rascunho' or item.petrobras.justificativa %}btn-glosar--filled{% endif %}" data-petrobras-item="{{ item.petrobras_json }}">+Recursar</button>
+                          <span class="petrobras-item-status">{{ item.petrobras_status }}</span>
                           {% endif %}
                         </div>
 
@@ -557,7 +562,7 @@
                 </section>
                 {% endfor %}
                 </div>
-                {% if atendimento.total_itens > 1 %}
+                {% if atendimento.total_itens > 1 and card.origem != "petrobras" %}
                 <form
                   id="follow-up-batch-{{ atendimento.estado_dom_id }}"
                   method="post"

@@ -2,30 +2,20 @@
 (() => {
   'use strict';
   const root = document.getElementById('petrobras-followup');
-  const results = document.getElementById('petrobras-results');
-  if (!root || !results) return;
-  if (root.dataset.convenio && !root.dataset.convenio.toUpperCase().includes('PETROBRAS')) { root.hidden = true; results.hidden = true; return; }
-  root.closest('.content')?.classList.add('follow-up-operator-content');
+  const dialog = document.getElementById('petrobras-item-dialog');
+  if (!root || !dialog) return;
+  if (root.dataset.convenio && !root.dataset.convenio.toUpperCase().includes('PETROBRAS')) { root.hidden = true; }
   const base = root.dataset.base.replace(/status$/, '');
-  const get = role => root.querySelector(`[data-role="${role}"]`) || results.querySelector(`[data-role="${role}"]`);
-  const controls = get('controls');
-  let keyboardNavigation = false;
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Tab') keyboardNavigation = true;
-  });
-  document.addEventListener('pointerdown', () => { keyboardNavigation = false; });
-  controls.addEventListener('pointerleave', event => {
-    const keyboardFocus = keyboardNavigation && controls.contains(document.activeElement);
-    if (event.pointerType === 'mouse' && !keyboardFocus) {
-      controls.open = false;
-    }
-  });
+  const get = role => root.querySelector(`[data-role="${role}"]`) || dialog.querySelector(`[data-role="${role}"]`);
   const readOnly = root.dataset.readonly === 'true';
   const token = root.querySelector('[name=csrfmiddlewaretoken]').value;
   const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no Oracle',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada'};
-  let config = {}, offset = 0, total = 0, busy = false;
+  let config = {}, busy = false, configLoaded = null;
   function el(tag, text, parent, cls) { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; if (parent) parent.append(n); return n; }
-  function notice(text, error=false) { get('message').textContent = text; get('message').className = error ? 'petrobras-warning' : ''; }
+  function notice(text, error=false) {
+    const target = dialog.open ? get('dialog-message') : get('message');
+    target.textContent = text; target.className = error ? 'petrobras-warning' : '';
+  }
   async function api(path, method='GET', body) {
     const res = await fetch(base+path, {method, credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':token}, body:body === undefined ? undefined : JSON.stringify(body)});
     let data; try { data = await res.json(); } catch (_) { throw new Error('Resposta indisponível. Tente novamente.'); }
@@ -38,178 +28,79 @@
     try { await fn(); } catch (e) { notice(e.message || 'Falha na consulta.',true); }
     finally { busy = false; root.removeAttribute('aria-busy'); }
   }
+  // Cards are server-rendered; a reload shows the updated record in place.
+  const reload = message => { try { sessionStorage.setItem('petrobras-followup-message', message); } catch (_) { /* optional */ } window.location.reload(); };
   const money = v => v == null ? 'Não informado' : Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   function facts(parent, entries) { const dl = el('dl',null,parent); entries.forEach(([k,v])=>{el('dt',k,dl);el('dd',v == null || v === '' ? 'Não informado' : String(v),dl);}); }
   function button(parent, text, fn, disabled=false) { const b=el('button',text,parent,'btn btn-outline-primary');b.type='button';b.disabled=disabled;b.addEventListener('click',()=>action(fn));return b; }
   function input(parent, label, type, val='', max) {const l=el('label',label,parent);const n=el(type==='textarea'?'textarea':'input',null,l,'form-control');if(type!=='textarea')n.type=type;n.value=val||'';if(max)n.maxLength=max;return n;}
   function select(parent,label,options){const l=el('label',label,parent),s=el('select',null,l,'form-select');options.forEach(([v,t])=>{const o=el('option',t,s);o.value=v;});return s;}
-  const expandedCards = new Set();
-  function card(row, parent) {
-    const record = el('details', null, parent, 'petrobras-card follow-up-glosa-card');
-    record.open = expandedCards.has(row.id);
-    record.addEventListener('toggle', () => {
-      if (record.open) expandedCards.add(row.id);
-      else expandedCards.delete(row.id);
-    });
-    const header = el('summary', null, record, 'follow-up-glosa-card-header petrobras-card-header');
-    const chevron = el('span', '\u25b6', header, 'follow-up-glosa-chevron');
-    chevron.setAttribute('aria-hidden', 'true');
-    function field(label, value, extraClass='') {
-      const group = el('span', null, header, 'follow-up-glosa-card-field '+extraClass);
-      el('small', label, group);
-      const text = el('strong', value || 'N\u00e3o informado', group);
-      text.title = text.textContent;
-    }
-    field('GUIA DO PRESTADOR', row.guia_prestador || row.guia_operadora);
-    field('PROCEDIMENTO', [row.tuss, row.fonte.descricao].filter(Boolean).join(' \u00b7 '));
-    field('CRUZAMENTO', labels[row.cruzamento] || row.cruzamento);
-    field('RECURSO', labels[row.recurso_estado] || row.recurso_estado);
-    field('VALOR GLOSADO', money(row.valor_glosa), 'follow-up-glosa-card-value follow-up-glosa-card-value--danger');
-    if (row.fonte.cobertura === 'parcial_nao_confirmada' || !row.presente_na_fonte || row.erro_oracle || (row.fonte.avisos || []).length) {
-      el('span', 'Revisar avisos', header, 'petrobras-card-alert');
-    }
-    const box = el('div', null, record, 'follow-up-glosa-card-body petrobras-card-body');
+  const documentTypes = ['Comprovante de elegibilidade','Laudo do profissional de saúde','Pedido do profissional de saúde','Relatório do profissional de saúde','Prescrição do profissional de saúde','Comprovante de comparecimento (assinatura)','Embalagem/rótulo de materiais ou medicamentos','Comprovante de entrega de medicamentos','Notas fiscais','Boletim anestésico','Selos hemoterápicos','Exames de imagem','Exames de análises clínicas','Termo de consentimento','Guia de cobrança de taxa','Autorização prévia','Relatório de Auditoria'].map((label,i)=>{const code=String(i+1).padStart(2,'0');return [code,`${code} · ${label}`];});
+  function render(row) {
+    const box = get('dialog-body'); box.replaceChildren(); get('dialog-message').textContent = '';
     if(!row.presente_na_fonte)el('p','Não consta na última versão do demonstrativo; histórico preservado.',box,'petrobras-warning');
     if(row.fonte.cobertura==='parcial_nao_confirmada')el('p','Retorno parcial da operadora. Os totais gerais podem incluir outras guias.',box,'petrobras-warning');
     (row.fonte.avisos||[]).forEach(message=>el('p',message,box,'petrobras-warning'));
     if(row.erro_oracle)el('p',row.erro_oracle,box,'petrobras-warning');
     const compare=el('div',null,box,'petrobras-comparison'),src=el('div',null,compare),dst=el('div',null,compare);
     el('strong','Petrobras',src);
-    facts(src,[['Demonstrativo',row.demonstrativo],['Protocolo',row.fonte.protocolo],['Guia prestador',row.guia_prestador],['Guia operadora',row.guia_operadora],['Procedimento',row.fonte.descricao],['Carteira',row.fonte.carteira],['Código do procedimento',row.tuss],['Tabela',row.fonte.tabela],['Data realização',row.fonte.data_realizacao],['Quantidade',row.fonte.quantidade],['Valor informado',money(row.fonte.valor_informado)],['Glosa',money(row.valor_glosa)]]);
-    (row.fonte.motivos||[]).forEach(m=>el('p',`Motivo ${m.codigo || ''}: ${m.descricao || ''}${m.valor != null ? ' · '+money(m.valor):''}`,src));
-    el('strong','Oracle',dst);
-    if(row.oracle)facts(dst,[['Conta',row.oracle.cd_reg],['Lançamento',row.oracle.cd_lancamento],['Atendimento',row.oracle.cd_atendimento],['Guia',row.oracle.nr_guia],['Carteira',row.oracle.nr_carteira],['TUSS',row.oracle.cd_tuss],['Data realização',row.oracle.data_realizacao],['Quantidade',row.oracle.quantidade],['Valor',money(row.oracle.valor)]]);
-    else el('p',`Sem vínculo confirmado. Candidatos: ${row.candidatos}.`,dst);
+    facts(src,[['Demonstrativo',row.demonstrativo],['Protocolo',row.fonte.protocolo],['Guia prestador',row.guia_prestador],['Guia operadora',row.guia_operadora],['Senha',row.fonte.senha],['Carteira',row.fonte.carteira],['Código do procedimento',row.tuss],['Procedimento',row.fonte.descricao],['Data realização',row.fonte.data_realizacao],['Quantidade',row.fonte.quantidade],['Valor informado',money(row.fonte.valor_informado)],['Glosa',money(row.valor_glosa)]]);
+    (row.fonte.motivos||[]).forEach(m=>el('p',`Motivo ${m.codigo || ''}${m.valor != null ? ' · '+money(m.valor):''}`,src));
+    el('strong',`Oracle · ${labels[row.cruzamento] || row.cruzamento}`,dst);
+    if(row.oracle)facts(dst,[['Paciente',row.oracle.nm_paciente],['Atendimento',row.oracle.cd_atendimento],['Remessa',row.oracle.cd_remessa],['Conta',row.oracle.cd_reg],['Lançamento',row.oracle.cd_lancamento],['Guia',row.oracle.nr_guia],['Carteira',row.oracle.nr_carteira],['CD_PRO_FAT',row.oracle.cd_pro_fat],['Data lançamento',row.oracle.data_realizacao],['Quantidade',row.oracle.quantidade],['Valor',money(row.oracle.valor)]]);
+    else el('p',`Sem vínculo confirmado pela chave carteira + guia do prestador + procedimento. Candidatos: ${row.candidatos}.`,dst);
     (row.divergencias||[]).forEach(d=>el('p',d,dst,'petrobras-warning'));
-    el('p',`Última sincronização: ${row.atualizado_em ? new Date(row.atualizado_em).toLocaleString('pt-BR'): 'Não realizada'}`,box);
     el('p',`Prazo: ${row.prazo || 'Não confirmado'}${row.origem_prazo ? ' · '+row.origem_prazo:''}`,box);
     if(row.recurso_protocolo)el('p',`Protocolo do recurso: ${row.recurso_protocolo}`,box);
     if(row.recurso_resultado){const d=el('details',null,box);el('summary','Resposta da operadora',d);el('pre',JSON.stringify(row.recurso_resultado,null,2),d);}
     const tools=el('div',null,box,'petrobras-actions');
-    button(tools,'Conferir novamente no Oracle',async()=>{await api(`glosas/${row.id}/cruzar`,'POST',{});await refresh();notice('Conferência atualizada.');},readOnly);
-    button(tools,'Consultar recurso',async()=>{await api(`glosas/${row.id}/consultar-recurso`,'POST',{});await refresh();notice('Situação consultada.');},readOnly||!row.recurso_protocolo);
-    const history=el('details',null,box);el('summary','Histórico de alterações',history);
-    history.addEventListener('toggle',()=>{if(history.open&&!history.dataset.loaded)action(async()=>{const events=await api(`glosas/${row.id}/historico`);events.forEach(e=>{el('p',`${new Date(e.data).toLocaleString('pt-BR')} · ${e.tipo}`,history);el('pre',JSON.stringify(e.dados,null,2),history);});history.dataset.loaded='true';notice('Histórico carregado.');});});
-    const edit=el('details',null,box);el('summary','Justificativa e comprovantes',edit);
+    button(tools,'Conferir novamente no Oracle',async()=>{await api(`glosas/${row.id}/cruzar`,'POST',{});reload('Conferência atualizada.');},readOnly);
+    button(tools,'Consultar recurso',async()=>{await api(`glosas/${row.id}/consultar-recurso`,'POST',{});reload('Situação consultada.');},readOnly||!row.recurso_protocolo);
     const editable=!readOnly&&row.recurso_estado==='rascunho';
+    const edit=el('section',null,box,'petrobras-appeal');el('h3','Justificativa e comprovantes',edit);
     const justification=input(edit,'Justificativa','textarea',row.justificativa,500);justification.disabled=!editable;
     const line=el('div',null,edit,'petrobras-actions');
     const due=input(line,'Prazo confirmado','date',row.prazo),origin=input(line,'Origem da regra do prazo','text',row.origem_prazo,500);due.disabled=origin.disabled=!editable;
-    button(line,'Salvar rascunho',async()=>{await api(`glosas/${row.id}/rascunho`,'PUT',{versao:row.versao,justificativa:justification.value,prazo:due.value||null,origem_prazo:origin.value||null});await refresh();notice('Rascunho salvo.');},!editable);
+    button(line,'Salvar rascunho',async()=>{await api(`glosas/${row.id}/rascunho`,'PUT',{versao:row.versao,justificativa:justification.value,prazo:due.value||null,origem_prazo:origin.value||null});reload('Rascunho salvo.');},!editable);
     const docs=el('div',null,edit);
-    button(docs,'Listar comprovantes',async()=>{docs.querySelectorAll('p').forEach(n=>n.remove());const files=await api(`glosas/${row.id}/anexos`);if(!files.length)el('p','Nenhum comprovante anexado.',docs);files.forEach(a=>{const line=el('p',null,docs),link=el('a',a.nome,line);link.href=base+`glosas/${row.id}/anexos/${a.id}`;el('span',` · ${labels[a.estado]||a.estado}${a.protocolo?' · Protocolo '+a.protocolo:''}`,line);});notice('Comprovantes carregados.');});
+    button(docs,'Listar comprovantes',async()=>{docs.querySelectorAll('p').forEach(n=>n.remove());const files=await api(`glosas/${row.id}/anexos`);if(!files.length)el('p','Nenhum comprovante anexado.',docs);files.forEach(a=>{const p=el('p',null,docs),link=el('a',a.nome,p);link.href=base+`glosas/${row.id}/anexos/${a.id}`;el('span',` · ${labels[a.estado]||a.estado}${a.protocolo?' · Protocolo '+a.protocolo:''}`,p);});notice('Comprovantes carregados.');});
     if(editable){
       const upload=el('div',null,edit,'petrobras-actions');const file=input(upload,'Comprovante (PDF, PNG ou JPEG)','file');file.accept='.pdf,.png,.jpg,.jpeg';
-      const kind=select(upload,'Tipo do documento TISS',[['','Selecione']]);
-      // Populate labels from the official contract, supplied below; never infer codes.
-      kind.replaceChildren();[['','Selecione'],...documentTypes].forEach(([v,t])=>{const o=el('option',t,kind);o.value=v;});
+      const kind=select(upload,'Tipo do documento TISS',[['','Selecione'],...documentTypes]);
       const nature=select(upload,'Natureza da guia',[['','Selecione'],['1','Consulta'],['2','SP/SADT'],['3','Resumo de internação']]);
-      button(upload,'Anexar ao item',async()=>{const f=file.files[0];if(!f||!kind.value||!nature.value)throw new Error('Selecione arquivo, tipo de documento e natureza da guia.');if(f.size>config.limite_anexo_bytes)throw new Error('Arquivo acima do limite configurado.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('Não foi possível ler o arquivo.'));reader.readAsDataURL(f);});await api(`glosas/${row.id}/anexos`,'POST',{nome:f.name,conteudo_base64:data,tipo_documento:kind.value,natureza_guia:nature.value});await refresh();notice('Comprovante anexado ao rascunho.');});
+      button(upload,'Anexar ao item',async()=>{const f=file.files[0];if(!f||!kind.value||!nature.value)throw new Error('Selecione arquivo, tipo de documento e natureza da guia.');if(f.size>config.limite_anexo_bytes)throw new Error('Arquivo acima do limite configurado.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('Não foi possível ler o arquivo.'));reader.readAsDataURL(f);});await api(`glosas/${row.id}/anexos`,'POST',{nome:f.name,conteudo_base64:data,tipo_documento:kind.value,natureza_guia:nature.value});reload('Comprovante anexado ao rascunho.');});
       const sendBox=el('details',null,edit);el('summary','Enviar recurso à Petrobras',sendBox);el('p','Salve a justificativa e revise os comprovantes antes de transmitir. O envio usa o rascunho salvo.',sendBox);
       const label=el('label',null,sendBox),confirm=el('input',null,label);confirm.type='checkbox';el('span',' Confirmo o envio deste recurso à Petrobras.',label);
-      button(sendBox,'Transmitir recurso salvo',async()=>{if(!confirm.checked)throw new Error('Marque a confirmação de envio.');await api(`glosas/${row.id}/enviar`,'POST',{versao:row.versao,confirmar_envio:true});await refresh();notice('Consulte o protocolo apresentado no item.');},!config.transmissao_habilitada);
+      button(sendBox,'Transmitir recurso salvo',async()=>{if(!confirm.checked)throw new Error('Marque a confirmação de envio.');await api(`glosas/${row.id}/enviar`,'POST',{versao:row.versao,confirmar_envio:true});reload('Consulte o protocolo apresentado no item.');},!config.transmissao_habilitada);
       if(!config.transmissao_habilitada)el('p','Transmissão ainda não habilitada neste ambiente.',sendBox);
     }
     if(['envio_incerto','transmitindo'].includes(row.recurso_estado)){el('p','Confira o protocolo no portal antes de qualquer nova tentativa.',box,'petrobras-warning');const link=el('a','Abrir portal Petrobras',box);link.href='https://portaltiss.saudepetrobras.com.br/saudeweb/seguranca/login';link.target='_blank';link.rel='noopener noreferrer';}
+    const history=el('details',null,box);el('summary','Histórico de alterações',history);
+    history.addEventListener('toggle',()=>{if(history.open&&!history.dataset.loaded)action(async()=>{const events=await api(`glosas/${row.id}/historico`);events.forEach(e=>{el('p',`${new Date(e.data).toLocaleString('pt-BR')} · ${e.tipo}`,history);el('pre',JSON.stringify(e.dados,null,2),history);});history.dataset.loaded='true';notice('Histórico carregado.');});});
   }
-  const documentTypes = ['Comprovante de elegibilidade','Laudo do profissional de saúde','Pedido do profissional de saúde','Relatório do profissional de saúde','Prescrição do profissional de saúde','Comprovante de comparecimento (assinatura)','Embalagem/rótulo de materiais ou medicamentos','Comprovante de entrega de medicamentos','Notas fiscais','Boletim anestésico','Selos hemoterápicos','Exames de imagem','Exames de análises clínicas','Termo de consentimento','Guia de cobrança de taxa','Autorização prévia','Relatório de Auditoria'].map((label,i)=>{const code=String(i+1).padStart(2,'0');return [code,`${code} · ${label}`];});
-  const expandedGroups = new Set();
-  let expansionLevel = 0;
-  const sumGlosa = rows => rows.some(r => r.valor_glosa == null || !Number.isFinite(Number(r.valor_glosa)))
-    ? null : rows.reduce((total, row) => total + Math.round(Number(row.valor_glosa) * 100), 0) / 100;
-  function grouped(rows, key) {
-    const groups = new Map();
-    rows.forEach(row => {
-      const id = JSON.stringify(key(row));
-      if (!groups.has(id)) groups.set(id, []);
-      groups.get(id).push(row);
-    });
-    return groups;
-  }
-  function groupCard(parent, key, level, fields) {
-    const classes = ['follow-up-glosa-card', 'follow-up-glosa-remessa', 'follow-up-glosa-patient'];
-    const headers = ['follow-up-glosa-card-header', 'follow-up-glosa-remessa-header', 'follow-up-glosa-patient-header'];
-    const bodies = ['follow-up-glosa-card-body', 'follow-up-glosa-remessa-body', 'follow-up-glosa-patient-body'];
-    const group = el('details', null, parent, classes[level]+' petrobras-group');
-    group.dataset.level = level;
-    group.open = expandedGroups.has(key) || expansionLevel > level;
-    group.addEventListener('toggle', () => {
-      if (!group.isConnected) return;
-      if (group.open) expandedGroups.add(key); else expandedGroups.delete(key);
-    });
-    const header = el('summary', null, group, headers[level]+' petrobras-group-header');
-    const arrow = el('span', '\u25b6', header, 'follow-up-glosa-chevron');
-    arrow.setAttribute('aria-hidden', 'true');
-    fields.forEach(([label, value, extra='']) => {
-      const field = el('span', null, header, 'follow-up-glosa-card-field '+extra);
-      el('small', label, field);
-      const text = el('strong', value == null || value === '' ? 'N\u00e3o informado' : String(value), field);
-      text.title = text.textContent;
-    });
-    return el('div', null, group, bodies[level]+' petrobras-group-body');
-  }
-  function renderGroups(rows) {
-    const target = get('cards'); target.replaceChildren();
-    const danger = 'follow-up-glosa-card-value follow-up-glosa-card-value--danger';
-    for (const [demoKey, demoRows] of grouped(rows, r => [r.demonstrativo || 'registro-'+r.id])) {
-      const first = demoRows[0];
-      const demo = groupCard(target, demoKey, 0, [
-        ['DEMONSTRATIVO', first.demonstrativo], ['CONV\u00caNIO', 'SA\u00daDE PETROBRAS'],
-        ['REGISTROS', demoRows.length], ['COBERTURA', demoRows.some(r => r.fonte.cobertura === 'parcial_nao_confirmada') ? 'Retorno parcial' : 'Consultar detalhes'],
-        ['VALOR GLOSADO', money(sumGlosa(demoRows)), danger],
-      ]);
-      for (const [protocolKey, protocolRows] of grouped(demoRows, r => [r.fonte.protocolo || 'registro-'+r.id])) {
-        const protocol = groupCard(demo, demoKey+protocolKey, 1, [
-          ['PROTOCOLO', protocolRows[0].fonte.protocolo],
-          ['REMESSA', [...new Set(protocolRows.map(r => r.oracle?.cd_remessa).filter(v => v != null))].join(', ')],
-          ['REGISTROS', protocolRows.length], ['VALOR GLOSADO', money(sumGlosa(protocolRows)), danger],
-        ]);
-        for (const [patientKey, patientRows] of grouped(protocolRows, r => [r.fonte.carteira || '', r.guia_prestador || r.guia_operadora || 'registro-'+r.id, r.oracle?.cd_atendimento || ''])) {
-          const row = patientRows[0];
-          const patient = groupCard(protocol, demoKey+protocolKey+patientKey, 2, [
-            ['PACIENTE', row.oracle?.nm_paciente], ['GUIA DO PRESTADOR', row.guia_prestador],
-            ['CARTEIRA', row.fonte.carteira], ['C\u00d3D. ATENDIMENTO', row.oracle?.cd_atendimento],
-            ['TIPO ATENDIMENTO', row.oracle?.tp_atendimento],
-          ]);
-          patientRows.forEach(row => card(row, patient));
-        }
-      }
-    }
-    if (!rows.length) el('p', 'Nenhuma glosa importada para estes filtros.', target);
-    const totals = get('totals'); totals.replaceChildren();
-    [['QUANTIDADE DE GLOSAS', rows.length], ['VALOR GLOSADO', money(sumGlosa(rows))], ['COM V\u00cdNCULO ORACLE', rows.filter(r => r.cruzamento === 'conciliado').length]].forEach(([label, value], index) => {
-      const tile = el('span', null, totals, 'result-total'+(index === 1 ? ' result-total--value' : ''));
-      el('span', label, tile); el('strong', String(value), tile);
-    });
-  }
-  async function refresh() {
-    const params = new URLSearchParams();
-    for (const [key,value] of new FormData(get('filters'))) {
-      if (String(value).trim()) params.set(key, String(value).trim());
-    }
-    params.set('offset',offset); params.set('limit',20);
-    const data = await api('glosas?'+params); total = data.total;
-    renderGroups(data.items);
-    get('count').textContent = `${total ? offset+1 : 0}\u2013${Math.min(offset+20,total)} de ${total} registros`;
-    results.querySelector('[data-action=previous]').disabled = offset === 0;
-    results.querySelector('[data-action=next]').disabled = offset+20 >= total;
-  }
+  async function loadConfig() { configLoaded = configLoaded || api('status').then(data => { config = data; }); return configLoaded; }
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-petrobras-item]');
+    if (!trigger) return;
+    let row;
+    try { row = JSON.parse(trigger.dataset.petrobrasItem); } catch (_) { return; }
+    action(async () => { await loadConfig(); render(row); if (!dialog.open) dialog.showModal(); notice(''); });
+  });
+  dialog.querySelector('[data-dialog-close]').addEventListener('click', () => dialog.close());
   async function protocols(){const rows=await api('protocolos');const s=get('protocol'),selected=s.value;s.replaceChildren();el('option','Selecione',s).value='';rows.forEach(r=>{const o=el('option',r.numero,s);o.value=r.id;});s.value=selected;}
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
-  const actions={refresh:async()=>{await refresh();await runs();notice('Consulta atualizada.');},discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});await protocols();await refresh();await runs();notice(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`,r.situacao==='parcial');},sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');try{const r=await api(`protocolos/${id}/sincronizar`,'POST',{});await refresh();notice(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`,r.situacao==='parcial');}finally{await runs();}},'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},previous:async()=>{offset=Math.max(0,offset-20);await refresh();notice('Página anterior.');},next:async()=>{if(offset+20<total)offset+=20;await refresh();notice('Próxima página.');}};
-  actions.expand = async () => {
-    expansionLevel = Math.min(expansionLevel + 1, 3);
-    results.querySelectorAll('.petrobras-group').forEach(group => {
-      if (Number(group.dataset.level) < expansionLevel) group.open = true;
-    });
-    notice('N\u00edvel expandido.');
+  const actions={
+    discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});reload(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
+    sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');const r=await api(`protocolos/${id}/sincronizar`,'POST',{});reload(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
+    'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},
+    'match-all':async()=>{const r=await api('glosas/cruzar','POST',{});reload(`${r.conferidos} registros conferidos no Oracle; ${r.alterados} atualizados.`);},
   };
-  actions.collapse = async () => {
-    expansionLevel = 0; expandedGroups.clear(); expandedCards.clear();
-    results.querySelectorAll('details').forEach(group => { group.open = false; });
-    notice('Registros recolhidos.');
-  };
-  [...root.querySelectorAll('[data-action]'), ...results.querySelectorAll('[data-action]')].forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly&&['discover','sync','add-protocol'].includes(b.dataset.action))b.disabled=true;});
-  get('filters').addEventListener('submit',e=>{e.preventDefault();offset=0;action(async()=>{await refresh();notice('Filtros aplicados.');});});
-  action(async()=>{config=await api('status');if(!config.habilitado){notice('Integração Petrobras ainda não habilitada neste ambiente.');return;}await protocols();await refresh();await runs();notice(config.mapeamento_guia==='pendente'?'Mapeamento da guia Oracle pendente de validação. Os registros importados continuam disponíveis.':'Dados Petrobras carregados.');});
+  root.querySelectorAll('[data-action]').forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly)b.disabled=true;});
+  // Load protocol options only when the operator opens the controls.
+  root.querySelector('[data-role="controls"]').addEventListener('toggle', event => {
+    if (event.target.open && !root.dataset.loaded) { root.dataset.loaded = 'true'; action(async()=>{await loadConfig();await protocols();await runs();notice(config.transmissao_habilitada ? 'Integração disponível.' : 'Integração disponível; transmissão ainda não habilitada.');}); }
+  });
+  let pending = null;
+  try { pending = sessionStorage.getItem('petrobras-followup-message'); sessionStorage.removeItem('petrobras-followup-message'); } catch (_) { pending = null; }
+  if (pending) { root.querySelector('[data-role="controls"]').open = true; notice(pending); }
 })();
