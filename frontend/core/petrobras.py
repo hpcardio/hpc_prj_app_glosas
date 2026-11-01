@@ -166,6 +166,8 @@ def _item(row):
         "ds_gru_fat": oracle.get("ds_gru_fat"),
         "descricao": oracle.get("descricao") or fonte.get("descricao"),
         "nr_guia": _sem_zeros(row.get("guia_prestador")),
+        # The payer senha is the MV NR_GUIA used to link with Oracle.
+        "senha": _sem_zeros(fonte.get("senha")),
         "numero_protocolo": fonte.get("protocolo"),
         "numero_lote": fonte.get("lote"),
         "dt_atendimento": oracle.get("dt_atendimento"),
@@ -205,7 +207,10 @@ def follow_up_cards(data):
             pacientes = {}
             for row, item in zip(rows, itens):
                 fonte = row.get("fonte") or {}
-                chave = (fonte.get("carteira") or "", item["nr_guia"])
+                chave = (
+                    fonte.get("carteira") or "",
+                    item["senha"] or item["nr_guia"],
+                )
                 paciente = pacientes.setdefault(chave, {
                     "codigo_paciente": item["cd_paciente"] or 0,
                     "nm_paciente": item["nm_paciente"] or NAO_INFORMADO,
@@ -264,6 +269,7 @@ def follow_up_campos_extras(cards):
             item = (grupos[0].get("itens") or [{}])[0]
             fonte = (item.get("petrobras") or {}).get("fonte") or {}
             atendimento["campos_extras"] = [
+                ("SENHA", item.get("senha") or NAO_INFORMADO),
                 ("GUIA DO PRESTADOR", item.get("nr_guia") or NAO_INFORMADO),
                 ("CARTEIRA", fonte.get("carteira") or NAO_INFORMADO),
             ]

@@ -126,7 +126,7 @@ def petrobras_row(row_id=1, oracle=None, **fonte):
     return {
         "id": row_id,
         "demonstrativo": fonte.pop("demonstrativo", "D1"),
-        "guia_prestador": "0000000000000B386348",
+        "guia_prestador": "00000000000002407254",
         "guia_operadora": "122705001",
         "tuss": "40901360",
         "fonte": {
@@ -205,11 +205,24 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
         payer_item = card["pacientes"][1]["itens"][0]
         self.assertEqual(oracle_item["descricao"], "DOPPLER COLORIDO")
         self.assertEqual(payer_item["descricao"], "DOPPLER")
-        self.assertEqual(payer_item["nr_guia"], "B386348")
+        self.assertEqual(payer_item["nr_guia"], "2407254")
+        self.assertEqual(payer_item["senha"], "B386348")
         self.assertIsNone(payer_item["cd_atendimento"])
         self.assertFalse(payer_item["tratativa_disponivel"])
         self.assertEqual(str(card["valor_glosado"]), "0.02")
         self.assertEqual(str(card["valor_total_tratado"]), "0")
+
+    def test_beneficiary_groups_by_wallet_and_senha(self):
+        other_guide = petrobras_row(2, None)
+        other_guide["guia_prestador"] = "00000000000009999999"
+        other_senha = petrobras_row(3, None, senha="B000001")
+        card = petrobras.follow_up_cards({
+            "demonstrativos": ["D1"],
+            "items": [petrobras_row(1, None), other_guide, other_senha],
+        })[0]
+        self.assertEqual(
+            [len(p["itens"]) for p in card["pacientes"]], [2, 1]
+        )
 
     def test_missing_payer_values_stay_unknown(self):
         row = petrobras_row(1, None, valor_processado=None, valor_informado=None)
@@ -260,6 +273,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertEqual(response.context["resumo"]["valor_total_pendente"], 6.0)
         self.assertContains(response, "DEMONSTRATIVO")
         self.assertContains(response, "GUIA DO PRESTADOR")
+        self.assertContains(response, "SENHA")
         self.assertContains(response, "B386348")
         self.assertContains(response, "data-petrobras-item=")
         self.assertContains(response, "Não informado")
