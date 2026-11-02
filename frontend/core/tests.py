@@ -3429,7 +3429,7 @@ class FollowUpGlosasTests(TestCase):
             'a lançamentos do MV.',
         )
         self.assertContains(response, '>+Recursar</button>')
-        self.assertContains(response, '>+ACATO</button>')
+        self.assertContains(response, '>+Acatar</button>')
         self.assertContains(
             response,
             '<th class="account-col-label-qtd">QTD. ITEM</th>',
@@ -3784,7 +3784,7 @@ class FollowUpGlosasTests(TestCase):
             'Acatar selecionados',
             'Descrição dos registros selecionados',
             '+Recursar',
-            '+ACATO',
+            '+Acatar',
             'follow-up-glosa-records-scroll',
             '<template x-if="patientOpen">',
         ):

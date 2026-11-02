@@ -69,18 +69,6 @@ def bridge(request, endpoint):
 FOLLOW_UP_PATH = "/app_glosas/petrobras/demonstrativos"
 CONVENIO_PADRAO = "SAÚDE PETROBRAS"
 NAO_INFORMADO = "Não informado"
-ROTULOS = {
-    "conciliado": "Conciliado",
-    "nao_localizado": "Não localizado",
-    "ambiguo": "Correspondência ambígua",
-    "dados_insuficientes": "Dados insuficientes",
-    "rascunho": "Rascunho",
-    "transmitindo": "Transmissão iniciada",
-    "envio_incerto": "Envio não confirmado",
-    "protocolado": "Protocolado",
-    "em_analise": "Em análise",
-    "respondido": "Respondido",
-}
 FILTROS_API = {
     "numero_protocolo": "protocolo",
     "nr_guia": "guia",
@@ -290,13 +278,6 @@ def follow_up_campos_extras(cards):
                     atendimento[chave] = NAO_INFORMADO
             for grupo in grupos:
                 for item in grupo.get("itens") or []:
-                    row = item["petrobras"]
-                    item["petrobras_status"] = (
-                        "Recurso: "
-                        + ROTULOS.get(row.get("recurso_estado"), NAO_INFORMADO),
-                        "Oracle: "
-                        + ROTULOS.get(row.get("cruzamento"), NAO_INFORMADO),
-                    ) + (("Acato registrado",) if row.get("acato") else ())
                     item["petrobras_json"] = json.dumps(
                         item["petrobras"], default=str, ensure_ascii=False
                     )
