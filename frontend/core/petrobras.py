@@ -283,9 +283,9 @@ def follow_up_campos_extras(cards):
                     row = item["petrobras"]
                     item["petrobras_status"] = (
                         "Recurso: "
-                        + ROTULOS.get(row.get("recurso_estado"), NAO_INFORMADO)
-                        + " · Oracle: "
-                        + ROTULOS.get(row.get("cruzamento"), NAO_INFORMADO)
+                        + ROTULOS.get(row.get("recurso_estado"), NAO_INFORMADO),
+                        "Oracle: "
+                        + ROTULOS.get(row.get("cruzamento"), NAO_INFORMADO),
                     )
                     item["petrobras_json"] = json.dumps(
                         item["petrobras"], default=str, ensure_ascii=False

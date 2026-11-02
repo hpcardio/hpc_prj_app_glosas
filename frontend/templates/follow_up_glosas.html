@@ -395,8 +395,10 @@
                             <span>Selecionar</span>
                           </label>
                           {% elif item.petrobras %}
-                          <button type="button" class="btn-glosar {% if item.petrobras.recurso_estado != 'rascunho' or item.petrobras.justificativa %}btn-glosar--filled{% endif %}" data-petrobras-item="{{ item.petrobras_json }}">+Recursar</button>
-                          <span class="petrobras-item-status">{{ item.petrobras_status }}</span>
+                          <div class="petrobras-item-action">
+                            <button type="button" class="btn-glosar {% if item.petrobras.recurso_estado != 'rascunho' or item.petrobras.justificativa %}btn-glosar--filled{% endif %}" data-petrobras-item="{{ item.petrobras_json }}">+Recursar</button>
+                            {% for linha in item.petrobras_status %}<span class="petrobras-item-status">{{ linha }}</span>{% endfor %}
+                          </div>
                           {% endif %}
                         </div>
 

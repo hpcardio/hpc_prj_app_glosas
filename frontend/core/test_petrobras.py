@@ -276,6 +276,8 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, "SENHA")
         self.assertContains(response, "B386348")
         self.assertContains(response, "data-petrobras-item=")
+        self.assertContains(response, 'class="petrobras-item-action"')
+        self.assertContains(response, "Oracle: Não localizado")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
         self.assertNotContains(response, "hx-get=\"/follow-up-glosas/?detalhar_processo=D1")

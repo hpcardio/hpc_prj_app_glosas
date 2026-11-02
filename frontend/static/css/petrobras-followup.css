@@ -50,7 +50,9 @@
 @media(max-width:480px) { .petrobras-filters { grid-template-columns: 1fr; } .petrobras-actions > label { width: 100%; } }
 
 /* Payer items live in the standard Follow-Up cards; the appeal opens here. */
-.petrobras-item-status { display: block; margin-top: 4px; color: #526d79; font-size: .75rem; }
+.petrobras-item-action { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.petrobras-item-action .btn-glosar { flex-shrink: 0; white-space: nowrap; }
+.petrobras-item-status { display: block; max-width: 100%; color: #526d79; font-size: .72rem; line-height: 1.25; text-align: center; white-space: normal; overflow-wrap: anywhere; }
 .petrobras-dialog { width: min(980px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 20px; border: 1px solid #cedfe5; border-radius: 8px; color: #183c4d; overflow: auto; }
 .petrobras-dialog::backdrop { background: rgba(24, 60, 77, .45); }
 .petrobras-dialog-header { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
