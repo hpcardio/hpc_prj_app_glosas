@@ -272,6 +272,7 @@
             <button type="button" class="follow-up-glosa-patient-header{% if atendimento.campos_extras %} follow-up-glosa-patient-header--extras{% endif %}" @click="patientOpen = !patientOpen" :aria-expanded="patientOpen">
               <span class="follow-up-glosa-chevron" :class="{ 'is-open': patientOpen }">&#9654;</span>
               <span class="follow-up-glosa-card-field"><small>PACIENTE</small><strong>{{ atendimento.nm_paciente|default:"-" }}</strong></span>
+              {% if atendimento.carteira %}<span class="follow-up-glosa-card-field"><small>CARTEIRA</small><strong>{{ atendimento.carteira }}</strong></span>{% endif %}
               <span class="follow-up-glosa-card-field"><small>CÓD. ATENDIMENTO</small><strong>{{ atendimento.cd_atendimento|default:"-" }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>TIPO ATENDIMENTO</small><strong>{{ atendimento.tp_atendimento|default:"-" }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>DT. ATENDIMENTO</small><strong>{{ atendimento.dt_atendimento_formatada|default:"-" }}</strong></span>

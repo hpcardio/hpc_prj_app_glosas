@@ -268,10 +268,10 @@ def follow_up_campos_extras(cards):
             grupos = atendimento.get("grupos_procedimento") or [{}]
             item = (grupos[0].get("itens") or [{}])[0]
             fonte = (item.get("petrobras") or {}).get("fonte") or {}
+            # Guide = senha, or numeroGuiaPrestador when the payer sent none.
+            atendimento["carteira"] = fonte.get("carteira") or NAO_INFORMADO
             atendimento["campos_extras"] = [
-                ("SENHA", item.get("senha") or NAO_INFORMADO),
-                ("GUIA DO PRESTADOR", item.get("nr_guia") or NAO_INFORMADO),
-                ("CARTEIRA", fonte.get("carteira") or NAO_INFORMADO),
+                ("GUIA", item.get("senha") or item.get("nr_guia") or NAO_INFORMADO),
             ]
             for chave in ("cd_atendimento", "tp_atendimento"):
                 atendimento[chave] = atendimento.get(chave) or NAO_INFORMADO
