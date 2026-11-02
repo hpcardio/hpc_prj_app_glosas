@@ -166,8 +166,9 @@ def _item(row):
         "ds_gru_fat": oracle.get("ds_gru_fat"),
         "descricao": oracle.get("descricao") or fonte.get("descricao"),
         "nr_guia": _sem_zeros(row.get("guia_prestador")),
-        # The payer senha is the MV NR_GUIA used to link with Oracle.
-        "senha": _sem_zeros(fonte.get("senha")),
+        # The payer senha is the MV NR_GUIA used to link with Oracle; a
+        # reissue without it uses the senha of the same guide (senha_guia).
+        "senha": _sem_zeros(fonte.get("senha") or row.get("senha_guia")),
         "numero_protocolo": fonte.get("protocolo"),
         "numero_lote": fonte.get("lote"),
         "dt_atendimento": oracle.get("dt_atendimento"),
