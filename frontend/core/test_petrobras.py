@@ -310,6 +310,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, ">+Acatar</button>")
         self.assertContains(response, "Conferir todos no MV Sistema")
         self.assertNotContains(response, "Conferir todos no Oracle")
+        self.assertContains(response, "?v=20261102-dados")
         self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
@@ -340,3 +341,16 @@ class PetrobrasFollowUpViewTests(TestCase):
         response = self.client.get("/follow-up-glosas/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Demonstrativos Petrobras temporariamente indisponíveis")
+
+
+class PetrobrasModalScriptTests(SimpleTestCase):
+    def test_modal_shows_item_data_without_origin_split(self):
+        from pathlib import Path
+        from django.conf import settings
+        js = (Path(settings.BASE_DIR) / "static/js/petrobras-followup.js").read_text()
+        self.assertNotIn("Retorno parcial da operadora", js)
+        self.assertNotIn("Conferência operadora x MV Sistema", js)
+        self.assertIn("'Dados do item'", js)
+        self.assertLess(js.index("reasons(box,row);"), js.index("details(box,row);"))
+        for label in ["Paciente", "Atendimento", "Carteira", "Guia (senha)", "Lote", "Cód. do procedimento", "Procedimento", "Data de realização", "Quantidade", "Valor"]:
+            self.assertIn(f"['{label}',", js)
