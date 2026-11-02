@@ -224,6 +224,12 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
             [len(p["itens"]) for p in card["pacientes"]], [2, 1]
         )
 
+    def test_guide_senha_fills_reissue_without_senha(self):
+        row = petrobras_row(1, None, senha=None)
+        row["senha_guia"] = "B542433"
+        card = petrobras.follow_up_cards({"demonstrativos": ["D1"], "items": [row]})[0]
+        self.assertEqual(card["pacientes"][0]["itens"][0]["senha"], "B542433")
+
     def test_missing_payer_values_stay_unknown(self):
         row = petrobras_row(1, None, valor_processado=None, valor_informado=None)
         card = petrobras.follow_up_cards({"demonstrativos": ["D1"], "items": [row]})[0]
