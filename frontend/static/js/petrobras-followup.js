@@ -58,44 +58,37 @@
   function warnings(box, row) {
     const list=[];
     if(!row.presente_na_fonte)list.push('Não consta na última versão do demonstrativo; histórico preservado.');
-    if(row.fonte.cobertura==='parcial_nao_confirmada')list.push('Retorno parcial da operadora. Os totais gerais podem incluir outras guias.');
     (row.fonte.avisos||[]).forEach(m=>list.push(m));
     if(row.erro_oracle)list.push(mv(row.erro_oracle));
     if(list.length){const w=el('div',null,box,'petrobras-alerts');list.forEach(m=>el('p',m,w));}
   }
   const digits = v => String(v ?? '').trim().replace(/^0+(?=.)/, '');
   const num = v => v == null || v === '' ? null : Number(v);
-  // Same key the API uses: carteira + senha (MV NR_GUIA) + procedimento.
-  function conference(box,row) {
-    const sec=section(box,'Conferência operadora x MV Sistema');
-    const o=row.oracle||{}, f=row.fonte;
+  // One value per field; the API key (carteira + senha + procedimento) and
+  // the other comparable fields only flag a divergence.
+  function details(box,row) {
+    const sec=section(box,'Dados do item');
+    const o=row.oracle||{}, f=row.fonte, has=v=>v!=null&&v!=='';
     const senha=f.senha || row.senha_guia;
-    const rows=[
-      ['Paciente','—',o.nm_paciente,null],
-      ['Carteira',f.carteira,o.nr_carteira,(a,b)=>digits(a)===digits(b)],
-      ['Guia (senha)',senha ? senha+(f.senha?'':' · mesma guia') : null,o.nr_guia,()=>digits(senha)===digits(o.nr_guia)],
-      ['Código do procedimento',row.tuss,o.cd_pro_fat,(a,b)=>digits(a)===digits(b)],
-      ['Descrição',f.descricao,o.descricao,null],
-      ['Data de realização',dateBr(f.data_realizacao),dateBr(o.data_realizacao),(a,b)=>a===b],
-      ['Quantidade',f.quantidade,o.quantidade,(a,b)=>num(a)===num(b)],
-      ['Valor',f.valor_informado,o.valor,(a,b)=>num(a)===num(b)],
+    const pick=(a,b)=>has(a)?a:b;
+    const entries=[
+      ['Paciente',o.nm_paciente,null,'wide'],
+      ['Atendimento',o.cd_atendimento],
+      ['Carteira',pick(f.carteira,o.nr_carteira),[f.carteira,o.nr_carteira,(a,b)=>digits(a)===digits(b)]],
+      ['Guia (senha)',pick(senha,o.nr_guia),[senha,o.nr_guia,(a,b)=>digits(a)===digits(b)]],
+      ['Lote',f.lote],
+      ['Cód. do procedimento',pick(row.tuss,o.cd_pro_fat),[row.tuss,o.cd_pro_fat,(a,b)=>digits(a)===digits(b)]],
+      ['Data de realização',dateBr(pick(f.data_realizacao,o.data_realizacao)),[f.data_realizacao,o.data_realizacao,(a,b)=>String(a).slice(0,10)===String(b).slice(0,10)]],
+      ['Procedimento',pick(o.descricao,f.descricao),null,'wide'],
+      ['Quantidade',pick(f.quantidade,o.quantidade),[f.quantidade,o.quantidade,(a,b)=>num(a)===num(b)]],
+      ['Valor',has(pick(f.valor_informado,o.valor))?money(pick(f.valor_informado,o.valor)):null,[f.valor_informado,o.valor,(a,b)=>num(a)===num(b)]],
     ];
-    const table=el('table',null,sec,'petrobras-compare');
-    const head=el('tr',null,el('thead',null,table));['Campo','Operadora (Petrobras)','MV Sistema','Conferência'].forEach(t=>el('th',t,head));
-    const body=el('tbody',null,table);
-    rows.forEach(([label,a,b,same])=>{
-      const tr=el('tr',null,body);el('th',label,tr).scope='row';
-      const show=v=>label==='Valor'&&v!=null&&v!==''?money(v):value(v);
-      el('td',show(a),tr);el('td',row.oracle?show(b):'—',tr);
-      const cell=el('td',null,tr);
-      if(!same||!row.oracle)return;
-      const ok=a!=null&&a!==''&&b!=null&&b!==''&&same(a,b);
-      el('span',ok?'Confere':'Divergente',cell,'petrobras-chip '+(ok?'petrobras-chip--ok':'petrobras-chip--warn'));
+    const grid=el('div',null,sec,'petrobras-datagrid');
+    entries.forEach(([label,v,check,wide])=>{
+      const c=el('div',null,grid,'petrobras-datum'+(wide?' petrobras-datum--wide':''));
+      el('span',label,c);el('strong',value(v),c);
+      if(check&&row.oracle&&has(check[0])&&has(check[1])&&!check[2](check[0],check[1])){c.classList.add('petrobras-datum--warn');chip(c,'Divergente','warn');}
     });
-    const ids=el('div',null,sec,'petrobras-ids');
-    const side=(title,entries)=>{const d=el('div',null,ids);el('span',title,d,'petrobras-ids-title');fields(d,entries);};
-    side('Operadora',[['Guia do prestador',digits(row.guia_prestador)||null],['Guia operadora',row.guia_operadora],['Lote',f.lote],['Data emissão',dateBr(f.data_emissao)]]);
-    side('MV Sistema',[['Atendimento',o.cd_atendimento],['Remessa',o.cd_remessa],['Conta',o.cd_reg],['Lançamento',o.cd_lancamento]]);
     if(!row.oracle)el('p',`Sem vínculo confirmado no MV Sistema pela chave carteira + senha + procedimento. Candidatos: ${row.candidatos}.`,sec,'petrobras-muted');
     if((row.divergencias||[]).length){const n=el('ul',null,sec,'petrobras-notes');row.divergencias.forEach(d=>el('li',mv(d),n));}
     const tools=el('div',null,sec,'petrobras-actions petrobras-actions--compact');
@@ -115,8 +108,8 @@
     get('dialog-title').textContent = 'Recurso pela integração Petrobras';
     header(box,row,`Demonstrativo ${value(row.demonstrativo)} · Protocolo ${value(row.fonte.protocolo)}`);
     warnings(box,row);
-    conference(box,row);
     reasons(box,row);
+    details(box,row);
     const editable=!readOnly&&row.recurso_estado==='rascunho';
     const edit=section(box,'Justificativa e prazo','petrobras-appeal');
     const justification=input(edit,'Justificativa','textarea',row.justificativa,500);justification.disabled=!editable;
