@@ -11,11 +11,12 @@ from .services import ApiError, api_get, api_request
 PATHS = {
     "GET": r"(status|glosas|protocolos|execucoes|glosas/[1-9][0-9]*/(anexos|historico)|glosas/[1-9][0-9]*/anexos/[1-9][0-9]*)",
     "POST": r"(protocolos|competencias/sincronizar|glosas/cruzar|protocolos/[1-9][0-9]*/sincronizar|glosas/[1-9][0-9]*/(cruzar|anexos|enviar|consultar-recurso))",
-    "PUT": r"glosas/[1-9][0-9]*/rascunho",
+    "PUT": r"glosas/[1-9][0-9]*/(rascunho|acato)",
+    "DELETE": r"glosas/[1-9][0-9]*/acato",
 }
 
 
-@require_http_methods(["GET", "POST", "PUT"])
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def bridge(request, endpoint):
     if not settings.PETROBRAS_ENABLED or not re.fullmatch(
         PATHS[request.method], endpoint
@@ -29,7 +30,7 @@ def bridge(request, endpoint):
     kwargs = {"params": {
         key: value for key, value in request.GET.items() if value.strip()
     }} if request.method == "GET" else {}
-    if request.method != "GET":
+    if request.method in ("POST", "PUT"):
         try:
             kwargs["json"] = json.loads(request.body or b"{}")
         except (ValueError, UnicodeDecodeError):
@@ -144,11 +145,19 @@ def _tratado(row):
     return row.get("recurso_estado") not in (None, "", "rascunho")
 
 
+def _valor_tratado(row, glosa):
+    """API value covers sent appeals and internal acato."""
+    valor = _decimal(row.get("valor_tratado"))
+    if valor is not None:
+        return valor
+    return glosa if _tratado(row) else Decimal(0)
+
+
 def _item(row):
     fonte = row.get("fonte") or {}
     oracle = row.get("oracle") or {}
     glosa = _decimal(row.get("valor_glosa")) or Decimal(0)
-    tratado = glosa if _tratado(row) else Decimal(0)
+    tratado = _valor_tratado(row, glosa)
     motivos = [m.get("codigo") for m in fonte.get("motivos") or []]
     return {
         "demonstrativo_id_registro": f"petrobras-{row['id']}",
@@ -287,7 +296,7 @@ def follow_up_campos_extras(cards):
                         + ROTULOS.get(row.get("recurso_estado"), NAO_INFORMADO),
                         "Oracle: "
                         + ROTULOS.get(row.get("cruzamento"), NAO_INFORMADO),
-                    )
+                    ) + (("Acato registrado",) if row.get("acato") else ())
                     item["petrobras_json"] = json.dumps(
                         item["petrobras"], default=str, ensure_ascii=False
                     )
