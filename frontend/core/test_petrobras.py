@@ -308,6 +308,8 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertNotContains(response, "Oracle: Não localizado")
         self.assertNotContains(response, "Recurso: Rascunho")
         self.assertContains(response, ">+Acatar</button>")
+        self.assertContains(response, "Conferir todos no MV Sistema")
+        self.assertNotContains(response, "Conferir todos no Oracle")
         self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
