@@ -63,6 +63,18 @@ class PetrobrasTests(SimpleTestCase):
         self.assertEqual(petrobras.bridge(req, "glosas/cruzar").status_code, 403)
 
     @patch("core.petrobras.api_request")
+    def test_internal_acato_is_proxied(self, api):
+        api.return_value = Mock(status_code=200, content=b"{}", headers={})
+        req = self.request("put", {"data": "2026-11-02", "quantidade": "1", "valor": "1.00"})
+        self.assertEqual(petrobras.bridge(req, "glosas/7/acato").status_code, 200)
+        self.assertEqual(api.call_args.args[:2], ("PUT", "/app_glosas/petrobras/glosas/7/acato"))
+        self.assertEqual(api.call_args.kwargs["json"]["valor"], "1.00")
+        self.assertEqual(petrobras.bridge(self.request("delete"), "glosas/7/acato").status_code, 200)
+        self.assertEqual(api.call_args.args[:2], ("DELETE", "/app_glosas/petrobras/glosas/7/acato"))
+        self.assertNotIn("json", api.call_args.kwargs)
+        self.assertEqual(petrobras.bridge(self.request("delete"), "glosas/7/rascunho").status_code, 404)
+
+    @patch("core.petrobras.api_request")
     def test_readonly_cannot_mutate(self, api):
         req = self.request("post")
         req.session["api_user"]["perfil"] = "leitura"
@@ -230,6 +242,13 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
         card = petrobras.follow_up_cards({"demonstrativos": ["D1"], "items": [row]})[0]
         self.assertEqual(card["pacientes"][0]["itens"][0]["senha"], "B542433")
 
+    def test_internal_acato_counts_as_treated(self):
+        row = petrobras_row(1, ORACLE)
+        row["acato"] = {"valor": "0.01", "data": "2026-11-02"}
+        row["valor_tratado"] = "0.01"
+        cards = petrobras.follow_up_cards({"demonstrativos": ["D1"], "items": [row]})
+        self.assertEqual(str(cards[0]["valor_total_tratado"]), "0.01")
+
     def test_missing_payer_values_stay_unknown(self):
         row = petrobras_row(1, None, valor_processado=None, valor_informado=None)
         card = petrobras.follow_up_cards({"demonstrativos": ["D1"], "items": [row]})[0]
@@ -287,6 +306,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, "data-petrobras-item=")
         self.assertContains(response, 'class="petrobras-item-action"')
         self.assertContains(response, "Oracle: Não localizado")
+        self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
         self.assertNotContains(response, "hx-get=\"/follow-up-glosas/?detalhar_processo=D1")

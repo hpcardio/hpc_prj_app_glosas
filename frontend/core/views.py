@@ -6879,8 +6879,13 @@ def follow_up_glosas(request):
                 dados_petrobras.get("quantidade_glosas")
             )
             resumo["valor_total_glosado"] += glosado
+            # Sent appeals and internal acato are reported separately.
+            acatado = as_float_or_zero(
+                dados_petrobras.get("valor_total_acatado")
+            )
             resumo["valor_total_tratado"] += tratado
-            resumo["valor_total_recursado"] += tratado
+            resumo["valor_total_recursado"] += tratado - acatado
+            resumo["valor_total_acatado"] += acatado
             resumo["valor_total_pendente"] += glosado - tratado
 
     if detalhar_card and not cards:
