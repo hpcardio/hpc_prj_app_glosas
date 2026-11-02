@@ -382,7 +382,7 @@
                         <div class="follow-up-glosa-actions">
                           {% if item.tratativa_disponivel or item.registro_glosa.id %}
                           <button type="button" class="btn-glosar {% if item.registro_recusa.id %}btn-glosar--filled{% endif %}" @click="openTreatment('recursar')">+Recursar</button>
-                          <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+ACATO</button>
+                          <button type="button" class="btn-acatar {% if item.registro_acato.id %}btn-acatar--filled{% endif %}" @click="openTreatment('acatar')">+Acatar</button>
                           <label class="follow-up-item-selector" title="Selecionar item">
                             {% if item.recurso_preenchido and not item.acato_preenchido %}
                             <input type="checkbox" form="follow-up-batch-{{ atendimento.estado_dom_id }}" name="registros_selecionados" value="recurso:{{ item.registro_recusa.id }}" data-treatment-type="recurso" :checked="selectedForms.includes('{{ item.tratativa_dom_id }}')" @change="$dispatch('follow-up-select-item', { formId: '{{ item.tratativa_dom_id }}', checked: $event.target.checked }); updateBatchSelection()">
@@ -399,9 +399,8 @@
                           <div class="petrobras-item-action">
                             <div class="petrobras-item-buttons">
                               <button type="button" class="btn-glosar {% if item.petrobras.recurso_estado != 'rascunho' or item.petrobras.justificativa %}btn-glosar--filled{% endif %}" data-petrobras-item="{{ item.petrobras_json }}">+Recursar</button>
-                              <button type="button" class="btn-acatar {% if item.petrobras.acato %}btn-acatar--filled{% endif %}" data-petrobras-acato="{{ item.petrobras_json }}">+ACATO</button>
+                              <button type="button" class="btn-acatar {% if item.petrobras.acato %}btn-acatar--filled{% endif %}" data-petrobras-acato="{{ item.petrobras_json }}">+Acatar</button>
                             </div>
-                            {% for linha in item.petrobras_status %}<span class="petrobras-item-status">{{ linha }}</span>{% endfor %}
                           </div>
                           {% endif %}
                         </div>
