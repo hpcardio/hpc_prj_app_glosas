@@ -9,10 +9,12 @@
   const get = role => root.querySelector(`[data-role="${role}"]`) || dialog.querySelector(`[data-role="${role}"]`);
   const readOnly = root.dataset.readonly === 'true';
   const token = root.querySelector('[name=csrfmiddlewaretoken]').value;
-  const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no Oracle',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada'};
+  const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no MV Sistema',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada'};
   let config = {}, busy = false, configLoaded = null;
+  const mv = t => String(t ?? '').replace(/\bOracle\b/g, 'MV Sistema');
   function el(tag, text, parent, cls) { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; if (parent) parent.append(n); return n; }
   function notice(text, error=false) {
+    text = mv(text);
     const target = dialog.open ? get('dialog-message') : get('message');
     target.textContent = text; target.className = error ? 'petrobras-warning' : '';
   }
@@ -47,7 +49,7 @@
     el('h3',`${value(row.tuss)} · ${value(row.oracle?.descricao || row.fonte.descricao)}`,top);
     const chips=el('div',null,top,'petrobras-chips');
     chip(chips,`Recurso: ${labels[row.recurso_estado] || row.recurso_estado}`);
-    chip(chips,`Oracle: ${labels[row.cruzamento] || row.cruzamento}`, row.cruzamento==='conciliado'?'ok':'warn');
+    chip(chips,`MV Sistema: ${labels[row.cruzamento] || row.cruzamento}`, row.cruzamento==='conciliado'?'ok':'warn');
     if(row.acato)chip(chips,`Acato: ${money(row.acato.valor)}`,'ok');
     const strip=el('div',null,box,'petrobras-summary');
     [['Valor informado',money(row.fonte.valor_informado)],['Valor glosado',money(row.valor_glosa)],['Valor liberado',money(row.fonte.valor_liberado)],['Quantidade',value(row.fonte.quantidade)],['Data realização',dateBr(row.fonte.data_realizacao)]]
@@ -58,27 +60,63 @@
     if(!row.presente_na_fonte)list.push('Não consta na última versão do demonstrativo; histórico preservado.');
     if(row.fonte.cobertura==='parcial_nao_confirmada')list.push('Retorno parcial da operadora. Os totais gerais podem incluir outras guias.');
     (row.fonte.avisos||[]).forEach(m=>list.push(m));
-    if(row.erro_oracle)list.push(row.erro_oracle);
+    if(row.erro_oracle)list.push(mv(row.erro_oracle));
     if(list.length){const w=el('div',null,box,'petrobras-alerts');list.forEach(m=>el('p',m,w));}
+  }
+  const digits = v => String(v ?? '').trim().replace(/^0+(?=.)/, '');
+  const num = v => v == null || v === '' ? null : Number(v);
+  // Same key the API uses: carteira + senha (MV NR_GUIA) + procedimento.
+  function conference(box,row) {
+    const sec=section(box,'Conferência operadora x MV Sistema');
+    const o=row.oracle||{}, f=row.fonte;
+    const senha=f.senha || row.senha_guia;
+    const rows=[
+      ['Paciente','—',o.nm_paciente,null],
+      ['Carteira',f.carteira,o.nr_carteira,(a,b)=>digits(a)===digits(b)],
+      ['Guia (senha)',senha ? senha+(f.senha?'':' · mesma guia') : null,o.nr_guia,()=>digits(senha)===digits(o.nr_guia)],
+      ['Código do procedimento',row.tuss,o.cd_pro_fat,(a,b)=>digits(a)===digits(b)],
+      ['Descrição',f.descricao,o.descricao,null],
+      ['Data de realização',dateBr(f.data_realizacao),dateBr(o.data_realizacao),(a,b)=>a===b],
+      ['Quantidade',f.quantidade,o.quantidade,(a,b)=>num(a)===num(b)],
+      ['Valor',f.valor_informado,o.valor,(a,b)=>num(a)===num(b)],
+    ];
+    const table=el('table',null,sec,'petrobras-compare');
+    const head=el('tr',null,el('thead',null,table));['Campo','Operadora (Petrobras)','MV Sistema','Conferência'].forEach(t=>el('th',t,head));
+    const body=el('tbody',null,table);
+    rows.forEach(([label,a,b,same])=>{
+      const tr=el('tr',null,body);el('th',label,tr).scope='row';
+      const show=v=>label==='Valor'&&v!=null&&v!==''?money(v):value(v);
+      el('td',show(a),tr);el('td',row.oracle?show(b):'—',tr);
+      const cell=el('td',null,tr);
+      if(!same||!row.oracle)return;
+      const ok=a!=null&&a!==''&&b!=null&&b!==''&&same(a,b);
+      el('span',ok?'Confere':'Divergente',cell,'petrobras-chip '+(ok?'petrobras-chip--ok':'petrobras-chip--warn'));
+    });
+    const ids=el('div',null,sec,'petrobras-ids');
+    const side=(title,entries)=>{const d=el('div',null,ids);el('span',title,d,'petrobras-ids-title');fields(d,entries);};
+    side('Operadora',[['Guia do prestador',digits(row.guia_prestador)||null],['Guia operadora',row.guia_operadora],['Lote',f.lote],['Data emissão',dateBr(f.data_emissao)]]);
+    side('MV Sistema',[['Atendimento',o.cd_atendimento],['Remessa',o.cd_remessa],['Conta',o.cd_reg],['Lançamento',o.cd_lancamento]]);
+    if(!row.oracle)el('p',`Sem vínculo confirmado no MV Sistema pela chave carteira + senha + procedimento. Candidatos: ${row.candidatos}.`,sec,'petrobras-muted');
+    if((row.divergencias||[]).length){const n=el('ul',null,sec,'petrobras-notes');row.divergencias.forEach(d=>el('li',mv(d),n));}
+    const tools=el('div',null,sec,'petrobras-actions petrobras-actions--compact');
+    button(tools,'Conferir novamente no MV Sistema',async()=>{await api(`glosas/${row.id}/cruzar`,'POST',{});reload('Conferência atualizada.');},readOnly);
+  }
+  function reasons(box,row) {
+    const sec=section(box,'Motivos da glosa');
+    const list=row.motivos||row.fonte.motivos||[];
+    if(!list.length){el('p','Não informado',sec,'petrobras-muted');return;}
+    const table=el('table',null,sec,'petrobras-compare petrobras-reasons-table');
+    const head=el('tr',null,el('thead',null,table));['Código','Descrição','Valor'].forEach(t=>el('th',t,head));
+    const body=el('tbody',null,table);
+    list.forEach(m=>{const tr=el('tr',null,body);el('td',value(m.codigo),tr);el('td',value(m.descricao),tr);el('td',m.valor!=null?money(m.valor):'Não informado',tr);});
   }
   function render(row) {
     const box = get('dialog-body'); box.replaceChildren(); get('dialog-message').textContent = '';
     get('dialog-title').textContent = 'Recurso pela integração Petrobras';
     header(box,row,`Demonstrativo ${value(row.demonstrativo)} · Protocolo ${value(row.fonte.protocolo)}`);
     warnings(box,row);
-    const compare=el('div',null,box,'petrobras-comparison');
-    const src=section(compare,'Dados da operadora');
-    const senha=row.fonte.senha || (row.senha_guia ? `${row.senha_guia} (mesma guia)` : null);
-    fields(src,[['Guia do prestador',row.guia_prestador],['Guia operadora',row.guia_operadora],['Senha',senha],['Carteira',row.fonte.carteira],['Lote',row.fonte.lote],['Data emissão',dateBr(row.fonte.data_emissao)]]);
-    const reasons=el('div',null,src,'petrobras-reasons');el('span','Motivos da glosa',reasons);
-    const ul=el('ul',null,reasons);(row.fonte.motivos||[]).forEach(m=>el('li',`${m.codigo || '-'}${m.valor != null ? ' · '+money(m.valor):''}`,ul));
-    if(!(row.fonte.motivos||[]).length)el('li','Não informado',ul);
-    const dst=section(compare,'Vínculo Oracle');
-    if(row.oracle)fields(dst,[['Paciente',row.oracle.nm_paciente,true],['Atendimento',row.oracle.cd_atendimento],['Remessa',row.oracle.cd_remessa],['Conta',row.oracle.cd_reg],['Lançamento',row.oracle.cd_lancamento],['Guia (NR_GUIA)',row.oracle.nr_guia],['Carteira',row.oracle.nr_carteira],['CD_PRO_FAT',row.oracle.cd_pro_fat],['Data lançamento',dateBr(row.oracle.data_realizacao)],['Quantidade',row.oracle.quantidade],['Valor',money(row.oracle.valor)]]);
-    else el('p',`Sem vínculo confirmado pela chave carteira + senha + procedimento. Candidatos: ${row.candidatos}.`,dst,'petrobras-muted');
-    if((row.divergencias||[]).length){const n=el('ul',null,dst,'petrobras-notes');row.divergencias.forEach(d=>el('li',d,n));}
-    const tools=el('div',null,dst,'petrobras-actions petrobras-actions--compact');
-    button(tools,'Conferir novamente no Oracle',async()=>{await api(`glosas/${row.id}/cruzar`,'POST',{});reload('Conferência atualizada.');},readOnly);
+    conference(box,row);
+    reasons(box,row);
     const editable=!readOnly&&row.recurso_estado==='rascunho';
     const edit=section(box,'Justificativa e prazo','petrobras-appeal');
     const justification=input(edit,'Justificativa','textarea',row.justificativa,500);justification.disabled=!editable;
@@ -122,7 +160,7 @@
     header(box,row,`Controle interno · Demonstrativo ${value(row.demonstrativo)} · Protocolo ${value(row.fonte.protocolo)}`);
     el('p','O acato fica registrado apenas no Receita Certa; nada é enviado à Petrobras.',box,'petrobras-muted');
     const glosa=section(box,'Processo original');
-    fields(glosa,[['Paciente',row.oracle?.nm_paciente],['Atendimento',row.oracle?.cd_atendimento],['Conta',row.oracle?.cd_reg],['Motivo da glosa',(row.fonte.motivos||[]).map(m=>m.codigo).join(', ')]]);
+    fields(glosa,[['Paciente',row.oracle?.nm_paciente],['Atendimento',row.oracle?.cd_atendimento],['Conta',row.oracle?.cd_reg],['Motivo da glosa',(row.motivos||row.fonte.motivos||[]).map(m=>m.descricao?`${m.codigo} - ${m.descricao}`:m.codigo).join('; '),true]]);
     const a=row.acato||{}, editable=!readOnly&&row.recurso_estado==='rascunho';
     const form=section(box,'Tratamento por acato');
     const r1=el('div',null,form,'petrobras-form-row');
@@ -155,7 +193,7 @@
     discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});reload(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
     sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');const r=await api(`protocolos/${id}/sincronizar`,'POST',{});reload(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
     'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},
-    'match-all':async()=>{const r=await api('glosas/cruzar','POST',{});reload(`${r.conferidos} registros conferidos no Oracle; ${r.alterados} atualizados.`);},
+    'match-all':async()=>{const r=await api('glosas/cruzar','POST',{});reload(`${r.conferidos} registros conferidos no MV Sistema; ${r.alterados} atualizados.`);},
   };
   root.querySelectorAll('[data-action]').forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly)b.disabled=true;});
   // Load protocol options only when the operator opens the controls.
