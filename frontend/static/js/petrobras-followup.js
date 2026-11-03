@@ -202,6 +202,7 @@
     sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');const r=await api(`protocolos/${id}/sincronizar`,'POST',{});reload(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
     'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},
     'match-all':async()=>{const r=await api('glosas/cruzar','POST',{});reload(`${r.conferidos} registros conferidos no MV Sistema; ${r.alterados} atualizados.`);},
+    'portal-detail':async()=>{notice('Consultando o portal Saúde Petrobras...');const r=await api('portal/detalhar','POST',{});const falhas=Object.entries(r.falhas||{}).map(([l,m])=>`lote ${l}: ${m}`).join('; ');reload(r.lotes?`${r.lotes_detalhados} de ${r.lotes} lotes detalhados; ${r.quantidade||0} itens importados.${falhas?' Pendentes: '+falhas:''}`:'Nenhuma glosa por guia pendente de detalhamento.');},
   };
   root.querySelectorAll('[data-action]').forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly)b.disabled=true;});
   // Load protocol options only when the operator opens the controls.
