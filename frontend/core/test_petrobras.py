@@ -310,6 +310,37 @@ class PetrobrasGlosaPorGuiaTests(SimpleTestCase):
         self.assertEqual(atendimento["carteira"], "000000000123")
         self.assertEqual(atendimento["campos_extras"], [("GUIA", "B507714")])
 
+    def test_guide_lists_mv_items_as_reference(self):
+        oracle = {
+            **ORACLE,
+            "itens": [
+                {"cd_pro_fat": "10101012", "cd_tuss": None, "descricao": "CONSULTA",
+                 "ds_gru_fat": "HONORARIOS", "quantidade": "1", "valor": "1000.00"},
+                {"cd_pro_fat": "90000001", "cd_tuss": "40301630", "descricao": "EXAME",
+                 "ds_gru_fat": None, "quantidade": "2", "valor": "29.50"},
+            ],
+        }
+        card = petrobras.follow_up_cards(
+            {"demonstrativos": ["1544637"], "items": [self.guide_row(oracle)]}
+        )[0]
+        item = card["pacientes"][0]["itens"][0]
+        self.assertEqual([i["codigo"] for i in item["itens_mv"]], ["10101012", "40301630"])
+        self.assertEqual(str(item["itens_mv"][1]["valor"]), "29.50")
+        self.assertNotIn("valor_glosa", item["itens_mv"][0])
+        # The guide glosa stays a single treatable row.
+        self.assertEqual(len(card["pacientes"][0]["itens"]), 1)
+        from pathlib import Path
+        from django.conf import settings
+        html = (Path(settings.BASE_DIR) / "templates/follow_up_glosas.html").read_text()
+        self.assertIn("{% for mv in item.itens_mv %}", html)
+        self.assertIn("a Petrobras não informa qual item foi glosado", html)
+
+    def test_item_glosa_has_no_mv_reference_list(self):
+        item = petrobras.follow_up_cards(
+            {"demonstrativos": ["D1"], "items": [petrobras_row(oracle=ORACLE)]}
+        )[0]["pacientes"][0]["itens"][0]
+        self.assertEqual(item["itens_mv"], [])
+
     def test_unmatched_guide_keeps_values_unknown(self):
         card = petrobras.follow_up_cards(
             {"demonstrativos": ["1544637"], "items": [self.guide_row(None)]}

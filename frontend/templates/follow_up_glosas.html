@@ -567,6 +567,20 @@
                         {% endif %}
                       </td>
                     </tr>
+                    {% if item.itens_mv %}
+                    <tr class="petrobras-mv-ref-head">
+                      <td colspan="9">Itens da conta no MV ({{ item.itens_mv|length }}) &middot; referência: a Petrobras não informa qual item foi glosado</td>
+                    </tr>
+                    {% for mv in item.itens_mv %}
+                    <tr class="petrobras-mv-ref">
+                      <td class="cell-mono">{{ mv.codigo|default:"-" }}</td>
+                      <td class="col-desc">{{ mv.descricao|default:"-" }}{% if mv.ds_gru_fat %} <small>{{ mv.ds_gru_fat }}</small>{% endif %}</td>
+                      <td class="cell-valor">{% if mv.valor is None %}-{% else %}R$ {{ mv.valor|br_currency }}{% endif %}</td>
+                      <td class="cell-mono cell-center">{% if mv.quantidade is None %}-{% else %}{{ mv.quantidade|floatformat:"-2" }}{% endif %}</td>
+                      <td colspan="5"></td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
                   </tbody>
                   {% endfor %}
                     </table>

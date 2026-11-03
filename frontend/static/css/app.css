@@ -15217,3 +15217,21 @@ button.follow-up-glosa-chevron:focus-visible {
   outline: 2px solid #1d7187;
   outline-offset: 1px;
 }
+
+/* Follow-Up Petrobras: MV account items shown as reference of a guide glosa. */
+.petrobras-mv-ref-head td {
+  padding: 4px 8px;
+  background: #f4f7f9;
+  color: #5b6b78;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.petrobras-mv-ref td {
+  color: #5b6b78;
+  font-size: 0.82rem;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.petrobras-mv-ref small {
+  color: #8a98a4;
+}
