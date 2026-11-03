@@ -79,6 +79,14 @@ class PetrobrasTests(SimpleTestCase):
         self.assertIn('data-action="portal-detail"', html)
         self.assertIn("api('portal/detalhar','POST',{})", js)
 
+    def test_send_respects_pilot_user_and_item_block(self):
+        from pathlib import Path
+        from django.conf import settings
+        js = (Path(settings.BASE_DIR) / "static/js/petrobras-followup.js").read_text()
+        self.assertIn("!config.transmissao_usuario||Boolean(row.bloqueio_envio)", js)
+        self.assertIn("el('p',row.bloqueio_envio,sendBox,'petrobras-warning')", js)
+        self.assertIn("Envio de recurso em piloto; seu usuário ainda não foi liberado.", js)
+
     @patch("core.petrobras.api_request")
     def test_internal_acato_is_proxied(self, api):
         api.return_value = Mock(status_code=200, content=b"{}", headers={})
@@ -482,7 +490,7 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
         self.assertIn("petrobras-followup.css' %}?v=20261103-modal-compacto", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261103-portal-itens", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261103-recurso-piloto", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path
