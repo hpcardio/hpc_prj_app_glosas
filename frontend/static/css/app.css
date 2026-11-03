@@ -15184,3 +15184,36 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .follow-up-compact .petrobras-panel > details > summary {
   font-size: 13px;
 }
+
+/* Follow-Up: only the chevron expands; header data stays selectable. */
+.follow-up-glosa-card-header,
+.follow-up-glosa-remessa-header,
+.follow-up-glosa-patient-header {
+  cursor: auto;
+  user-select: text;
+}
+button.follow-up-glosa-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -3px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+button.follow-up-glosa-chevron:hover {
+  border-color: #b9cfd9;
+  background: #fff;
+  color: #17647d;
+}
+button.follow-up-glosa-chevron:focus-visible {
+  outline: 2px solid #1d7187;
+  outline-offset: 1px;
+}

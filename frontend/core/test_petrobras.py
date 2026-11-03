@@ -409,6 +409,19 @@ class PetrobrasFollowUpViewTests(TestCase):
 
 
 class PetrobrasModalScriptTests(SimpleTestCase):
+    def test_only_chevron_expands_follow_up_cards(self):
+        from pathlib import Path
+        from django.conf import settings
+        html = (Path(settings.BASE_DIR) / "templates/follow_up_glosas.html").read_text()
+        for header in ("follow-up-glosa-card-header", "follow-up-glosa-remessa-header", "follow-up-glosa-patient-header"):
+            self.assertNotIn(f'<button type="button" class="{header}', html)
+            self.assertNotIn(f'class="{header}"\n            @click', html)
+        self.assertEqual(html.count('class="follow-up-glosa-chevron"'), 3)
+        for toggle in ('@click="open = !open"', '@click="toggleRemessa()"', '@click="patientOpen = !patientOpen"'):
+            self.assertEqual(html.count(toggle), 1)
+        css = (Path(settings.BASE_DIR) / "static/css/app.css").read_text()
+        self.assertIn("/* Follow-Up: only the chevron expands; header data stays selectable. */", css)
+
     def test_dialogs_are_compact_with_side_by_side_forms(self):
         from pathlib import Path
         from django.conf import settings
