@@ -145,3 +145,47 @@
 .petrobras-datum .petrobras-chip { margin-top: 6px; }
 @media (max-width: 900px) { .petrobras-datagrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .petrobras-datagrid { grid-template-columns: 1fr; } .petrobras-datum--wide { grid-column: auto; } }
+
+/* Compact dialogs: most of the record fits one screen; side-by-side forms. */
+.petrobras-dialog { width: min(1240px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 12px 16px; font-size: .88rem; }
+.petrobras-dialog-header h2 { font-size: 1rem; }
+.petrobras-dialog .btn { min-height: 30px; padding: 4px 10px; font-size: .85rem; }
+.petrobras-dialog .form-control, .petrobras-dialog .form-select { min-height: 30px; margin-top: 2px; padding: 4px 8px; font-size: .85rem; }
+.petrobras-dialog textarea.form-control { min-height: 52px; height: 52px; }
+.petrobras-dialog label { font-size: .78rem; }
+.petrobras-dialog-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.petrobras-dialog-body > * { grid-column: 1 / -1; }
+.petrobras-dialog-body > .petrobras-half { grid-column: auto; }
+.petrobras-dialog .petrobras-item-head h3 { margin: 0 0 4px; font-size: .95rem; }
+.petrobras-dialog .petrobras-eyebrow { font-size: .66rem; }
+.petrobras-dialog .petrobras-chip { padding: 1px 8px; font-size: .72rem; }
+.petrobras-dialog .petrobras-summary { gap: 6px; }
+.petrobras-dialog .petrobras-summary-card { padding: 4px 8px; border-left-width: 3px; }
+.petrobras-dialog .petrobras-summary-card span, .petrobras-dialog .petrobras-field span, .petrobras-dialog .petrobras-datum span:first-child { font-size: .62rem; }
+.petrobras-dialog .petrobras-summary-card strong { font-size: .9rem; margin-top: 0; }
+.petrobras-dialog .petrobras-alerts { padding: 5px 10px; font-size: .8rem; }
+.petrobras-dialog .petrobras-section { padding: 7px 10px; border-radius: 6px; }
+.petrobras-dialog .petrobras-section > h3 { margin: 0 0 5px; font-size: .7rem; }
+.petrobras-dialog .petrobras-compare { font-size: .82rem; }
+.petrobras-dialog .petrobras-compare th, .petrobras-dialog .petrobras-compare td { padding: 3px 8px; }
+.petrobras-dialog .petrobras-datagrid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.petrobras-dialog .petrobras-datum { padding: 4px 8px; border-radius: 6px; }
+.petrobras-dialog .petrobras-datum strong { margin-top: 0; font-size: .84rem; }
+.petrobras-dialog .petrobras-datum .petrobras-chip { margin-top: 2px; }
+.petrobras-dialog .petrobras-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 12px; }
+.petrobras-dialog .petrobras-half .petrobras-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.petrobras-dialog .petrobras-field strong { font-size: .84rem; margin-top: 0; }
+.petrobras-dialog .petrobras-form-row { gap: 6px 8px; margin-top: 4px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.petrobras-dialog .petrobras-actions { gap: 6px; margin: 6px 0 0; }
+.petrobras-dialog .petrobras-actions--compact, .petrobras-dialog .petrobras-actions--end { margin: 6px 0 0; }
+.petrobras-dialog .petrobras-notes { margin-top: 4px; font-size: .8rem; }
+.petrobras-dialog .petrobras-muted { font-size: .8rem; }
+.petrobras-dialog-body > p { margin: 0; }
+.petrobras-dialog details summary { font-size: .85rem; }
+.petrobras-dialog .petrobras-section details { margin: 6px 0 0; }
+@media (max-width: 900px) {
+  .petrobras-dialog-body { grid-template-columns: 1fr; }
+  .petrobras-dialog .petrobras-datagrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .petrobras-dialog .petrobras-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) { .petrobras-dialog .petrobras-datagrid, .petrobras-dialog .petrobras-fields { grid-template-columns: 1fr; } }
