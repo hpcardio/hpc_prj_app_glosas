@@ -3583,7 +3583,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20261103-petrobras-itens-mv',
+            '?v=20261103-protocolo-petro',
             base_template.read_text(),
         )
 
@@ -3591,9 +3591,9 @@ class FollowUpGlosasTests(TestCase):
         css = Path(finders.find('css/app.css')).read_text()
         bloco = css[css.index('/* Follow-Up: compact filters'):css.index('/* Triagem: filtros ordenados')]
 
-        self.assertIn('grid-template-columns: repeat(6, minmax(0, 1fr));', bloco)
+        self.assertIn('grid-template-columns: repeat(7, minmax(0, 1fr));', bloco)
         self.assertIn('height: 32px;', bloco)
-        self.assertIn('.follow-up-glosa-page .filter-actions {\n  grid-column: span 2;', bloco)
+        self.assertIn('.follow-up-glosa-page .filter-actions {\n  grid-column: span 3;', bloco)
 
     def test_cards_follow_up_compactos_somente_na_tela(self):
         css = Path(finders.find('css/app.css')).read_text()

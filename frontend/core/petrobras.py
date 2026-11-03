@@ -9,8 +9,8 @@ from django.views.decorators.http import require_http_methods
 from .services import ApiError, api_get, api_request
 
 PATHS = {
-    "GET": r"(status|glosas|protocolos|execucoes|glosas/[1-9][0-9]*/(anexos|historico)|glosas/[1-9][0-9]*/anexos/[1-9][0-9]*)",
-    "POST": r"(protocolos|competencias/sincronizar|glosas/cruzar|portal/detalhar|protocolos/[1-9][0-9]*/sincronizar|glosas/[1-9][0-9]*/(cruzar|anexos|enviar|consultar-recurso))",
+    "GET": r"(status|glosas|glosas/prontos|protocolos|execucoes|glosas/[1-9][0-9]*/(anexos|historico)|glosas/[1-9][0-9]*/anexos/[1-9][0-9]*)",
+    "POST": r"(protocolos|competencias/sincronizar|glosas/cruzar|glosas/enviar-lote|portal/detalhar|protocolos/[1-9][0-9]*/sincronizar|glosas/[1-9][0-9]*/(cruzar|anexos|enviar|consultar-recurso))",
     "PUT": r"glosas/[1-9][0-9]*/(rascunho|acato)",
     "DELETE": r"glosas/[1-9][0-9]*/acato",
 }
@@ -71,6 +71,8 @@ CONVENIO_PADRAO = "SAÚDE PETROBRAS"
 NAO_INFORMADO = "Não informado"
 FILTROS_API = {
     "numero_protocolo": "protocolo",
+    # Dedicated payer protocol filter; overrides Protocolo TRUE when both.
+    "protocolo_petro": "protocolo",
     "nr_guia": "guia",
     "numero_lote": "lote",
     "paciente": "paciente",

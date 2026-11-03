@@ -189,3 +189,8 @@
   .petrobras-dialog .petrobras-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) { .petrobras-dialog .petrobras-datagrid, .petrobras-dialog .petrobras-fields { grid-template-columns: 1fr; } }
+
+/* Batch transmission of saved appeal drafts. */
+.petrobras-batch { margin-top: 8px; padding: 10px 12px; border: 1px solid #dbe5ea; border-radius: 8px; background: #fbfdfe; }
+.petrobras-batch-list { margin: 6px 0; padding-left: 0; list-style: none; max-height: 260px; overflow: auto; }
+.petrobras-batch-list li { padding: 3px 0; border-bottom: 1px solid #eef3f5; font-size: 0.85rem; }

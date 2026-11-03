@@ -199,11 +199,41 @@
   dialog.querySelector('[data-dialog-close]').addEventListener('click', () => dialog.close());
   async function protocols(){const rows=await api('protocolos');const s=get('protocol'),selected=s.value;s.replaceChildren();el('option','Selecione',s).value='';rows.forEach(r=>{const o=el('option',r.numero,s);o.value=r.id;});s.value=selected;}
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
+  // Batch: drafts saved through +Recursar; each item is still its own TISS
+  // transmission, sent one by one with its result shown below.
+  function renderBatch(data){
+    const box=get('batch');box.replaceChildren();box.hidden=false;
+    el('h4','Recursos prontos para transmitir',box,'petrobras-subtitle');
+    const checks=[];
+    if(data.prontos.length){
+      const list=el('ul',null,box,'petrobras-batch-list');
+      data.prontos.forEach(r=>{const li=el('li',null,list),l=el('label',null,li,'petrobras-check'),c=el('input',null,l);c.type='checkbox';c.checked=checks.length<data.limite;c.dataset.id=r.id;c.dataset.versao=r.versao;checks.push(c);el('span',` ${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''} · ${money(r.valor_glosa)} · protocolo ${r.protocolo||'-'}`,l);});
+    } else el('p','Preencha a justificativa, o prazo e a origem em +Recursar e salve o rascunho.',box,'petrobras-muted');
+    if(data.pendencias.length){const d=el('details',null,box);el('summary',`${data.pendencias.length} rascunhos com pendência`,d);const ul=el('ul',null,d);data.pendencias.forEach(r=>el('li',`${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''}: ${r.pendencia}`,ul));}
+    if(!data.prontos.length)return;
+    const lab=el('label',null,box,'petrobras-check'),confirm=el('input',null,lab);confirm.type='checkbox';el('span',' Confirmo o envio dos recursos selecionados à Petrobras.',lab);
+    const tools=el('div',null,box,'petrobras-actions');
+    button(tools,'Transmitir selecionados',async()=>{
+      const itens=checks.filter(c=>c.checked).map(c=>({id:Number(c.dataset.id),versao:Number(c.dataset.versao)}));
+      if(!itens.length)throw new Error('Selecione ao menos um recurso.');
+      if(itens.length>data.limite)throw new Error(`Selecione no máximo ${data.limite} recursos por vez.`);
+      if(!confirm.checked)throw new Error('Marque a confirmação de envio.');
+      notice(`Transmitindo ${itens.length} recursos…`);
+      const r=await api('glosas/enviar-lote','POST',{itens,confirmar_envio:true});
+      box.replaceChildren();el('h4','Resultado da transmissão',box,'petrobras-subtitle');
+      const ul=el('ul',null,box,'petrobras-batch-list');
+      r.resultados.forEach(x=>el('li',`Item ${x.id}: ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · protocolo '+x.protocolo:''}${x.erro?' · '+x.erro:''}`,ul,x.erro?'petrobras-warning':''));
+      button(el('div',null,box,'petrobras-actions'),'Atualizar tela',async()=>reload(`${r.protocolados} de ${r.resultados.length} recursos protocolados.`));
+      notice(`${r.protocolados} de ${r.resultados.length} recursos protocolados.`,r.protocolados<r.resultados.length);
+    },readOnly||!data.usuario_liberado);
+    if(!data.usuario_liberado)el('p',config.transmissao_habilitada?'Envio de recurso em piloto; seu usuário ainda não foi liberado.':'Transmissão ainda não habilitada neste ambiente.',box,'petrobras-muted');
+  }
   const actions={
     discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});reload(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados; ${r.glosas_por_guia || 0} glosas por guia. ${(r.avisos || []).join(' ')}`);},
     sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');const r=await api(`protocolos/${id}/sincronizar`,'POST',{});reload(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
     'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},
     'match-all':async()=>{const r=await api('glosas/cruzar','POST',{});reload(`${r.conferidos} registros conferidos no MV Sistema; ${r.alterados} atualizados.`);},
+    'batch-list':async()=>{await loadConfig();const data=await api('glosas/prontos');renderBatch(data);notice(data.prontos.length?`${data.prontos.length} recursos prontos para transmitir.`:'Nenhum recurso pronto para transmitir.');},
     'portal-detail':async()=>{notice('Consultando o portal Saúde Petrobras...');const r=await api('portal/detalhar','POST',{});const falhas=Object.entries(r.falhas||{}).map(([l,m])=>`lote ${l}: ${m}`).join('; ');reload(r.lotes?`${r.lotes_detalhados} de ${r.lotes} lotes detalhados; ${r.quantidade||0} itens importados.${falhas?' Pendentes: '+falhas:''}`:'Nenhuma glosa por guia pendente de detalhamento.');},
   };
   root.querySelectorAll('[data-action]').forEach(b=>{b.addEventListener('click',()=>action(actions[b.dataset.action]));if(readOnly)b.disabled=true;});
