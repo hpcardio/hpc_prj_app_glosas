@@ -385,6 +385,16 @@ class PetrobrasGlosaPorGuiaTests(SimpleTestCase):
         )[0]["pacientes"][0]["itens"][0]
         self.assertEqual(item["itens_mv"], [])
 
+    def test_patient_name_comes_from_any_linked_item(self):
+        first = petrobras_row(1, None, demonstrativo="D1")
+        linked = petrobras_row(2, ORACLE, demonstrativo="D1")
+        card = petrobras.follow_up_cards(
+            {"demonstrativos": ["D1"], "items": [first, linked]}
+        )[0]
+        self.assertEqual(len(card["pacientes"]), 1)
+        self.assertEqual(card["pacientes"][0]["nm_paciente"], "Paciente Sintético")
+        self.assertEqual(card["pacientes"][0]["codigo_paciente"], 51)
+
     def test_unmatched_guide_keeps_values_unknown(self):
         card = petrobras.follow_up_cards(
             {"demonstrativos": ["1544637"], "items": [self.guide_row(None)]}
