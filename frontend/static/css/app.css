@@ -15069,3 +15069,61 @@ body:not(.sidebar-collapsed) .indicator-grid {
 @media(max-width:1200px) { .remessa-filters .filter-row.triagem-filter-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:760px) { .remessa-filters .filter-row.triagem-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:480px) { .remessa-filters .filter-row.triagem-filter-grid { grid-template-columns:minmax(0,1fr); } }
+
+/* Follow-Up: compact record cards so more of them fit on screen. */
+.follow-up-glosa-results .follow-up-glosa-card {
+  margin-bottom: 6px;
+}
+.follow-up-glosa-results .follow-up-glosa-card-header {
+  padding: 7px 14px 7px 10px;
+}
+.follow-up-glosa-results .follow-up-glosa-remessa-header {
+  padding: 6px 12px 6px 10px;
+}
+.follow-up-glosa-results .follow-up-glosa-patient-header {
+  padding: 6px 10px;
+}
+.follow-up-glosa-results .follow-up-glosa-card-field {
+  gap: 1px;
+}
+.follow-up-glosa-results .follow-up-glosa-pdf-action {
+  margin: 5px 8px 5px 0;
+}
+.follow-up-glosa-results .follow-up-glosa-card-body,
+.follow-up-glosa-results .follow-up-glosa-card-content {
+  gap: 6px;
+}
+.follow-up-glosa-results .follow-up-glosa-card-body {
+  padding: 6px;
+}
+.follow-up-glosa-results .follow-up-glosa-remessa-body {
+  padding: 6px;
+}
+.follow-up-glosa-results .follow-up-glosa-records-scroll {
+  padding: 6px 8px 8px;
+  scroll-padding-bottom: 8px;
+}
+.follow-up-glosa-results .follow-up-glosa-subsection-title {
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.follow-up-glosa-results .account-groups {
+  gap: 6px;
+}
+.follow-up-glosa-results .account-group-header {
+  min-height: 28px;
+  padding: 4px 10px 4px 14px;
+}
+.follow-up-glosa-results .account-group-count {
+  min-height: 18px;
+  padding: 1px 7px;
+}
+.follow-up-glosa-results .account-table thead th {
+  padding: 4px 6px;
+}
+.follow-up-glosa-results .account-table td {
+  padding: 4px 6px;
+}
+.follow-up-glosa-results :is(.btn-glosar, .btn-acatar) {
+  padding: 2px 5px;
+}
