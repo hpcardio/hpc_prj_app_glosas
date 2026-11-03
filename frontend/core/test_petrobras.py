@@ -375,7 +375,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, ">+Acatar</button>")
         self.assertContains(response, "Conferir todos no MV Sistema")
         self.assertNotContains(response, "Conferir todos no Oracle")
-        self.assertContains(response, "?v=20261102-dados")
+        self.assertContains(response, "?v=20261103-modal-compacto")
         self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
@@ -409,6 +409,20 @@ class PetrobrasFollowUpViewTests(TestCase):
 
 
 class PetrobrasModalScriptTests(SimpleTestCase):
+    def test_dialogs_are_compact_with_side_by_side_forms(self):
+        from pathlib import Path
+        from django.conf import settings
+        base = Path(settings.BASE_DIR)
+        css = (base / "static/css/petrobras-followup.css").read_text()
+        js = (base / "static/js/petrobras-followup.js").read_text()
+        html = (base / "templates/partials/petrobras_followup.html").read_text()
+        self.assertIn("/* Compact dialogs:", css)
+        self.assertIn(".petrobras-dialog-body > .petrobras-half { grid-column: auto; }", css)
+        for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
+            self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
+        self.assertIn("petrobras-followup.css' %}?v=20261103-modal-compacto", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261103-modal-compacto", html)
+
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path
         from django.conf import settings

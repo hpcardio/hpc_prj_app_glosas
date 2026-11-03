@@ -126,13 +126,13 @@
     reasons(box,row);
     details(box,row);
     const editable=!readOnly&&row.recurso_estado==='rascunho';
-    const edit=section(box,'Justificativa e prazo','petrobras-appeal');
+    const edit=section(box,'Justificativa e prazo','petrobras-appeal petrobras-half');
     const justification=input(edit,'Justificativa','textarea',row.justificativa,500);justification.disabled=!editable;
     const line=el('div',null,edit,'petrobras-form-row');
     const due=input(line,'Prazo confirmado','date',row.prazo),origin=input(line,'Origem da regra do prazo','text',row.origem_prazo,500);due.disabled=origin.disabled=!editable;
     const saveRow=el('div',null,edit,'petrobras-actions petrobras-actions--end');
     button(saveRow,'Salvar rascunho',async()=>{await api(`glosas/${row.id}/rascunho`,'PUT',{versao:row.versao,justificativa:justification.value,prazo:due.value||null,origem_prazo:origin.value||null});reload('Rascunho salvo.');},!editable);
-    const docs=section(box,'Comprovantes');
+    const docs=section(box,'Comprovantes','petrobras-half');
     const list=el('div',null,docs,'petrobras-docs');
     const docTools=el('div',null,docs,'petrobras-actions');
     button(docTools,'Listar comprovantes',async()=>{list.replaceChildren();const files=await api(`glosas/${row.id}/anexos`);if(!files.length)el('p','Nenhum comprovante anexado.',list,'petrobras-muted');files.forEach(a=>{const p=el('p',null,list),link=el('a',a.nome,p);link.href=base+`glosas/${row.id}/anexos/${a.id}`;el('span',` · ${labels[a.estado]||a.estado}${a.protocolo?' · Protocolo '+a.protocolo:''}`,p);});notice('Comprovantes carregados.');});
@@ -167,10 +167,10 @@
     get('dialog-title').textContent = 'Registro de acato';
     header(box,row,`Controle interno · Demonstrativo ${value(row.demonstrativo)} · Protocolo ${value(row.fonte.protocolo)}`);
     el('p','O acato fica registrado apenas no Receita Certa; nada é enviado à Petrobras.',box,'petrobras-muted');
-    const glosa=section(box,'Processo original');
+    const glosa=section(box,'Processo original','petrobras-half');
     fields(glosa,[['Paciente',row.oracle?.nm_paciente],['Atendimento',row.oracle?.cd_atendimento],['Conta',row.oracle?.cd_reg],['Motivo da glosa',(row.motivos||row.fonte.motivos||[]).map(m=>m.descricao?`${m.codigo} - ${m.descricao}`:m.codigo).join('; '),true]]);
     const a=row.acato||{}, editable=!readOnly&&row.recurso_estado==='rascunho';
-    const form=section(box,'Tratamento por acato');
+    const form=section(box,'Tratamento por acato','petrobras-half');
     const r1=el('div',null,form,'petrobras-form-row');
     const lote=input(r1,'Lote','text',a.lote||row.fonte.lote,255),data=input(r1,'Data do acato *','date',a.data||new Date().toISOString().slice(0,10)),proc=input(r1,'Processo','text',a.processo,255);
     const r2=el('div',null,form,'petrobras-form-row');
