@@ -3583,7 +3583,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20261103-followup-filtros-compactos',
+            '?v=20261103-followup-cards-compactos',
             base_template.read_text(),
         )
 
@@ -3594,6 +3594,15 @@ class FollowUpGlosasTests(TestCase):
         self.assertIn('grid-template-columns: repeat(6, minmax(0, 1fr));', bloco)
         self.assertIn('height: 32px;', bloco)
         self.assertIn('.follow-up-glosa-page .filter-actions {\n  grid-column: span 2;', bloco)
+
+    def test_cards_follow_up_compactos_somente_na_tela(self):
+        css = Path(finders.find('css/app.css')).read_text()
+        bloco = css[css.index('/* Follow-Up: compact record cards'):]
+        template = (Path(finders.find('css/app.css')).parent.parent.parent / 'templates' / 'follow_up_glosas.html').read_text()
+
+        self.assertIn('results-summary-panel follow-up-glosa-results', template)
+        self.assertIn('.follow-up-glosa-results .follow-up-glosa-card {\n  margin-bottom: 6px;', bloco)
+        self.assertIn('.follow-up-glosa-results .account-table td {\n  padding: 4px 6px;', bloco)
 
     def test_lista_follow_up_reserva_coluna_fixa_para_pdf(self):
         css = Path(finders.find('css/app.css')).read_text()
