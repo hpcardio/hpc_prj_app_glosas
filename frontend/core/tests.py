@@ -3583,7 +3583,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20261103-followup-cards-compactos',
+            '?v=20261103-followup-pagina-compacta',
             base_template.read_text(),
         )
 
@@ -3603,6 +3603,15 @@ class FollowUpGlosasTests(TestCase):
         self.assertIn('results-summary-panel follow-up-glosa-results', template)
         self.assertIn('.follow-up-glosa-results .follow-up-glosa-card {\n  margin-bottom: 6px;', bloco)
         self.assertIn('.follow-up-glosa-results .account-table td {\n  padding: 4px 6px;', bloco)
+
+    def test_pagina_follow_up_compacta_somente_na_tela(self):
+        css = Path(finders.find('css/app.css')).read_text()
+        bloco = css[css.index('/* Follow-Up: compact page chrome'):]
+        template = (Path(finders.find('css/app.css')).parent.parent.parent / 'templates' / 'follow_up_glosas.html').read_text()
+
+        self.assertIn('{% block content_class %}follow-up-compact{% endblock %}', template)
+        self.assertIn('.content.follow-up-compact {\n  padding: 8px 14px;', bloco)
+        self.assertIn('.follow-up-compact .result-total {\n  min-height: 34px;', bloco)
 
     def test_lista_follow_up_reserva_coluna_fixa_para_pdf(self):
         css = Path(finders.find('css/app.css')).read_text()

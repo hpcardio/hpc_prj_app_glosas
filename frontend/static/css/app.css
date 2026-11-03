@@ -15127,3 +15127,60 @@ body:not(.sidebar-collapsed) .indicator-grid {
 .follow-up-glosa-results :is(.btn-glosar, .btn-acatar) {
   padding: 2px 5px;
 }
+
+/* Follow-Up: compact page chrome so the record list gets more height. */
+.content.follow-up-compact {
+  padding: 8px 14px;
+  gap: 6px;
+}
+.follow-up-compact .topbar {
+  min-height: 40px;
+}
+.follow-up-compact .topbar h1 {
+  font-size: 20px;
+  margin: 0;
+}
+.follow-up-compact .topbar-account {
+  padding: 3px 6px 3px 8px;
+}
+.follow-up-compact .topbar-account-mark {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+}
+.follow-up-compact .panel {
+  margin-bottom: 0;
+}
+.follow-up-compact .follow-up-glosa-results {
+  padding: 8px 10px;
+}
+.follow-up-compact .follow-up-glosa-results .panel-header {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.follow-up-compact .results-heading .panel-title,
+.follow-up-compact .results-heading .results-subtitle {
+  display: inline;
+}
+.follow-up-compact .results-heading .results-subtitle {
+  margin: 0 0 0 10px;
+}
+.follow-up-compact .collapse-action {
+  padding: 3px 9px;
+}
+.follow-up-compact .results-toolbar {
+  padding: 4px 6px;
+}
+.follow-up-compact .results-totals {
+  gap: 6px;
+}
+.follow-up-compact .result-total {
+  min-height: 34px;
+  padding: 3px 9px;
+}
+.follow-up-compact .result-total strong {
+  font-size: 15px;
+}
+.follow-up-compact .petrobras-panel > details > summary {
+  font-size: 13px;
+}
