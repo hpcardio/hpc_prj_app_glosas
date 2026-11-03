@@ -43,16 +43,20 @@
   function fields(parent, entries) { const grid = el('div',null,parent,'petrobras-fields'); entries.forEach(([k,v,wide])=>{const f=el('div',null,grid,'petrobras-field'+(wide?' petrobras-field--wide':''));el('span',k,f);el('strong',value(v),f);}); return grid; }
   function section(parent, title, cls='') { const s=el('section',null,parent,'petrobras-section '+cls); if (title) el('h3',title,s); return s; }
   function chip(parent, text, tone='') { return el('span',text,parent,'petrobras-chip'+(tone?' petrobras-chip--'+tone:'')); }
+  // Payment demonstrativo glosa: informed per guide, without items or reasons.
+  const byGuide = row => row.fonte.escopo === 'guia_pagamento';
   function header(box, row, eyebrow) {
     const top=el('div',null,box,'petrobras-item-head');
+    const guide=byGuide(row), f=row.fonte;
     el('span',eyebrow,top,'petrobras-eyebrow');
-    el('h3',`${value(row.tuss)} · ${value(row.oracle?.descricao || row.fonte.descricao)}`,top);
+    el('h3',guide?`Guia ${value(f.senha || row.guia_prestador)} · ${value(f.descricao)}`:`${value(row.tuss)} · ${value(row.oracle?.descricao || f.descricao)}`,top);
     const chips=el('div',null,top,'petrobras-chips');
     chip(chips,`Recurso: ${labels[row.recurso_estado] || row.recurso_estado}`);
     chip(chips,`MV Sistema: ${labels[row.cruzamento] || row.cruzamento}`, row.cruzamento==='conciliado'?'ok':'warn');
     if(row.acato)chip(chips,`Acato: ${money(row.acato.valor)}`,'ok');
     const strip=el('div',null,box,'petrobras-summary');
-    [['Valor informado',money(row.fonte.valor_informado)],['Valor glosado',money(row.valor_glosa)],['Valor liberado',money(row.fonte.valor_liberado)],['Quantidade',value(row.fonte.quantidade)],['Data realização',dateBr(row.fonte.data_realizacao)]]
+    (guide?[['Valor processado',money(f.valor_processado)],['Valor glosado',money(row.valor_glosa)],['Valor liberado',money(f.valor_liberado)],['Data de pagamento',dateBr(f.data_pagamento)]]
+      :[['Valor informado',money(f.valor_informado)],['Valor glosado',money(row.valor_glosa)],['Valor liberado',money(f.valor_liberado)],['Quantidade',value(f.quantidade)],['Data realização',dateBr(f.data_realizacao)]])
       .forEach(([k,v],i)=>{const c=el('div',null,strip,'petrobras-summary-card'+(i===1?' petrobras-summary-card--danger':''));el('span',k,c);el('strong',v,c);});
   }
   function warnings(box, row) {
@@ -67,11 +71,22 @@
   // One value per field; the API key (carteira + senha + procedimento) and
   // the other comparable fields only flag a divergence.
   function details(box,row) {
-    const sec=section(box,'Dados do item');
+    const guide=byGuide(row);
+    const sec=section(box,guide?'Dados da guia':'Dados do item');
     const o=row.oracle||{}, f=row.fonte, has=v=>v!=null&&v!=='';
     const senha=f.senha || row.senha_guia;
     const pick=(a,b)=>has(a)?a:b;
-    const entries=[
+    const entries=guide?[
+      ['Paciente',o.nm_paciente,null,'wide'],
+      ['Atendimento',o.cd_atendimento],
+      ['Carteira',o.nr_carteira],
+      ['Guia (senha)',pick(senha,o.nr_guia),[senha,o.nr_guia,(a,b)=>digits(a)===digits(b)]],
+      ['Lote',f.lote],
+      ['Remessa MV',o.cd_remessa],
+      ['Data de atendimento',dateBr(o.dt_atendimento)],
+      ['Itens no MV',o.itens_mv],
+      ['Valor no MV',has(o.valor_mv)?money(o.valor_mv):null],
+    ]:[
       ['Paciente',o.nm_paciente,null,'wide'],
       ['Atendimento',o.cd_atendimento],
       ['Carteira',pick(f.carteira,o.nr_carteira),[f.carteira,o.nr_carteira,(a,b)=>digits(a)===digits(b)]],
@@ -89,7 +104,7 @@
       el('span',label,c);el('strong',value(v),c);
       if(check&&row.oracle&&has(check[0])&&has(check[1])&&!check[2](check[0],check[1])){c.classList.add('petrobras-datum--warn');chip(c,'Divergente','warn');}
     });
-    if(!row.oracle)el('p',`Sem vínculo confirmado no MV Sistema pela chave carteira + senha + procedimento. Candidatos: ${row.candidatos}.`,sec,'petrobras-muted');
+    if(!row.oracle)el('p',guide?`Sem vínculo confirmado no MV Sistema pela senha da guia. Atendimentos encontrados: ${row.candidatos}.`:`Sem vínculo confirmado no MV Sistema pela chave carteira + senha + procedimento. Candidatos: ${row.candidatos}.`,sec,'petrobras-muted');
     if((row.divergencias||[]).length){const n=el('ul',null,sec,'petrobras-notes');row.divergencias.forEach(d=>el('li',mv(d),n));}
     const tools=el('div',null,sec,'petrobras-actions petrobras-actions--compact');
     button(tools,'Conferir novamente no MV Sistema',async()=>{await api(`glosas/${row.id}/cruzar`,'POST',{});reload('Conferência atualizada.');},readOnly);
@@ -97,7 +112,7 @@
   function reasons(box,row) {
     const sec=section(box,'Motivos da glosa');
     const list=row.motivos||row.fonte.motivos||[];
-    if(!list.length){el('p','Não informado',sec,'petrobras-muted');return;}
+    if(!list.length){el('p',byGuide(row)?'A operadora não detalhou os motivos: a glosa foi informada por guia no demonstrativo de pagamento.':'Não informado',sec,'petrobras-muted');return;}
     const table=el('table',null,sec,'petrobras-compare petrobras-reasons-table');
     const head=el('tr',null,el('thead',null,table));['Código','Descrição','Valor'].forEach(t=>el('th',t,head));
     const body=el('tbody',null,table);
@@ -183,7 +198,7 @@
   async function protocols(){const rows=await api('protocolos');const s=get('protocol'),selected=s.value;s.replaceChildren();el('option','Selecione',s).value='';rows.forEach(r=>{const o=el('option',r.numero,s);o.value=r.id;});s.value=selected;}
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
   const actions={
-    discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});reload(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
+    discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});reload(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados; ${r.glosas_por_guia || 0} glosas por guia. ${(r.avisos || []).join(' ')}`);},
     sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');const r=await api(`protocolos/${id}/sincronizar`,'POST',{});reload(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},
     'add-protocol':async()=>{const numero=get('new-protocol').value.trim();await api('protocolos','POST',{numero});await protocols();notice('Protocolo adicionado.');},
     'match-all':async()=>{const r=await api('glosas/cruzar','POST',{});reload(`${r.conferidos} registros conferidos no MV Sistema; ${r.alterados} atualizados.`);},
