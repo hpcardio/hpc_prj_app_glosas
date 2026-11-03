@@ -235,10 +235,15 @@ def follow_up_cards(data):
                     item["senha"] or item["nr_guia"],
                 )
                 paciente = pacientes.setdefault(chave, {
-                    "codigo_paciente": item["cd_paciente"] or 0,
-                    "nm_paciente": item["nm_paciente"] or NAO_INFORMADO,
+                    "codigo_paciente": 0,
+                    "nm_paciente": NAO_INFORMADO,
                     "itens": [],
                 })
+                # Any item linked to the MV names the patient, not only the
+                # first one (an ambiguous item may come first).
+                if item["nm_paciente"] and paciente["nm_paciente"] == NAO_INFORMADO:
+                    paciente["nm_paciente"] = item["nm_paciente"]
+                    paciente["codigo_paciente"] = item["cd_paciente"] or 0
                 paciente["itens"].append(item)
             glosado = sum((i["valor_glosa"] for i in itens), Decimal(0))
             tratado = sum((i["valor_total_tratado"] for i in itens), Decimal(0))
