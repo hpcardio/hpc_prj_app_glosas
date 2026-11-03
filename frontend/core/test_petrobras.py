@@ -105,6 +105,8 @@ class PetrobrasTests(SimpleTestCase):
         self.assertIn('data-role="batch"', html)
         self.assertIn("api('glosas/prontos')", js)
         self.assertIn("api('glosas/enviar-lote','POST',{itens,confirmar_envio:true})", js)
+        self.assertIn("Transmitir por protocolo", js)
+        self.assertIn("(r.recursos||[]).forEach", js)
 
     @patch("core.petrobras.api_request")
     def test_internal_acato_is_proxied(self, api):
@@ -490,7 +492,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, ">+Acatar</button>")
         self.assertContains(response, "Conferir todos no MV Sistema")
         self.assertNotContains(response, "Conferir todos no Oracle")
-        self.assertContains(response, "?v=20261103-transmitir-preenchidos")
+        self.assertContains(response, "?v=20261103-recurso-protocolo")
         self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
@@ -548,8 +550,8 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         self.assertIn(".petrobras-dialog-body > .petrobras-half { grid-column: auto; }", css)
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
-        self.assertIn("petrobras-followup.css' %}?v=20261103-transmitir-preenchidos", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261103-transmitir-preenchidos", html)
+        self.assertIn("petrobras-followup.css' %}?v=20261103-recurso-protocolo", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261103-recurso-protocolo", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path

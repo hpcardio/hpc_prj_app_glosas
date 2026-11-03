@@ -194,3 +194,5 @@
 .petrobras-batch { margin-top: 8px; padding: 10px 12px; border: 1px solid #dbe5ea; border-radius: 8px; background: #fbfdfe; }
 .petrobras-batch-list { margin: 6px 0; padding-left: 0; list-style: none; max-height: 260px; overflow: auto; }
 .petrobras-batch-list li { padding: 3px 0; border-bottom: 1px solid #eef3f5; font-size: 0.85rem; }
+.petrobras-batch-group { margin: 6px 0; padding: 4px 10px; border: 1px solid #e1e9ee; border-radius: 6px; }
+.petrobras-batch-group legend { float: none; width: auto; margin: 0; padding: 0 4px; font-size: 0.85rem; font-weight: 600; }
