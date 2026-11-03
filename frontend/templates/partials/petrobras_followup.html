@@ -11,6 +11,7 @@
     <label>Outro protocolo <input class="form-control" data-role="new-protocol" maxlength="12"></label>
     <button type="button" class="btn btn-outline-primary" data-action="add-protocol">Adicionar</button>
     <button type="button" class="btn btn-outline-primary" data-action="match-all">Conferir todos no MV Sistema</button>
+    <button type="button" class="btn btn-outline-primary" data-action="portal-detail" title="Baixa do portal Saúde Petrobras a análise dos lotes com glosa só por guia">Detalhar itens pelo portal</button>
   </div>
   <p data-role="message" role="status" aria-live="polite"></p>
   <div data-role="runs"></div>
@@ -26,4 +27,4 @@
   <div data-role="dialog-body" class="petrobras-card petrobras-dialog-body"></div>
 </dialog>
 <link rel="stylesheet" href="{% static 'css/petrobras-followup.css' %}?v=20261103-modal-compacto">
-<script src="{% static 'js/petrobras-followup.js' %}?v=20261103-modal-compacto" defer></script>
+<script src="{% static 'js/petrobras-followup.js' %}?v=20261103-portal-itens" defer></script>

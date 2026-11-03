@@ -63,6 +63,23 @@ class PetrobrasTests(SimpleTestCase):
         self.assertEqual(petrobras.bridge(req, "glosas/cruzar").status_code, 403)
 
     @patch("core.petrobras.api_request")
+    def test_portal_detail_is_proxied_for_writers_only(self, api):
+        api.return_value = Mock(status_code=200, content=b"{}", headers={})
+        self.assertEqual(petrobras.bridge(self.request("post"), "portal/detalhar").status_code, 200)
+        self.assertEqual(api.call_args.args[:2], ("POST", "/app_glosas/petrobras/portal/detalhar"))
+        req = self.request("post")
+        req.session["api_user"]["perfil"] = "leitura"
+        self.assertEqual(petrobras.bridge(req, "portal/detalhar").status_code, 403)
+        self.assertEqual(petrobras.bridge(self.request(), "portal/detalhar").status_code, 404)
+        from pathlib import Path
+        from django.conf import settings
+        base = Path(settings.BASE_DIR)
+        html = (base / "templates/partials/petrobras_followup.html").read_text()
+        js = (base / "static/js/petrobras-followup.js").read_text()
+        self.assertIn('data-action="portal-detail"', html)
+        self.assertIn("api('portal/detalhar','POST',{})", js)
+
+    @patch("core.petrobras.api_request")
     def test_internal_acato_is_proxied(self, api):
         api.return_value = Mock(status_code=200, content=b"{}", headers={})
         req = self.request("put", {"data": "2026-11-02", "quantidade": "1", "valor": "1.00"})
@@ -465,7 +482,7 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
         self.assertIn("petrobras-followup.css' %}?v=20261103-modal-compacto", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261103-modal-compacto", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261103-portal-itens", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path
