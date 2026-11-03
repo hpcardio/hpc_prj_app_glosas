@@ -436,6 +436,20 @@ class PetrobrasFollowUpViewTests(TestCase):
 
     @patch("core.petrobras.api_get")
     @patch("core.views.api_get")
+    def test_transmit_filled_buttons_on_payer_cards(self, views_api, payer_api):
+        views_api.return_value = {"cards": [], "total": 0}
+        payer_api.return_value = self.payer(1, [petrobras_row(7, None)])
+        response = self.client.get("/follow-up-glosas/")
+        self.assertContains(response, 'data-petrobras-batch disabled>Transmitir recursos preenchidos</button>')
+        self.assertContains(response, 'data-petrobras-batch="7 ">Transmitir preenchidos desta guia</button>')
+        self.assertContains(response, 'id="petrobras-batch-dialog"')
+        # Standard payers only: no Petrobras transmit button.
+        payer_api.return_value = self.payer(0, [])
+        views_api.return_value = {"cards": [], "total": 0}
+        self.assertNotContains(self.client.get("/follow-up-glosas/"), "data-petrobras-batch")
+
+    @patch("core.petrobras.api_get")
+    @patch("core.views.api_get")
     def test_protocolo_petro_filters_only_payer_records(self, views_api, payer_api):
         payer_api.return_value = self.payer(1, [petrobras_row(1, None)])
         response = self.client.get("/follow-up-glosas/?protocolo_petro=13827422")
@@ -476,7 +490,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, ">+Acatar</button>")
         self.assertContains(response, "Conferir todos no MV Sistema")
         self.assertNotContains(response, "Conferir todos no Oracle")
-        self.assertContains(response, "?v=20261103-recurso-lote")
+        self.assertContains(response, "?v=20261103-transmitir-preenchidos")
         self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
@@ -534,8 +548,8 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         self.assertIn(".petrobras-dialog-body > .petrobras-half { grid-column: auto; }", css)
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
-        self.assertIn("petrobras-followup.css' %}?v=20261103-recurso-lote", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261103-recurso-lote", html)
+        self.assertIn("petrobras-followup.css' %}?v=20261103-transmitir-preenchidos", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261103-transmitir-preenchidos", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path
