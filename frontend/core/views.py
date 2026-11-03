@@ -8,6 +8,9 @@ from copy import deepcopy
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import json
+import logging
+import threading
+import time
 from math import ceil, log10
 from hashlib import sha256
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
@@ -52,6 +55,7 @@ from .spu_recaptcha import (
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
 PRAZOS_RECURSO_CONVENIO_PATH = "/app_glosas/prazos-recurso-convenio"
+logger = logging.getLogger(__name__)
 CONVENIOS_PATH = "/app_glosas/convenios"
 DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
 DASHBOARD_PRAZOS_CACHE_KEY = "dashboard:prazos-recurso-convenio"
@@ -59,8 +63,13 @@ DASHBOARD_CONVENIOS_CACHE_KEY = "dashboard:convenios"
 DASHBOARD_TISS_CACHE_KEY = "dashboard:tiss-motivos"
 DASHBOARD_FOLLOW_UP_CACHE_KEY = "dashboard:follow-up-resumo"
 DASHBOARD_REQUEST_TIMEOUT = 15
-DASHBOARD_FOLLOW_UP_TIMEOUT = 30
+# The Follow-Up summary costs ~40 s of global API preparation: the dashboard
+# shows the last summary at once and refreshes it in the background.
+DASHBOARD_FOLLOW_UP_TIMEOUT = 180
 DASHBOARD_FOLLOW_UP_CACHE_SECONDS = 300
+DASHBOARD_FOLLOW_UP_KEEP_SECONDS = 24 * 3600
+DASHBOARD_FOLLOW_UP_LOCK_KEY = "dashboard:follow-up-resumo:atualizando"
+DASHBOARD_FOLLOW_UP_PAGE_SIZE = 1000
 ACOMPANHAMENTO_GLOSAS_CACHE_KEY = DASHBOARD_GLOSAS_CACHE_KEY
 CONTA_TISS_CACHE_KEY = "conta-atendimento:tiss"
 DEFAULT_DASHBOARD_PERIOD_MONTHS = 12
@@ -5664,21 +5673,17 @@ def apply_follow_up_summary_to_dashboard_indicators(indicadores, resumo):
     return indicadores
 
 
-def get_dashboard_follow_up_summary(force_refresh=False):
-    if force_refresh:
-        cache.delete(DASHBOARD_FOLLOW_UP_CACHE_KEY)
+class _ResumoPendente(Exception):
+    """First Follow-Up summary still being built in the background."""
 
-    cached = cache.get(DASHBOARD_FOLLOW_UP_CACHE_KEY)
-    if cached is not None:
-        return cached
 
-    limit = 100
-
+def load_dashboard_follow_up_summary():
+    """All summary cards in pages of 1000 groups (the API work is global)."""
     def carregar_pagina(offset):
         return api_get(
             FOLLOW_UP_GLOSAS_PATH,
             {
-                "limit": limit,
+                "limit": DASHBOARD_FOLLOW_UP_PAGE_SIZE,
                 "offset": offset,
                 "incluir_detalhes": "false",
                 "agrupar_por_processo": "true",
@@ -5687,36 +5692,68 @@ def get_dashboard_follow_up_summary(force_refresh=False):
         )
 
     primeira_pagina = carregar_pagina(0)
-    resumo = (
-        dict(primeira_pagina)
-        if isinstance(primeira_pagina, dict)
-        else {}
-    )
-    cards = list(primeira_pagina.get("cards") or [])
-    offsets = list(range(limit, as_int_or_zero(resumo.get("total")), limit))
-    if offsets:
-        paginas = {}
-        with ThreadPoolExecutor(max_workers=min(4, len(offsets))) as executor:
-            futures = {
-                offset: executor.submit(
-                    copy_context().run,
-                    carregar_pagina,
-                    offset,
-                )
-                for offset in offsets
-            }
-            for offset, future in futures.items():
-                paginas[offset] = future.result()
-        for offset in offsets:
-            cards.extend(paginas[offset].get("cards") or [])
-
+    resumo = dict(primeira_pagina) if isinstance(primeira_pagina, dict) else {}
+    cards = list(resumo.get("cards") or [])
+    # Sequential on purpose: each page repeats the global preparation.
+    for offset in range(
+        DASHBOARD_FOLLOW_UP_PAGE_SIZE,
+        as_int_or_zero(resumo.get("total")),
+        DASHBOARD_FOLLOW_UP_PAGE_SIZE,
+    ):
+        cards.extend(carregar_pagina(offset).get("cards") or [])
     resumo["cards"] = cards
-    cache.set(
-        DASHBOARD_FOLLOW_UP_CACHE_KEY,
-        resumo,
-        DASHBOARD_FOLLOW_UP_CACHE_SECONDS,
-    )
     return resumo
+
+
+def refresh_dashboard_follow_up_summary():
+    # One refresh at a time across workers (file cache is shared).
+    if not cache.add(
+        DASHBOARD_FOLLOW_UP_LOCK_KEY, True, DASHBOARD_FOLLOW_UP_TIMEOUT + 60
+    ):
+        return
+    try:
+        cache.set(
+            DASHBOARD_FOLLOW_UP_CACHE_KEY,
+            {
+                "resumo": load_dashboard_follow_up_summary(),
+                "atualizado_em": time.time(),
+            },
+            DASHBOARD_FOLLOW_UP_KEEP_SECONDS,
+        )
+    except ApiError:
+        logger.warning("Resumo do Follow-Up não atualizado; mantido o anterior.")
+    finally:
+        cache.delete(DASHBOARD_FOLLOW_UP_LOCK_KEY)
+
+
+def get_dashboard_follow_up_summary(force_refresh=False):
+    """Last known summary immediately; refresh it in the background if stale.
+
+    Returns None only while the very first summary is being built.
+    """
+    entry = cache.get(DASHBOARD_FOLLOW_UP_CACHE_KEY)
+    if not isinstance(entry, dict) or "atualizado_em" not in entry:
+        entry = None
+    idade = time.time() - entry["atualizado_em"] if entry else None
+    if force_refresh or idade is None or idade > DASHBOARD_FOLLOW_UP_CACHE_SECONDS:
+        threading.Thread(
+            target=copy_context().run,
+            args=(refresh_dashboard_follow_up_summary,),
+            daemon=True,
+        ).start()
+    return entry["resumo"] if entry else None
+
+
+def mark_dashboard_follow_up_summary_stale():
+    """Keep showing the last summary but refresh it on the next visit."""
+    entry = cache.get(DASHBOARD_FOLLOW_UP_CACHE_KEY)
+    if isinstance(entry, dict) and "atualizado_em" in entry:
+        entry["atualizado_em"] = 0
+        cache.set(
+            DASHBOARD_FOLLOW_UP_CACHE_KEY,
+            entry,
+            DASHBOARD_FOLLOW_UP_KEEP_SECONDS,
+        )
 
 
 def clean_dashboard_filter_value(value):
@@ -6017,9 +6054,9 @@ def clear_dashboard_cache():
             DASHBOARD_PRAZOS_CACHE_KEY,
             DASHBOARD_CONVENIOS_CACHE_KEY,
             DASHBOARD_TISS_CACHE_KEY,
-            DASHBOARD_FOLLOW_UP_CACHE_KEY,
         ]
     )
+    mark_dashboard_follow_up_summary_stale()
 
 
 def clear_filter_caches():
@@ -6252,6 +6289,13 @@ def dashboard(request):
         if usar_resumo_follow_up:
             try:
                 resumo_follow_up = consultas["resumo_follow_up"].result()
+                if resumo_follow_up is None:
+                    messages.info(
+                        request,
+                        "Resumo do Follow-Up em atualização; os totais "
+                        "consolidados aparecem ao recarregar em instantes.",
+                    )
+                    raise _ResumoPendente
                 indicadores = apply_follow_up_summary_to_dashboard_indicators(
                     indicadores,
                     resumo_follow_up,
@@ -6262,6 +6306,8 @@ def dashboard(request):
                     filtros.get("periodo_fim"),
                     resumo_follow_up.get("cards") or [],
                 )
+            except _ResumoPendente:
+                pass
             except ApiError as exc:
                 dashboard_errors.append(("Resumo do Follow-Up", exc))
     except ApiError as exc:
