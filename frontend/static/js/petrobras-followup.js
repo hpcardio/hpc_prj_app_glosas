@@ -202,30 +202,47 @@
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
   // Batch: drafts saved through +Recursar; each item is still its own TISS
   // transmission, sent one by one with its result shown below.
+  // One TISS appeal per lot/protocol: the selected items of each protocol
+  // travel together in a single transmission.
   function renderBatch(data, box=get('batch'), only=null){
     box.replaceChildren();box.hidden=false;
-    el('h4','Recursos prontos para transmitir',box,'petrobras-subtitle');
+    el('h4','Recursos prontos para transmitir, por protocolo/lote',box,'petrobras-subtitle');
     const checks=[];
     if(data.prontos.length){
-      const list=el('ul',null,box,'petrobras-batch-list');
-      data.prontos.forEach(r=>{const li=el('li',null,list),l=el('label',null,li,'petrobras-check'),c=el('input',null,l);c.type='checkbox';c.checked=checks.length<data.limite&&(!only||only.has(r.id));c.dataset.id=r.id;c.dataset.versao=r.versao;checks.push(c);el('span',` ${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''} · ${money(r.valor_glosa)} · protocolo ${r.protocolo||'-'}`,l);});
+      const groups=new Map();
+      data.prontos.forEach(r=>{const k=`${r.protocolo||'-'}|${r.lote||'-'}`;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);});
+      groups.forEach((rows,k)=>{
+        const [protocolo,lote]=k.split('|');
+        const sec=el('fieldset',null,box,'petrobras-batch-group');
+        const head=el('label',null,el('legend',null,sec),'petrobras-check'),all=el('input',null,head);all.type='checkbox';
+        const total=rows.reduce((t,r)=>t+Number(r.valor_glosa||0),0);
+        el('span',` Protocolo ${protocolo} · lote ${lote} · ${rows.length} item(ns) · ${money(total)}`,head);
+        const list=el('ul',null,sec,'petrobras-batch-list'),mine=[];
+        rows.forEach(r=>{const li=el('li',null,list),l=el('label',null,li,'petrobras-check'),c=el('input',null,l);c.type='checkbox';c.checked=!only||only.has(r.id);c.dataset.id=r.id;c.dataset.versao=r.versao;checks.push(c);mine.push(c);el('span',` ${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''} · ${money(r.valor_glosa)}`,l);});
+        const sync=()=>{all.checked=mine.every(c=>c.checked);all.indeterminate=!all.checked&&mine.some(c=>c.checked);};
+        all.addEventListener('change',()=>{mine.forEach(c=>{c.checked=all.checked;});sync();});
+        mine.forEach(c=>c.addEventListener('change',sync));sync();
+      });
     } else el('p','Preencha a justificativa, o prazo e a origem em +Recursar e salve o rascunho.',box,'petrobras-muted');
     if(data.pendencias.length){const d=el('details',null,box);el('summary',`${data.pendencias.length} rascunhos com pendência`,d);const ul=el('ul',null,d);data.pendencias.forEach(r=>el('li',`${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''}: ${r.pendencia}`,ul));}
     if(!data.prontos.length)return;
-    const lab=el('label',null,box,'petrobras-check'),confirm=el('input',null,lab);confirm.type='checkbox';el('span',' Confirmo o envio dos recursos selecionados à Petrobras.',lab);
+    const lab=el('label',null,box,'petrobras-check'),confirm=el('input',null,lab);confirm.type='checkbox';el('span',' Confirmo o envio à Petrobras de um recurso por protocolo/lote com os itens selecionados.',lab);
     const tools=el('div',null,box,'petrobras-actions');
-    button(tools,'Transmitir selecionados',async()=>{
+    button(tools,'Transmitir por protocolo',async()=>{
       const itens=checks.filter(c=>c.checked).map(c=>({id:Number(c.dataset.id),versao:Number(c.dataset.versao)}));
       if(!itens.length)throw new Error('Selecione ao menos um recurso.');
-      if(itens.length>data.limite)throw new Error(`Selecione no máximo ${data.limite} recursos por vez.`);
+      if(itens.length>data.limite)throw new Error(`Selecione no máximo ${data.limite} itens por vez.`);
       if(!confirm.checked)throw new Error('Marque a confirmação de envio.');
-      notice(`Transmitindo ${itens.length} recursos…`);
+      notice(`Transmitindo ${itens.length} itens…`);
       const r=await api('glosas/enviar-lote','POST',{itens,confirmar_envio:true});
       box.replaceChildren();el('h4','Resultado da transmissão',box,'petrobras-subtitle');
       const ul=el('ul',null,box,'petrobras-batch-list');
-      r.resultados.forEach(x=>el('li',`Item ${x.id}: ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · protocolo '+x.protocolo:''}${x.erro?' · '+x.erro:''}`,ul,x.erro?'petrobras-warning':''));
-      button(el('div',null,box,'petrobras-actions'),'Atualizar tela',async()=>reload(`${r.protocolados} de ${r.resultados.length} recursos protocolados.`));
-      notice(`${r.protocolados} de ${r.resultados.length} recursos protocolados.`,r.protocolados<r.resultados.length);
+      (r.recursos||[]).forEach(x=>el('li',`Protocolo ${x.protocolo_petrobras||'-'} · lote ${x.lote||'-'} · ${x.itens.length} item(ns): ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · recurso '+x.protocolo:''}${x.erro?' · '+x.erro:''}`,ul,x.erro?'petrobras-warning':''));
+      r.resultados.filter(x=>!(r.recursos||[]).some(g=>g.itens.includes(x.id))).forEach(x=>el('li',`Item ${x.id}: ${x.erro||labels[x.situacao]||'-'}`,ul,'petrobras-warning'));
+      const sent=(r.recursos||[]).filter(x=>x.situacao==='protocolado').length;
+      const msg=`${sent} de ${(r.recursos||[]).length} recursos protocolados (${r.protocolados} itens).`;
+      button(el('div',null,box,'petrobras-actions'),'Atualizar tela',async()=>reload(msg));
+      notice(msg,sent<(r.recursos||[]).length||r.protocolados<itens.length);
     },readOnly||!data.usuario_liberado);
     if(!data.usuario_liberado)el('p',config.transmissao_habilitada?'Envio de recurso em piloto; seu usuário ainda não foi liberado.':'Transmissão ainda não habilitada neste ambiente.',box,'petrobras-muted');
   }
