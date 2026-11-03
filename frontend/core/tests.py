@@ -3583,7 +3583,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20261103-followup-expandir-icone',
+            '?v=20261103-petrobras-itens-mv',
             base_template.read_text(),
         )
 

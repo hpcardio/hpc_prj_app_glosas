@@ -191,6 +191,20 @@ def _item(row):
         "motivo_glosa_descricao": "",
         "tratativa_disponivel": False,
         "registro_glosa": None,
+        # Guide without items: MV account items as reference only, since
+        # the payer does not say which of them was glosed.
+        "itens_mv": [
+            {
+                "codigo": i.get("cd_tuss") or i.get("cd_pro_fat"),
+                "descricao": i.get("descricao"),
+                "ds_gru_fat": i.get("ds_gru_fat"),
+                "quantidade": _decimal(i.get("quantidade")),
+                "valor": _decimal(i.get("valor")),
+            }
+            for i in oracle.get("itens") or []
+        ]
+        if fonte.get("escopo") == GLOSA_POR_GUIA
+        else [],
         "petrobras": row,
     }
 
