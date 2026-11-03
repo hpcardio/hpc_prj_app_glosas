@@ -1213,61 +1213,85 @@ class DashboardIndicadoresTests(TestCase):
         self.assertEqual(len(indicadores['convenio_table']), 2)
 
     @patch('core.views.api_get')
-    def test_resumo_follow_up_carrega_todas_paginas_de_processos(self, api_get):
-        cache.delete('dashboard:follow-up-resumo')
+    def test_resumo_follow_up_usa_paginas_de_1000_em_sequencia(self, api_get):
+        from .views import load_dashboard_follow_up_summary
+
         api_get.side_effect = [
             {
                 'cards': [{'cd_remessa': 1}],
-                'total': 101,
+                'total': 1500,
                 'quantidade_glosas': 2,
                 'valor_total_glosado': '30.00',
-                'valor_total_pendente': '30.00',
             },
-            {
-                'cards': [{'cd_remessa': 2}],
-                'total': 101,
-            },
+            {'cards': [{'cd_remessa': 2}], 'total': 1500},
         ]
-
-        resumo = get_dashboard_follow_up_summary()
-
+        resumo = load_dashboard_follow_up_summary()
+        self.assertEqual([c['cd_remessa'] for c in resumo['cards']], [1, 2])
+        self.assertEqual(resumo['quantidade_glosas'], 2)
         self.assertEqual(
-            [card['cd_remessa'] for card in resumo['cards']],
-            [1, 2],
+            [call.args[1]['offset'] for call in api_get.call_args_list],
+            [0, 1000],
         )
-        self.assertEqual(api_get.call_count, 2)
-        self.assertEqual(api_get.call_args_list[1].args[1]['offset'], 100)
-        self.assertEqual(api_get.call_args_list[0].kwargs['timeout'], 30)
-        self.assertEqual(api_get.call_args_list[1].kwargs['timeout'], 30)
-        self.assertEqual(get_dashboard_follow_up_summary(), resumo)
-        self.assertEqual(api_get.call_count, 2)
+        self.assertTrue(
+            all(call.args[1]['limit'] == 1000 for call in api_get.call_args_list)
+        )
+        self.assertEqual(api_get.call_args_list[0].kwargs['timeout'], 180)
 
-    @patch('core.views.api_get')
-    def test_resumo_follow_up_carrega_paginas_restantes_em_paralelo(self, api_get):
-        from threading import Barrier
+    @patch('core.views.threading.Thread')
+    @patch('core.views.load_dashboard_follow_up_summary')
+    def test_resumo_follow_up_nao_bloqueia_e_atualiza_em_segundo_plano(
+        self, load, thread
+    ):
+        import time as clock
+        from .views import (
+            DASHBOARD_FOLLOW_UP_CACHE_KEY,
+            DASHBOARD_FOLLOW_UP_LOCK_KEY,
+            clear_dashboard_cache,
+        )
 
-        cache.delete('dashboard:follow-up-resumo')
-        paginas_simultaneas = Barrier(2)
+        cache.delete(DASHBOARD_FOLLOW_UP_CACHE_KEY)
+        cache.delete(DASHBOARD_FOLLOW_UP_LOCK_KEY)
+        started = []
+        thread.side_effect = lambda target, args, daemon: Mock(
+            start=lambda: started.append(target(*args))
+        )
+        load.return_value = {'cards': [], 'quantidade_glosas': 7}
 
-        def carregar(_path, params, timeout):
-            offset = params['offset']
-            if offset == 0:
-                return {
-                    'cards': [{'cd_remessa': 1}],
-                    'total': 201,
-                }
-            paginas_simultaneas.wait(timeout=2)
-            return {'cards': [{'cd_remessa': offset}]}
+        # First visit: nothing cached yet, page does not wait for the API.
+        self.assertIsNone(get_dashboard_follow_up_summary())
+        self.assertEqual(len(started), 1)
+        self.assertEqual(load.call_count, 1)
+        # Fresh cache: served without any refresh.
+        self.assertEqual(get_dashboard_follow_up_summary()['quantidade_glosas'], 7)
+        self.assertEqual(len(started), 1)
+        # A write marks it stale: still served, refreshed in the background.
+        clear_dashboard_cache()
+        load.return_value = {'cards': [], 'quantidade_glosas': 9}
+        self.assertEqual(get_dashboard_follow_up_summary()['quantidade_glosas'], 7)
+        self.assertEqual(get_dashboard_follow_up_summary()['quantidade_glosas'], 9)
+        # A refresh in progress (lock held) is not started twice.
+        cache.set(DASHBOARD_FOLLOW_UP_CACHE_KEY, {'resumo': {}, 'atualizado_em': clock.time() - 999})
+        cache.set(DASHBOARD_FOLLOW_UP_LOCK_KEY, True, 60)
+        calls = load.call_count
+        get_dashboard_follow_up_summary()
+        self.assertEqual(load.call_count, calls)
+        cache.delete(DASHBOARD_FOLLOW_UP_LOCK_KEY)
 
-        api_get.side_effect = carregar
+    @patch('core.views.threading.Thread')
+    @patch('core.views.load_dashboard_follow_up_summary')
+    def test_falha_no_resumo_mantem_o_anterior(self, load, thread):
+        from .services import ApiError
+        from .views import DASHBOARD_FOLLOW_UP_CACHE_KEY
 
-        resumo = get_dashboard_follow_up_summary()
-
+        thread.side_effect = lambda target, args, daemon: Mock(
+            start=lambda: target(*args)
+        )
+        cache.set(DASHBOARD_FOLLOW_UP_CACHE_KEY, {'resumo': {'quantidade_glosas': 3}, 'atualizado_em': 0})
+        load.side_effect = ApiError('tempo limite')
+        self.assertEqual(get_dashboard_follow_up_summary()['quantidade_glosas'], 3)
         self.assertEqual(
-            [card['cd_remessa'] for card in resumo['cards']],
-            [1, 100, 200],
+            cache.get(DASHBOARD_FOLLOW_UP_CACHE_KEY)['resumo']['quantidade_glosas'], 3
         )
-        self.assertEqual(api_get.call_count, 3)
 
     def test_limite_do_dashboard_comporta_dataset_consolidado(self):
         from .views import DASHBOARD_GLOSAS_LIMIT
