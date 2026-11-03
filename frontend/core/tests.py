@@ -3583,9 +3583,17 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20261021-followup-filtros',
+            '?v=20261103-followup-filtros-compactos',
             base_template.read_text(),
         )
+
+    def test_filtros_follow_up_compactos_em_duas_linhas(self):
+        css = Path(finders.find('css/app.css')).read_text()
+        bloco = css[css.index('/* Follow-Up: compact filters'):css.index('/* Triagem: filtros ordenados')]
+
+        self.assertIn('grid-template-columns: repeat(6, minmax(0, 1fr));', bloco)
+        self.assertIn('height: 32px;', bloco)
+        self.assertIn('.follow-up-glosa-page .filter-actions {\n  grid-column: span 2;', bloco)
 
     def test_lista_follow_up_reserva_coluna_fixa_para_pdf(self):
         css = Path(finders.find('css/app.css')).read_text()
