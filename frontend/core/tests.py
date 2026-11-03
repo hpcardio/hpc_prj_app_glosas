@@ -3527,7 +3527,7 @@ class FollowUpGlosasTests(TestCase):
         cabecalho = response.content.decode().split(
             'class="follow-up-glosa-card-header"',
             1,
-        )[1].split('</button>', 1)[0]
+        )[1].split('</div>', 1)[0]
         rotulos = (
             'PROCESSO',
             'CONVÊNIO',
@@ -3583,7 +3583,7 @@ class FollowUpGlosasTests(TestCase):
             finders.find('css/app.css')
         ).parent.parent.parent / 'templates' / 'base.html'
         self.assertIn(
-            '?v=20261103-followup-pagina-compacta',
+            '?v=20261103-followup-expandir-icone',
             base_template.read_text(),
         )
 
@@ -3835,7 +3835,7 @@ class FollowUpGlosasTests(TestCase):
         remessa_header = content.split(
             'class="follow-up-glosa-remessa-header"',
             1,
-        )[1].split('</button>', 1)[0]
+        )[1].split('</div>', 1)[0]
         remessa_rotulos = (
             'REMESSA',
             'PROTOCOLO TRUE',
@@ -3858,7 +3858,7 @@ class FollowUpGlosasTests(TestCase):
         paciente_header = content.split(
             'class="follow-up-glosa-patient-header"',
             1,
-        )[1].split('</button>', 1)[0]
+        )[1].split('</div>', 1)[0]
         paciente_rotulos = (
             'PACIENTE',
             'CÓD. ATENDIMENTO',
