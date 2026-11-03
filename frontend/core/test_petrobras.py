@@ -264,6 +264,71 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
         self.assertEqual(str(card["valor_glosa_pendente"]), "0.00")
 
 
+class PetrobrasGlosaPorGuiaTests(SimpleTestCase):
+    """Payment demonstrativo glosa: one row per guide, no items or reasons."""
+
+    def guide_row(self, oracle):
+        row = petrobras_row(
+            1,
+            oracle,
+            demonstrativo="1544637",
+            carteira=None,
+            descricao="Glosa da guia (itens não detalhados)",
+            escopo="guia_pagamento",
+            senha="B507714",
+            valor_informado=None,
+            valor_processado="1029.50",
+            valor_liberado="948.14",
+            motivos=[],
+            cobertura="guia_sem_itens",
+        )
+        row["guia_prestador"] = "B507714"
+        row["tuss"] = None
+        row["valor_glosa"] = "81.36"
+        return row
+
+    def test_card_flags_guide_glosa_and_uses_mv_account(self):
+        oracle = {**ORACLE, "nr_carteira": "000000000123", "valor_mv": "1029.50"}
+        oracle.pop("descricao")
+        card = petrobras.follow_up_cards(
+            {"demonstrativos": ["1544637"], "items": [self.guide_row(oracle)]}
+        )[0]
+        self.assertEqual(card["processo"]["status_processo"], "Glosa por guia")
+        item = card["pacientes"][0]["itens"][0]
+        self.assertEqual(item["descricao"], "Glosa da guia (itens não detalhados)")
+        self.assertEqual(item["senha"], "B507714")
+        self.assertEqual(str(item["vl_total_conta"]), "1029.50")
+        self.assertEqual(str(item["valor_glosa"]), "81.36")
+        self.assertEqual(item["cd_atendimento"], 789)
+        extras = petrobras.follow_up_campos_extras([{
+            "origem": "petrobras",
+            "atendimentos_paciente": [
+                {"grupos_procedimento": [{"itens": [item]}]}
+            ],
+        }])
+        atendimento = extras[0]["atendimentos_paciente"][0]
+        self.assertEqual(atendimento["carteira"], "000000000123")
+        self.assertEqual(atendimento["campos_extras"], [("GUIA", "B507714")])
+
+    def test_unmatched_guide_keeps_values_unknown(self):
+        card = petrobras.follow_up_cards(
+            {"demonstrativos": ["1544637"], "items": [self.guide_row(None)]}
+        )[0]
+        item = card["pacientes"][0]["itens"][0]
+        self.assertIsNone(item["vl_total_conta"])
+        self.assertEqual(card["pacientes"][0]["nm_paciente"], "Não informado")
+
+    def test_modal_explains_guide_without_items(self):
+        from pathlib import Path
+        from django.conf import settings
+        js = (Path(settings.BASE_DIR) / "static/js/petrobras-followup.js").read_text()
+        self.assertIn("'Dados da guia'", js)
+        self.assertIn("fonte.escopo === 'guia_pagamento'", js)
+        self.assertIn("A operadora não detalhou os motivos", js)
+        for label in ["Remessa MV", "Data de atendimento", "Itens no MV", "Valor no MV", "Valor processado", "Data de pagamento"]:
+            self.assertIn(f"['{label}',", js)
+
+
 @override_settings(PETROBRAS_ENABLED=True)
 class PetrobrasFollowUpViewTests(TestCase):
     STANDARD = "/app_glosas/financeiro/conciliacao-faturamento/glosas-pendentes"

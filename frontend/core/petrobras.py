@@ -85,6 +85,10 @@ FILTROS_SEM_EQUIVALENTE = (
 )
 
 
+# Glosa informed only per guide in the payment demonstrativo (no items).
+GLOSA_POR_GUIA = "guia_pagamento"
+
+
 def follow_up_aplicavel(filtros):
     if not settings.PETROBRAS_ENABLED:
         return False
@@ -172,7 +176,12 @@ def _item(row):
         "dt_alta": oracle.get("dt_alta"),
         "dt_lancamento": oracle.get("data_realizacao"),
         "qt_lancamento": _decimal(fonte.get("quantidade")),
-        "vl_total_conta": _decimal(fonte.get("valor_informado")),
+        # Guide without items: the MV account value stands for the billed one.
+        "vl_total_conta": _decimal(
+            fonte.get("valor_informado")
+            if fonte.get("escopo") != GLOSA_POR_GUIA
+            else oracle.get("valor_mv")
+        ),
         "valor_processado": _decimal(fonte.get("valor_processado")),
         "valor_glosa": glosa,
         "valor_liberado": _decimal(fonte.get("valor_liberado")),
@@ -247,6 +256,8 @@ def follow_up_cards(data):
                             f.get("cobertura") == "parcial_nao_confirmada"
                             for f in fontes
                         )
+                        else "Glosa por guia"
+                        if any(f.get("escopo") == GLOSA_POR_GUIA for f in fontes)
                         else None
                     ),
                 },
@@ -266,8 +277,12 @@ def follow_up_campos_extras(cards):
             grupos = atendimento.get("grupos_procedimento") or [{}]
             item = (grupos[0].get("itens") or [{}])[0]
             fonte = (item.get("petrobras") or {}).get("fonte") or {}
+            oracle = (item.get("petrobras") or {}).get("oracle") or {}
             # Guide = senha, or numeroGuiaPrestador when the payer sent none.
-            atendimento["carteira"] = fonte.get("carteira") or NAO_INFORMADO
+            # The payment demonstrativo has no wallet: MV account fills it.
+            atendimento["carteira"] = (
+                fonte.get("carteira") or oracle.get("nr_carteira") or NAO_INFORMADO
+            )
             atendimento["campos_extras"] = [
                 ("GUIA", item.get("senha") or item.get("nr_guia") or NAO_INFORMADO),
             ]
