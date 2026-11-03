@@ -151,8 +151,10 @@
     if(editable){
       const sendBox=el('details',null,sendSec);el('summary','Transmitir recurso',sendBox);el('p','Salve a justificativa e revise os comprovantes antes de transmitir. O envio usa o rascunho salvo.',sendBox,'petrobras-muted');
       const label=el('label',null,sendBox,'petrobras-check'),confirm=el('input',null,label);confirm.type='checkbox';el('span',' Confirmo o envio deste recurso à Petrobras.',label);
-      button(sendBox,'Transmitir recurso salvo',async()=>{if(!confirm.checked)throw new Error('Marque a confirmação de envio.');await api(`glosas/${row.id}/enviar`,'POST',{versao:row.versao,confirmar_envio:true});reload('Consulte o protocolo apresentado no item.');},!config.transmissao_habilitada);
-      if(!config.transmissao_habilitada)el('p','Transmissão ainda não habilitada neste ambiente.',sendBox,'petrobras-muted');
+      button(sendBox,'Transmitir recurso salvo',async()=>{if(!confirm.checked)throw new Error('Marque a confirmação de envio.');await api(`glosas/${row.id}/enviar`,'POST',{versao:row.versao,confirmar_envio:true});reload('Consulte o protocolo apresentado no item.');},!config.transmissao_usuario||Boolean(row.bloqueio_envio));
+      if(row.bloqueio_envio){el('p',row.bloqueio_envio,sendBox,'petrobras-warning');const portal=el('a','Abrir portal Petrobras',sendBox);portal.href='https://portaltiss.saudepetrobras.com.br/saudeweb/seguranca/login';portal.target='_blank';portal.rel='noopener noreferrer';}
+      else if(!config.transmissao_habilitada)el('p','Transmissão ainda não habilitada neste ambiente.',sendBox,'petrobras-muted');
+      else if(!config.transmissao_usuario)el('p','Envio de recurso em piloto; seu usuário ainda não foi liberado.',sendBox,'petrobras-muted');
     }
     if(['envio_incerto','transmitindo'].includes(row.recurso_estado)){el('p','Confira o protocolo no portal antes de qualquer nova tentativa.',sendSec,'petrobras-warning');const link=el('a','Abrir portal Petrobras',sendSec);link.href='https://portaltiss.saudepetrobras.com.br/saudeweb/seguranca/login';link.target='_blank';link.rel='noopener noreferrer';}
     history(box,row);
