@@ -88,6 +88,25 @@ class PetrobrasTests(SimpleTestCase):
         self.assertIn("Envio de recurso em piloto; seu usuário ainda não foi liberado.", js)
 
     @patch("core.petrobras.api_request")
+    def test_batch_send_routes_and_panel(self, api):
+        api.return_value = Mock(status_code=200, content=b"{}", headers={})
+        self.assertEqual(petrobras.bridge(self.request(), "glosas/prontos").status_code, 200)
+        self.assertEqual(petrobras.bridge(self.request("post"), "glosas/enviar-lote").status_code, 200)
+        self.assertEqual(api.call_args.args[:2], ("POST", "/app_glosas/petrobras/glosas/enviar-lote"))
+        req = self.request("post")
+        req.session["api_user"]["perfil"] = "leitura"
+        self.assertEqual(petrobras.bridge(req, "glosas/enviar-lote").status_code, 403)
+        from pathlib import Path
+        from django.conf import settings
+        base = Path(settings.BASE_DIR)
+        html = (base / "templates/partials/petrobras_followup.html").read_text()
+        js = (base / "static/js/petrobras-followup.js").read_text()
+        self.assertIn('data-action="batch-list"', html)
+        self.assertIn('data-role="batch"', html)
+        self.assertIn("api('glosas/prontos')", js)
+        self.assertIn("api('glosas/enviar-lote','POST',{itens,confirmar_envio:true})", js)
+
+    @patch("core.petrobras.api_request")
     def test_internal_acato_is_proxied(self, api):
         api.return_value = Mock(status_code=200, content=b"{}", headers={})
         req = self.request("put", {"data": "2026-11-02", "quantidade": "1", "valor": "1.00"})
@@ -407,6 +426,22 @@ class PetrobrasFollowUpViewTests(TestCase):
 
     @patch("core.petrobras.api_get")
     @patch("core.views.api_get")
+    def test_protocolo_petro_filters_only_payer_records(self, views_api, payer_api):
+        payer_api.return_value = self.payer(1, [petrobras_row(1, None)])
+        response = self.client.get("/follow-up-glosas/?protocolo_petro=13827422")
+        self.assertEqual(response.status_code, 200)
+        views_api.assert_not_called()
+        self.assertEqual(payer_api.call_args.kwargs["params"]["protocolo"], "13827422")
+        self.assertEqual(response.context["pagination"]["total"], 1)
+        self.assertContains(response, 'name="protocolo_petro" value="13827422"')
+        self.assertContains(response, "Protocolo Petro")
+        # Without the payer filter the standard search keeps running.
+        views_api.return_value = {"cards": [], "total": 0}
+        self.client.get("/follow-up-glosas/?numero_protocolo=1")
+        self.assertNotIn("protocolo_petro", views_api.call_args.kwargs["params"])
+
+    @patch("core.petrobras.api_get")
+    @patch("core.views.api_get")
     def test_payer_cards_share_list_pagination_and_summary(self, views_api, payer_api):
         views_api.return_value = {"cards": [], "total": 0, "quantidade_glosas": 0}
         payer_api.return_value = self.payer(1, [petrobras_row(1, None)])
@@ -431,7 +466,7 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertContains(response, ">+Acatar</button>")
         self.assertContains(response, "Conferir todos no MV Sistema")
         self.assertNotContains(response, "Conferir todos no Oracle")
-        self.assertContains(response, "?v=20261103-modal-compacto")
+        self.assertContains(response, "?v=20261103-recurso-lote")
         self.assertContains(response, "data-petrobras-acato=")
         self.assertContains(response, "Não informado")
         self.assertNotContains(response, 'id="petrobras-results"')
@@ -489,8 +524,8 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         self.assertIn(".petrobras-dialog-body > .petrobras-half { grid-column: auto; }", css)
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
-        self.assertIn("petrobras-followup.css' %}?v=20261103-modal-compacto", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261103-recurso-piloto", html)
+        self.assertIn("petrobras-followup.css' %}?v=20261103-recurso-lote", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261103-recurso-lote", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path

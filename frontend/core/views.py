@@ -6713,6 +6713,9 @@ def follow_up_glosas(request):
         "numero_protocolo": (
             request.GET.get("numero_protocolo") or ""
         ).strip(),
+        "protocolo_petro": (
+            request.GET.get("protocolo_petro") or ""
+        ).strip(),
         "convenio": (request.GET.get("convenio") or "").strip(),
         "paciente": (request.GET.get("paciente") or "").strip(),
         "cd_remessa": (request.GET.get("cd_remessa") or "").strip(),
@@ -6773,15 +6776,19 @@ def follow_up_glosas(request):
                 {
                     key: value
                     for key, value in filtros.items()
-                    if value
+                    if value and key != "protocolo_petro"
                 }
             )
         api_params.update({key: filtros[key] for key in ("nr_guia", "numero_lote") if filtros[key]})
-        response = api_get(
-            FOLLOW_UP_GLOSAS_PATH,
-            params=api_params,
-            timeout=60,
-        )
+        if filtros["protocolo_petro"] and not detalhar_card:
+            # Only Petrobras records carry the payer protocol.
+            response = {"cards": [], "total": 0, "limit": limit, "offset": offset}
+        else:
+            response = api_get(
+                FOLLOW_UP_GLOSAS_PATH,
+                params=api_params,
+                timeout=60,
+            )
         cards_api = response.get("cards") or []
         if not detalhar_card:
             cards_api = [

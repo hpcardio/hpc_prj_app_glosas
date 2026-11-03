@@ -15011,7 +15011,8 @@ body:not(.sidebar-collapsed) .indicator-grid {
 }
 .follow-up-glosa-page .remessa-filters .filter-row {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* 11 filters + actions (3 cells) = two full rows of 7. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px 10px;
   align-items: end;
 }
@@ -15027,7 +15028,7 @@ body:not(.sidebar-collapsed) .indicator-grid {
   font-size: 13px;
 }
 .follow-up-glosa-page .filter-actions {
-  grid-column: span 2;
+  grid-column: span 3;
   justify-content: flex-end;
 }
 .follow-up-glosa-page .filter-actions .btn {
@@ -15045,6 +15046,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
 @media (max-width: 1199px) {
   .follow-up-glosa-page .remessa-filters .filter-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .follow-up-glosa-page .filter-actions {
+    grid-column: span 1;
   }
 }
 @media (max-width: 767px) {
