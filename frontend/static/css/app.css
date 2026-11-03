@@ -15005,19 +15005,42 @@ body:not(.sidebar-collapsed) .indicator-grid {
   }
 }
 
-/* Follow-Up: keep filter widths balanced and preserve keyboard order. */
+/* Follow-Up: compact filters (2 rows) so more record cards fit on screen. */
+.follow-up-glosa-page {
+  padding: 8px 12px;
+}
 .follow-up-glosa-page .remessa-filters .filter-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px 10px;
   align-items: end;
 }
 .follow-up-glosa-page .filter-group {
   min-width: 0;
+  gap: 2px;
+}
+.follow-up-glosa-page .remessa-filters :is(.form-control, .form-select) {
+  height: 32px;
+  min-height: 32px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 13px;
 }
 .follow-up-glosa-page .filter-actions {
-  grid-column: 1 / -1;
+  grid-column: span 2;
   justify-content: flex-end;
+}
+.follow-up-glosa-page .filter-actions .btn {
+  height: 32px;
+  min-height: 32px;
+  padding: 4px 14px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+}
+.follow-up-glosa-page .petrobras-panel {
+  margin-top: 8px;
+  padding-top: 6px;
 }
 @media (max-width: 1199px) {
   .follow-up-glosa-page .remessa-filters .filter-row {
@@ -15032,6 +15055,9 @@ body:not(.sidebar-collapsed) .indicator-grid {
 @media (max-width: 480px) {
   .follow-up-glosa-page .remessa-filters .filter-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .follow-up-glosa-page .filter-actions {
+    grid-column: 1 / -1;
   }
 }
 
