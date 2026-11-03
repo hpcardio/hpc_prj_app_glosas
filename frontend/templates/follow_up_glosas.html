@@ -86,6 +86,7 @@
       </div>
       {% if cards %}
       <div class="collapse-actions">
+        {% if petrobras_enabled and tem_petrobras %}<button type="button" class="btn-glosar petrobras-batch-open" data-petrobras-batch disabled>Transmitir recursos preenchidos</button>{% endif %}
         <button
           type="button"
           class="collapse-action"
@@ -295,6 +296,10 @@
               <div class="follow-up-glosa-patient-body">
                 <div class="follow-up-glosa-records-scroll">
                   <h4 class="follow-up-glosa-subsection-title">Itens Glosados</h4>
+                  {% if card.origem == "petrobras" %}<div class="follow-up-batch-toolbar">
+                    <span>Recursos preenchidos em +Recursar podem ser transmitidos juntos.</span>
+                    <div><button type="button" class="btn-glosar" data-petrobras-batch="{% for grupo in atendimento.grupos_procedimento %}{% for i in grupo.itens %}{{ i.petrobras.id }} {% endfor %}{% endfor %}">Transmitir preenchidos desta guia</button></div>
+                  </div>{% endif %}
                   {% if card.origem != "petrobras" %}<div class="follow-up-batch-toolbar">
                     <span x-text="selectedForms.length ? `${selectedForms.length} item(ns) selecionado(s)` : 'Selecione dois ou mais itens para tratamento conjunto'"></span>
                     <div>

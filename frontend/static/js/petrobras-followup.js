@@ -3,6 +3,7 @@
   'use strict';
   const root = document.getElementById('petrobras-followup');
   const dialog = document.getElementById('petrobras-item-dialog');
+  const batchDialog = document.getElementById('petrobras-batch-dialog');
   if (!root || !dialog) return;
   if (root.dataset.convenio && !root.dataset.convenio.toUpperCase().includes('PETROBRAS')) { root.hidden = true; }
   const base = root.dataset.base.replace(/status$/, '');
@@ -15,7 +16,7 @@
   function el(tag, text, parent, cls) { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; if (parent) parent.append(n); return n; }
   function notice(text, error=false) {
     text = mv(text);
-    const target = dialog.open ? get('dialog-message') : get('message');
+    const target = dialog.open ? get('dialog-message') : batchDialog && batchDialog.open ? batchDialog.querySelector('[data-role="batch-message"]') : get('message');
     target.textContent = text; target.className = error ? 'petrobras-warning' : '';
   }
   async function api(path, method='GET', body) {
@@ -201,13 +202,13 @@
   async function runs(){const rows=await api('execucoes');get('runs').replaceChildren();rows.slice(0,5).forEach(r=>el('p',`${new Date(r.inicio).toLocaleString('pt-BR')} · ${r.situacao}${r.erro?' · '+r.erro:''}`,get('runs')));}
   // Batch: drafts saved through +Recursar; each item is still its own TISS
   // transmission, sent one by one with its result shown below.
-  function renderBatch(data){
-    const box=get('batch');box.replaceChildren();box.hidden=false;
+  function renderBatch(data, box=get('batch'), only=null){
+    box.replaceChildren();box.hidden=false;
     el('h4','Recursos prontos para transmitir',box,'petrobras-subtitle');
     const checks=[];
     if(data.prontos.length){
       const list=el('ul',null,box,'petrobras-batch-list');
-      data.prontos.forEach(r=>{const li=el('li',null,list),l=el('label',null,li,'petrobras-check'),c=el('input',null,l);c.type='checkbox';c.checked=checks.length<data.limite;c.dataset.id=r.id;c.dataset.versao=r.versao;checks.push(c);el('span',` ${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''} · ${money(r.valor_glosa)} · protocolo ${r.protocolo||'-'}`,l);});
+      data.prontos.forEach(r=>{const li=el('li',null,list),l=el('label',null,li,'petrobras-check'),c=el('input',null,l);c.type='checkbox';c.checked=checks.length<data.limite&&(!only||only.has(r.id));c.dataset.id=r.id;c.dataset.versao=r.versao;checks.push(c);el('span',` ${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''} · ${money(r.valor_glosa)} · protocolo ${r.protocolo||'-'}`,l);});
     } else el('p','Preencha a justificativa, o prazo e a origem em +Recursar e salve o rascunho.',box,'petrobras-muted');
     if(data.pendencias.length){const d=el('details',null,box);el('summary',`${data.pendencias.length} rascunhos com pendência`,d);const ul=el('ul',null,d);data.pendencias.forEach(r=>el('li',`${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''}: ${r.pendencia}`,ul));}
     if(!data.prontos.length)return;
@@ -228,6 +229,30 @@
     },readOnly||!data.usuario_liberado);
     if(!data.usuario_liberado)el('p',config.transmissao_habilitada?'Envio de recurso em piloto; seu usuário ainda não foi liberado.':'Transmissão ainda não habilitada neste ambiente.',box,'petrobras-muted');
   }
+  // "Transmitir recursos preenchidos": from the first saved +Recursar draft.
+  async function openBatchDialog(ids){
+    if(!batchDialog)return;
+    await loadConfig();
+    const data=await api('glosas/prontos');
+    const only=ids&&ids.size?ids:null;
+    if(only){data.pendencias=data.pendencias.filter(r=>only.has(r.id));}
+    if(!batchDialog.open)batchDialog.showModal();
+    renderBatch(data,batchDialog.querySelector('[data-role="batch-dialog-body"]'),only);
+    const marked=data.prontos.filter(r=>!only||only.has(r.id)).length;
+    notice(marked?`${marked} recurso(s) preenchido(s) selecionado(s).`:'Nenhum recurso preenchido pronto para transmitir nesta seleção.');
+  }
+  async function batchCount(){
+    const opener=document.querySelector('[data-petrobras-batch=""]');
+    if(!opener||readOnly)return;
+    try{const data=await api('glosas/prontos');opener.disabled=!data.prontos.length;opener.textContent=`Transmitir recursos preenchidos (${data.prontos.length})`;}catch(_){/* stays disabled */}
+  }
+  document.addEventListener('click',event=>{
+    const b=event.target.closest('[data-petrobras-batch]');if(!b)return;
+    const ids=new Set(b.dataset.petrobrasBatch.split(/\s+/).filter(Boolean).map(Number));
+    action(()=>openBatchDialog(ids));
+  });
+  if(batchDialog)batchDialog.querySelector('[data-batch-close]').addEventListener('click',()=>batchDialog.close());
+  batchCount();
   const actions={
     discover:async()=>{const competencia=get('competencia').value.replace('-','');if(!competencia)throw new Error('Selecione a competência.');const r=await api('competencias/sincronizar','POST',{competencia});reload(`${r.protocolos_localizados} protocolos localizados; ${r.quantidade || 0} registros importados; ${r.glosas_por_guia || 0} glosas por guia. ${(r.avisos || []).join(' ')}`);},
     sync:async()=>{const id=get('protocol').value;if(!id)throw new Error('Selecione um protocolo.');const r=await api(`protocolos/${id}/sincronizar`,'POST',{});reload(`${r.quantidade || 0} registros importados. ${(r.avisos || []).join(' ')}`);},

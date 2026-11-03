@@ -6939,6 +6939,7 @@ def follow_up_glosas(request):
         {
             "petrobras_enabled": settings.PETROBRAS_ENABLED,
             "petrobras_indisponivel": petrobras_indisponivel,
+            "tem_petrobras": any(c.get("origem") == "petrobras" for c in cards),
             "cards": cards,
             "processos": processos,
             "filtros": filtros,
