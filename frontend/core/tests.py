@@ -49,6 +49,14 @@ from core.views import (
 )
 
 
+
+def triagem_template_text():
+    """Triagem page plus the attendance partial loaded on expansion."""
+    templates_dir = Path(__file__).resolve().parent.parent / 'templates'
+    return (templates_dir / 'conta_atendimento.html').read_text() + (
+        templates_dir / 'partials' / 'triagem_atendimento.html'
+    ).read_text()
+
 class ContaAtendimentoRegistroTests(TestCase):
     def test_cache_da_api_e_isolado_por_ambiente(self):
         params = {'cd_remessa': 18890, 'limit': 5000}
@@ -166,7 +174,7 @@ class ContaAtendimentoRegistroTests(TestCase):
 
     def test_modais_preenchem_datas_padrao_sem_bloquear_edicao(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
-        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        triagem = triagem_template_text()
         follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
         base = (templates_dir / 'base.html').read_text()
 
@@ -218,7 +226,7 @@ class ContaAtendimentoRegistroTests(TestCase):
 
     def test_modais_de_triagem_e_follow_up_exibem_lote_opcional(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
-        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        triagem = triagem_template_text()
         follow_up = (templates_dir / 'follow_up_glosas.html').read_text()
 
         self.assertEqual(triagem.count('name="numero_lote"'), 4)
@@ -231,11 +239,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn("window.syncTriagemCardPdfLinks", base)
 
     def test_triagem_exibe_selecao_multipla_e_modais_padronizados(self):
-        template = (
-            Path(__file__).resolve().parent.parent
-            / 'templates'
-            / 'conta_atendimento.html'
-        ).read_text()
+        template = triagem_template_text()
 
         self.assertIn('Recursar selecionados', template)
         self.assertIn('Acatar selecionados', template)
@@ -282,7 +286,7 @@ class ContaAtendimentoRegistroTests(TestCase):
 
     def test_triagem_atualiza_itens_salvos_sem_recarregar_cards(self):
         templates_dir = Path(__file__).resolve().parent.parent / 'templates'
-        triagem = (templates_dir / 'conta_atendimento.html').read_text()
+        triagem = triagem_template_text()
         base = (templates_dir / 'base.html').read_text()
 
         self.assertIn('formId: form.id', triagem)
@@ -643,11 +647,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertNotContains(response, 'class="account-action-pdf"')
 
     def test_pdf_da_triagem_e_renderizado_no_card_e_nao_na_linha(self):
-        template = (
-            Path(__file__).resolve().parent.parent
-            / 'templates'
-            / 'conta_atendimento.html'
-        ).read_text()
+        template = triagem_template_text()
 
         self.assertIn('data-triagem-pdf-actions', template)
         self.assertIn('data-triagem-card-pdf-link', template)
@@ -657,11 +657,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertNotIn('data-triagem-pdf-link', template)
 
     def test_triagem_exibe_processo_como_primeiro_filtro_e_pdf(self):
-        template = (
-            Path(__file__).resolve().parent.parent
-            / 'templates'
-            / 'conta_atendimento.html'
-        ).read_text()
+        template = triagem_template_text()
 
         self.assertLess(
             template.index('name="processo"'),
@@ -676,11 +672,7 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertIn('data-triagem-process-pdf-actions', template)
 
     def test_triagem_substitui_filtro_conta_por_guia(self):
-        template = (
-            Path(__file__).resolve().parent.parent
-            / 'templates'
-            / 'conta_atendimento.html'
-        ).read_text()
+        template = triagem_template_text()
 
         self.assertIn('<label>Guia</label>', template)
         self.assertIn('name="nr_guia"', template)
@@ -715,6 +707,68 @@ class ContaAtendimentoRegistroTests(TestCase):
         self.assertEqual(response.status_code, 200)
         chamadas = get_cached_api_payload.call_args_list
         self.assertEqual(chamadas[1].args[2]['nr_guia'], 'GUIA-20')
+
+    @patch('core.views.attach_registros_glosa')
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.get_convenio_filter_options')
+    def test_triagem_carrega_itens_e_modais_por_atendimento(
+        self,
+        get_convenio_filter_options,
+        get_cached_api_payload,
+        attach_registros_glosa,
+    ):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {'telas_permitidas': list(SCREEN_KEYS)}
+        session.save()
+        get_convenio_filter_options.return_value = []
+
+        def item(atd, reg, processo=None):
+            return {
+                'cd_paciente': 7, 'nm_paciente': 'PACIENTE TESTE',
+                'cd_remessa': 30, 'cd_atendimento': atd, 'cd_reg': reg,
+                'cd_lancamento': 1, 'cd_prestador': 0, 'cd_pro_fat': '10101012',
+                'descricao': f'ITEM {reg}', 'vl_total_conta': 10, 'qt_lancamento': 1,
+                'nm_convenio': 'ISSEC',
+                'registro_recusa': {'id': 5, 'processo_controle_fatura_gab': processo} if processo else {},
+            }
+
+        contas = [item(100, 1, 'PROC-1'), item(100, 2), item(200, 3)]
+
+        def payload(cache_key, path, params):
+            return {'itens': []} if 'tiss' in cache_key else {
+                'atendimentos': [dict(c) for c in contas], 'total': 1,
+                'limit': 10, 'offset': 0,
+            }
+
+        get_cached_api_payload.side_effect = payload
+        page = self.client.get('/conta-atendimento/', {'cd_remessa': '30'})
+        html = page.content.decode()
+        self.assertEqual(page.status_code, 200)
+        # The page carries no item forms: they load per attendance.
+        self.assertNotIn('class="glosa-modal-form"', html)
+        self.assertEqual(html.count('triagem_atd=30-'), 2)
+        self.assertIn('data-processos-recurso="PROC-1"', html)
+
+        fragment = self.client.get(
+            '/conta-atendimento/', {'cd_remessa': '30', 'triagem_atd': '30-100'}
+        )
+        frag = fragment.content.decode()
+        self.assertEqual(fragment.status_code, 200)
+        # Two per item (recurso and acato) plus the batch form.
+        self.assertEqual(frag.count('class="glosa-modal-form"'), 5)
+        self.assertIn('ITEM 1', frag)
+        self.assertNotIn('ITEM 3', frag)
+        self.assertIn('Recursar selecionados', frag)
+        self.assertIn('data-triagem-recurso-processo="PROC-1"', frag)
+        # Same cached query as the page; the attendance key is not a filter.
+        params = get_cached_api_payload.call_args_list[-1].args[2]
+        self.assertNotIn('triagem_atd', params)
+        self.assertEqual(params['cd_remessa'], '30')
+        missing = self.client.get(
+            '/conta-atendimento/', {'cd_remessa': '30', 'triagem_atd': '30-999'}
+        )
+        self.assertContains(missing, 'Atendimento não encontrado')
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.get_convenio_filter_options')
@@ -9660,7 +9714,7 @@ class ReceitaCertaLayoutTests(TestCase):
     def test_titulo_e_ordem_filtros_triagem(self):
         templates = Path(__file__).resolve().parent.parent / 'templates'
         self.assertIn('<title>Receita Certa</title>', (templates / 'base.html').read_text())
-        template = (templates / 'conta_atendimento.html').read_text()
+        template = triagem_template_text()
         fields = ['processo', 'processo_recurso', 'numero_lote', 'numero_protocolo',
                   'cd_remessa', 'cd_atendimento', 'nr_guia', 'nm_paciente', 'nm_convenio']
         positions = [template.index('name="' + field + '"') for field in fields]

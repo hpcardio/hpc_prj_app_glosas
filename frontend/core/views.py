@@ -2640,6 +2640,7 @@ def _group_contas(contas):
                 atd_total = 0.0
                 atd_convenios = set()
                 atd_procedimentos = set()
+                atd_processos = []
                 for item in itens:
                     try:
                         atd_total += float(item.get("vl_total_conta") or 0)
@@ -2658,6 +2659,12 @@ def _group_contas(contas):
                         )
                         or ""
                     ).strip()
+                    if (
+                        registro_recusa.get("id")
+                        and processo_pdf
+                        and processo_pdf not in atd_processos
+                    ):
+                        atd_processos.append(processo_pdf)
                     if (
                         registro_recusa.get("id")
                         and processo_pdf
@@ -2684,6 +2691,8 @@ def _group_contas(contas):
                         "dt_atendimento_formatada"
                     ),
                     "dt_alta": primeiro_item.get("dt_alta_formatada"),
+                    # PDF links of an attendance not yet loaded on the page.
+                    "processos_recurso": atd_processos,
                 })
             pac_total += rem_total
             pac_lancamentos += rem_lancamentos
@@ -7553,6 +7562,8 @@ def conta_atendimento(request):
     filtros.pop("_modal_action", None)
     filtros.pop("limit", None)
     filtros.pop("offset", None)
+    # Items and their recourse/acato forms load per attendance on expansion.
+    atendimento_solicitado = filtros.pop("triagem_atd", "")
     page = as_positive_int(filtros.pop("page", None), 1)
     search_fields = {
         "processo",
@@ -7662,6 +7673,11 @@ def conta_atendimento(request):
     if pesquisa_executada and not total_pacientes:
         total_pacientes = len(grupos)
 
+    if atendimento_solicitado:
+        return _triagem_atendimento_fragment(
+            request, grupos, atendimento_solicitado, tiss_motivos
+        )
+
     base_query = {k: v for k, v in filtros.items() if v}
     total_pages = max(ceil(total_pacientes / PATIENTS_PER_PAGE), 1)
     if pesquisa_executada and page > total_pages:
@@ -7717,6 +7733,28 @@ def conta_atendimento(request):
             "convenios": convenios,
             "pesquisa_executada": pesquisa_executada,
         },
+    )
+
+
+def _triagem_atendimento_fragment(request, grupos, chave, tiss_motivos):
+    """Items and forms of one attendance (remessa-atendimento) of the page."""
+    for grupo in grupos:
+        for rem in grupo.get("remessas") or []:
+            for atd in rem.get("atendimentos") or []:
+                if f"{rem['cd_remessa']}-{atd['cd_atendimento']}" == chave:
+                    return render(
+                        request,
+                        "partials/triagem_atendimento.html",
+                        {
+                            "grupo": grupo,
+                            "rem": rem,
+                            "atd": atd,
+                            "tiss_motivos": tiss_motivos,
+                        },
+                    )
+    return HttpResponse(
+        '<p class="triagem-atd-missing">Atendimento não encontrado nesta '
+        "página. Refaça a pesquisa.</p>"
     )
 
 
