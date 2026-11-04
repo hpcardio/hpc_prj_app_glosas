@@ -86,6 +86,9 @@ class PetrobrasTests(SimpleTestCase):
         self.assertIn("!config.transmissao_usuario||Boolean(row.bloqueio_envio)", js)
         self.assertIn("el('p',row.bloqueio_envio,sendBox,'petrobras-warning')", js)
         self.assertIn("Envio de recurso em piloto; seu usuário ainda não foi liberado.", js)
+        # Proofs of an appeal are TISS naturezaGuia 3; the API warns on unsent ones.
+        self.assertIn("nature=select(upload,'Natureza da guia',[['3','Recurso de glosa']]);", js)
+        self.assertIn("${x.aviso?' · '+x.aviso:''}", js)
 
     @patch("core.petrobras.api_request")
     def test_batch_send_routes_and_panel(self, api):
@@ -551,7 +554,7 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
         self.assertIn("petrobras-followup.css' %}?v=20261103-recurso-protocolo", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261103-recurso-protocolo", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261104-natureza-recurso", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path
