@@ -140,7 +140,7 @@
     if(editable){
       const upload=el('div',null,docs,'petrobras-form-row petrobras-form-row--upload');const file=input(upload,'Comprovante (PDF, PNG ou JPEG)','file');file.accept='.pdf,.png,.jpg,.jpeg';
       const kind=select(upload,'Tipo do documento TISS',[['','Selecione'],...documentTypes]);
-      const nature=select(upload,'Natureza da guia',[['','Selecione'],['1','Consulta'],['2','SP/SADT'],['3','Resumo de internação']]);
+      const nature=select(upload,'Natureza da guia',[['3','Recurso de glosa']]);
       const up=el('div',null,docs,'petrobras-actions petrobras-actions--end');
       button(up,'Anexar ao item',async()=>{const f=file.files[0];if(!f||!kind.value||!nature.value)throw new Error('Selecione arquivo, tipo de documento e natureza da guia.');if(f.size>config.limite_anexo_bytes)throw new Error('Arquivo acima do limite configurado.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('Não foi possível ler o arquivo.'));reader.readAsDataURL(f);});await api(`glosas/${row.id}/anexos`,'POST',{nome:f.name,conteudo_base64:data,tipo_documento:kind.value,natureza_guia:nature.value});reload('Comprovante anexado ao rascunho.');});
     }
@@ -237,7 +237,7 @@
       const r=await api('glosas/enviar-lote','POST',{itens,confirmar_envio:true});
       box.replaceChildren();el('h4','Resultado da transmissão',box,'petrobras-subtitle');
       const ul=el('ul',null,box,'petrobras-batch-list');
-      (r.recursos||[]).forEach(x=>el('li',`Protocolo ${x.protocolo_petrobras||'-'} · lote ${x.lote||'-'} · ${x.itens.length} item(ns): ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · recurso '+x.protocolo:''}${x.erro?' · '+x.erro:''}`,ul,x.erro?'petrobras-warning':''));
+      (r.recursos||[]).forEach(x=>el('li',`Protocolo ${x.protocolo_petrobras||'-'} · lote ${x.lote||'-'} · ${x.itens.length} item(ns): ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · recurso '+x.protocolo:''}${x.erro?' · '+x.erro:''}${x.aviso?' · '+x.aviso:''}`,ul,x.erro||x.aviso?'petrobras-warning':''));
       r.resultados.filter(x=>!(r.recursos||[]).some(g=>g.itens.includes(x.id))).forEach(x=>el('li',`Item ${x.id}: ${x.erro||labels[x.situacao]||'-'}`,ul,'petrobras-warning'));
       const sent=(r.recursos||[]).filter(x=>x.situacao==='protocolado').length;
       const msg=`${sent} de ${(r.recursos||[]).length} recursos protocolados (${r.protocolados} itens).`;
