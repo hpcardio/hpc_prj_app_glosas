@@ -1012,6 +1012,25 @@
       }
     };
 
+    // Triagem items load per attendance: loaded rows are authoritative; an
+    // attendance not opened yet contributes the list rendered by the server.
+    window.triagemProcessosRecurso = function (scope) {
+      const processos = [];
+      scope.querySelectorAll('.atd-block').forEach((block) => {
+        const rows = block.querySelectorAll('tbody');
+        if (rows.length) {
+          block.querySelectorAll('tbody[data-triagem-recurso-processo]').forEach(
+            (row) => processos.push(row.dataset.triagemRecursoProcesso?.trim())
+          );
+        } else {
+          (block.dataset.processosRecurso || '').split('|').forEach(
+            (processo) => processos.push(processo.trim())
+          );
+        }
+      });
+      return processos.filter(Boolean);
+    };
+
     window.syncTriagemProcessPdfLinks = function () {
       const actions = document.querySelector('[data-triagem-process-pdf-actions]');
       if (!actions) {
@@ -1019,9 +1038,7 @@
       }
       const processos = [
         actions.dataset.filterProcess?.trim(),
-        ...Array.from(
-          document.querySelectorAll('tbody[data-triagem-recurso-processo]')
-        ).map((itemRow) => itemRow.dataset.triagemRecursoProcesso?.trim())
+        ...window.triagemProcessosRecurso(document)
       ].filter(
         (processo, index, values) => processo && values.findIndex(
           (value) => value?.toLocaleLowerCase() === processo.toLocaleLowerCase()
@@ -1055,9 +1072,7 @@
         return;
       }
 
-      const processos = Array.from(
-        card.querySelectorAll('tbody[data-triagem-recurso-processo]')
-      ).map((itemRow) => itemRow.dataset.triagemRecursoProcesso?.trim())
+      const processos = window.triagemProcessosRecurso(card)
         .filter((processo, index, values) => processo && values.indexOf(processo) === index);
 
       actions.replaceChildren();
