@@ -3,14 +3,9 @@ from functools import wraps
 from django.http import HttpResponse
 from .services import ApiError, api_get
 
-SPU_PERMISSION = 'spu_automacao'
-
-
 def profile_can_use_spu(user):
-    return isinstance(user, dict) and user.get('ativo') is True and (
-        user.get('perfil') == 'ti'
-        or SPU_PERMISSION in (user.get('telas_permitidas') or [])
-    )
+    """Qualquer usuário ativo pode resolver o captcha das automações."""
+    return isinstance(user, dict) and user.get('ativo') is True
 
 
 def token_can_use_spu(token):
