@@ -142,9 +142,6 @@ SCREEN_KEYS = tuple(
 
 ROUTE_PERMISSIONS = {
     "petrobras_bridge": "follow_up_glosas",
-    "spu_recaptcha_status": "spu_automacao",
-    "spu_recaptcha_viewer": "spu_automacao",
-    "spu_novnc_asset": "spu_automacao",
     "openfinance": "contas_pagar_gestao",
     "openfinance_connect": "contas_pagar_gestao",
     "openfinance_attach": "contas_pagar_gestao",
@@ -259,6 +256,6 @@ def screen_access_context(request):
             for screen_key in SCREEN_KEYS
         },
         "is_ti_user": is_ti(user),
-        "spu_access_allowed": "spu_automacao" in allowed and user.get("ativo") is True,
+        "spu_access_allowed": user.get("ativo") is True,
         "openfinance_allowed": is_ti(user) or "contas_pagar_gestao" in (user.get("telas_permitidas") or []),
     }
