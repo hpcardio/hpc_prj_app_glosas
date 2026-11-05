@@ -89,6 +89,9 @@ class PetrobrasTests(SimpleTestCase):
         # Proofs of an appeal are TISS naturezaGuia 3; the API warns on unsent ones.
         self.assertIn("nature=select(upload,'Natureza da guia',[['3','Recurso de glosa']]);", js)
         self.assertIn("${x.aviso?' · '+x.aviso:''}", js)
+        # Portal fallback: saved appeals stay visibly unsent until Efetivar.
+        self.assertIn("salvo_portal:'Salvo no portal, não enviado'", js)
+        self.assertIn("api(`glosas/${row.id}/efetivar-portal`,'POST',{})", js)
 
     @patch("core.petrobras.api_request")
     def test_batch_send_routes_and_panel(self, api):
@@ -96,6 +99,8 @@ class PetrobrasTests(SimpleTestCase):
         self.assertEqual(petrobras.bridge(self.request(), "glosas/prontos").status_code, 200)
         self.assertEqual(petrobras.bridge(self.request("post"), "glosas/enviar-lote").status_code, 200)
         self.assertEqual(api.call_args.args[:2], ("POST", "/app_glosas/petrobras/glosas/enviar-lote"))
+        self.assertEqual(petrobras.bridge(self.request("post"), "glosas/1/efetivar-portal").status_code, 200)
+        self.assertEqual(api.call_args.args[:2], ("POST", "/app_glosas/petrobras/glosas/1/efetivar-portal"))
         req = self.request("post")
         req.session["api_user"]["perfil"] = "leitura"
         self.assertEqual(petrobras.bridge(req, "glosas/enviar-lote").status_code, 403)
@@ -554,7 +559,7 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         for title in ["Justificativa e prazo", "Comprovantes", "Processo original", "Tratamento por acato"]:
             self.assertRegex(js, rf"section\(box,'{title}','[^']*petrobras-half'\)")
         self.assertIn("petrobras-followup.css' %}?v=20261103-recurso-protocolo", html)
-        self.assertIn("petrobras-followup.js' %}?v=20261104-natureza-recurso", html)
+        self.assertIn("petrobras-followup.js' %}?v=20261105-fallback-portal", html)
 
     def test_modal_shows_item_data_without_origin_split(self):
         from pathlib import Path
