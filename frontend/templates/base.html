@@ -291,7 +291,7 @@
     <section class="spu-recaptcha-dialog">
       <header class="spu-recaptcha-header">
         <div>
-          <span class="spu-recaptcha-kicker">Automação SPU</span>
+          <span id="spu-recaptcha-kicker" class="spu-recaptcha-kicker">Automação SPU</span>
           <strong id="spu-recaptcha-title">Resolva o reCAPTCHA</strong>
           <small id="spu-recaptcha-context">A extração continuará automaticamente após a validação.</small>
         </div>
@@ -306,7 +306,7 @@
       </div>
       <footer>
         <span class="spu-recaptcha-live"><i aria-hidden="true"></i> Airflow aguardando</span>
-        <span>Conclua o desafio e clique em <strong>Entrar</strong> no SPU.</span>
+        <span id="spu-recaptcha-instruction">Conclua o desafio e clique em <strong>Entrar</strong> no SPU.</span>
       </footer>
     </section>
   </div>
@@ -317,7 +317,7 @@
     hidden
   >
     <span aria-hidden="true"></span>
-    Resolver reCAPTCHA do SPU
+    <span id="spu-recaptcha-restore-label">Resolver reCAPTCHA do SPU</span>
   </button>
   <script>
     (() => {
@@ -327,6 +327,33 @@
       const minimize = document.getElementById('spu-recaptcha-minimize');
       const context = document.getElementById('spu-recaptcha-context');
       if (!layer || !frame || !restore || !minimize || !context) return;
+
+      // Sem dag_id conhecido, o modal mantém os textos do SPU.
+      const issecDag = 'extracao_processos_portal_issec';
+      const defaults = {
+        kicker: document.getElementById('spu-recaptcha-kicker').textContent,
+        title: document.getElementById('spu-recaptcha-title').textContent,
+        instruction: document.getElementById('spu-recaptcha-instruction').innerHTML,
+        restore: document.getElementById('spu-recaptcha-restore-label').textContent,
+        frame: frame.title,
+      };
+      const applyPortalTexts = (dagId) => {
+        if (dagId !== issecDag) {
+          document.getElementById('spu-recaptcha-kicker').textContent = defaults.kicker;
+          document.getElementById('spu-recaptcha-title').textContent = defaults.title;
+          document.getElementById('spu-recaptcha-instruction').innerHTML = defaults.instruction;
+          document.getElementById('spu-recaptcha-restore-label').textContent = defaults.restore;
+          frame.title = defaults.frame;
+          return;
+        }
+        document.getElementById('spu-recaptcha-kicker').textContent = 'Automação ISSEC';
+        document.getElementById('spu-recaptcha-title').textContent = 'Resolva o captcha';
+        document.getElementById('spu-recaptcha-instruction').textContent =
+          'Digite o código da imagem e clique em Acessar no portal ISSEC.';
+        document.getElementById('spu-recaptcha-restore-label').textContent =
+          'Resolver captcha do ISSEC';
+        frame.title = 'Navegador do portal ISSEC para resolução do captcha';
+      };
 
       let activeChallenge = '';
       let minimized = false;
@@ -356,6 +383,7 @@
         const challenge = status.challenge_id || 'spu-active';
         if (challenge !== activeChallenge) {
           activeChallenge = challenge;
+          applyPortalTexts(status.dag_id);
           const taskLabel = status.dag_id
             ? `A DAG ${status.dag_id} está aguardando sua validação.`
             : 'A extração continuará automaticamente após a validação.';

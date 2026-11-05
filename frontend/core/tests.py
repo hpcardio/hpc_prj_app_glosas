@@ -2110,6 +2110,15 @@ class SpuRecaptchaModalTests(TestCase):
         self.assertIn('Resolver reCAPTCHA do SPU', template)
         self.assertIn("window.setTimeout(poll, pollDelay)", template)
 
+    def test_template_troca_textos_para_o_desafio_do_issec(self):
+        template = (
+            Path(__file__).resolve().parent.parent / 'templates' / 'base.html'
+        ).read_text(encoding='utf-8')
+
+        self.assertIn("'extracao_processos_portal_issec'", template)
+        self.assertIn('clique em Acessar no portal ISSEC', template)
+        self.assertIn('Conclua o desafio e clique em <strong>Entrar</strong> no SPU.', template)
+
 
 class LoginFlowTests(TestCase):
     def test_renderiza_tela_de_login(self):
