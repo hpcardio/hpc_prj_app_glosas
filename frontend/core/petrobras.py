@@ -10,7 +10,7 @@ from .services import ApiError, api_get, api_request
 
 PATHS = {
     "GET": r"(status|glosas|glosas/prontos|protocolos|execucoes|glosas/[1-9][0-9]*/(anexos|historico)|glosas/[1-9][0-9]*/anexos/[1-9][0-9]*)",
-    "POST": r"(protocolos|competencias/sincronizar|glosas/cruzar|glosas/enviar-lote|portal/detalhar|protocolos/[1-9][0-9]*/sincronizar|glosas/[1-9][0-9]*/(cruzar|anexos|enviar|consultar-recurso))",
+    "POST": r"(protocolos|competencias/sincronizar|glosas/cruzar|glosas/enviar-lote|portal/detalhar|protocolos/[1-9][0-9]*/sincronizar|glosas/[1-9][0-9]*/(cruzar|anexos|enviar|efetivar-portal|consultar-recurso))",
     "PUT": r"glosas/[1-9][0-9]*/(rascunho|acato)",
     "DELETE": r"glosas/[1-9][0-9]*/acato",
 }

@@ -10,7 +10,7 @@
   const get = role => root.querySelector(`[data-role="${role}"]`) || dialog.querySelector(`[data-role="${role}"]`);
   const readOnly = root.dataset.readonly === 'true';
   const token = root.querySelector('[name=csrfmiddlewaretoken]').value;
-  const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no MV Sistema',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada'};
+  const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no MV Sistema',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada',salvo_portal:'Salvo no portal, não enviado',enviado_portal:'Enviado pelo portal'};
   let config = {}, busy = false, configLoaded = null;
   const mv = t => String(t ?? '').replace(/\bOracle\b/g, 'MV Sistema');
   function el(tag, text, parent, cls) { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; if (parent) parent.append(n); return n; }
@@ -149,6 +149,7 @@
     if(row.recurso_resultado){const d=el('details',null,sendSec);el('summary','Resposta da operadora',d);el('pre',JSON.stringify(row.recurso_resultado,null,2),d);}
     const sendTools=el('div',null,sendSec,'petrobras-actions');
     button(sendTools,'Consultar recurso',async()=>{await api(`glosas/${row.id}/consultar-recurso`,'POST',{});reload('Situação consultada.');},readOnly||!row.recurso_protocolo);
+    if(row.recurso_estado==='salvo_portal'){el('p','Recurso salvo no portal, ainda não enviado. Efetivar envia os recursos salvos do lote; só é permitido quando todos os itens glosados do lote tiverem recurso ou acato.',sendSec,'petrobras-warning');button(sendTools,'Efetivar no portal',async()=>{await api(`glosas/${row.id}/efetivar-portal`,'POST',{});reload('Recursos do lote enviados pelo portal.');},readOnly||!config.transmissao_usuario);}
     if(editable){
       const sendBox=el('details',null,sendSec);el('summary','Transmitir recurso',sendBox);el('p','Salve a justificativa e revise os comprovantes antes de transmitir. O envio usa o rascunho salvo.',sendBox,'petrobras-muted');
       const label=el('label',null,sendBox,'petrobras-check'),confirm=el('input',null,label);confirm.type='checkbox';el('span',' Confirmo o envio deste recurso à Petrobras.',label);
@@ -239,7 +240,7 @@
       const ul=el('ul',null,box,'petrobras-batch-list');
       (r.recursos||[]).forEach(x=>el('li',`Protocolo ${x.protocolo_petrobras||'-'} · lote ${x.lote||'-'} · ${x.itens.length} item(ns): ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · recurso '+x.protocolo:''}${x.erro?' · '+x.erro:''}${x.aviso?' · '+x.aviso:''}`,ul,x.erro||x.aviso?'petrobras-warning':''));
       r.resultados.filter(x=>!(r.recursos||[]).some(g=>g.itens.includes(x.id))).forEach(x=>el('li',`Item ${x.id}: ${x.erro||labels[x.situacao]||'-'}`,ul,'petrobras-warning'));
-      const sent=(r.recursos||[]).filter(x=>x.situacao==='protocolado').length;
+      const sent=(r.recursos||[]).filter(x=>['protocolado','enviado_portal'].includes(x.situacao)).length;
       const msg=`${sent} de ${(r.recursos||[]).length} recursos protocolados (${r.protocolados} itens).`;
       button(el('div',null,box,'petrobras-actions'),'Atualizar tela',async()=>reload(msg));
       notice(msg,sent<(r.recursos||[]).length||r.protocolados<itens.length);
