@@ -91,7 +91,9 @@ class PetrobrasTests(SimpleTestCase):
         self.assertIn("${x.aviso?' · '+x.aviso:''}", js)
         # Portal fallback: saved appeals stay visibly unsent until Efetivar.
         self.assertIn("salvo_portal:'Salvo no portal, não enviado'", js)
-        self.assertIn("api(`glosas/${row.id}/efetivar-portal`,'POST',{})", js)
+        self.assertIn("api(`glosas/${id}/efetivar-portal`,'POST',{ciente_nao_recursados:true})", js)
+        self.assertIn('Estou ciente de que ao clicar em "Efetivar/Enviar Recursos Salvos" os itens NÃO RECURSADOS SERÃO MARCADOS COMO ACEITOS!!!', js)
+        self.assertIn("ciente.addEventListener('change',()=>{send.disabled=!ciente.checked;});", js)
 
     @patch("core.petrobras.api_request")
     def test_batch_send_routes_and_panel(self, api):
@@ -101,6 +103,8 @@ class PetrobrasTests(SimpleTestCase):
         self.assertEqual(api.call_args.args[:2], ("POST", "/app_glosas/petrobras/glosas/enviar-lote"))
         self.assertEqual(petrobras.bridge(self.request("post"), "glosas/1/efetivar-portal").status_code, 200)
         self.assertEqual(api.call_args.args[:2], ("POST", "/app_glosas/petrobras/glosas/1/efetivar-portal"))
+        self.assertEqual(petrobras.bridge(self.request(), "glosas/1/efetivar-portal").status_code, 200)
+        self.assertEqual(api.call_args.args[:2], ("GET", "/app_glosas/petrobras/glosas/1/efetivar-portal"))
         req = self.request("post")
         req.session["api_user"]["perfil"] = "leitura"
         self.assertEqual(petrobras.bridge(req, "glosas/enviar-lote").status_code, 403)
