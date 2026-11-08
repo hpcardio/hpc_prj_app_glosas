@@ -1,0 +1,60 @@
+{% load core_extras l10n %}
+          <section class="payables-titles-section">
+            <header><div><strong>Títulos do fornecedor</strong><span>{{ fornecedor.titulos|length }} título(s) no período selecionado</span></div><span>{% if fornecedor.sem_cadastro %}Classifique este registro em Fornecedores críticos. Pagamentos complementares exigem cadastro no MV.{% else %}Expanda um título para consultar e informar pagamentos{% endif %}</span></header>
+            <div class="payables-title-list">
+              {% if modo == "operacao" and fornecedor.titulos %}<div class="payables-title-table-head" aria-hidden="true"><span></span><span>Título / Parcela</span><span>Documento</span><span>Emissão</span><span>Lançamento</span><span>Vencimento</span><span>Dias em atraso</span><span>Valor</span><span>Saldo a pagar</span><span>Status</span></div>{% endif %}
+              {% for titulo in fornecedor.titulos %}
+              <article class="payables-title-card" x-data="{ titleOpen: false }" @payables-collapse.window="titleOpen=false">
+                {% if modo == "operacao" %}
+                <button type="button" class="payables-title-header is-table-row" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
+                  <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
+                  <span><small>TÍTULO / PARCELA</small><strong>#{{ titulo.codigo_parcela }} · Parcela {{ titulo.numero_parcela|default:"-" }}</strong></span>
+                  <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
+                  <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
+                  <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
+                  <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
+                  <span><small>DIAS EM ATRASO</small><strong class="payables-days-badge{% if titulo.dias_vencidos > 0 %} is-overdue{% endif %}">{{ titulo.dias_vencidos }}</strong></span>
+                  <span><small>VALOR</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
+                  <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
+                  <span class="payables-title-status"><small>STATUS</small><strong class="{% if titulo.saldo_a_pagar <= 0 %}is-paid{% elif titulo.dias_vencidos > 0 %}is-overdue{% else %}is-current{% endif %}">{% if titulo.saldo_a_pagar <= 0 %}Pago{% elif titulo.dias_vencidos > 0 %}Em atraso{% else %}A vencer{% endif %}</strong></span>
+                </button>
+                {% else %}
+                <button type="button" class="payables-title-header" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
+                  <span class="payables-record-chevron" :class="{'is-open': titleOpen}">&#9654;</span>
+                  <span><small>TÍTULO / PARCELA</small><strong>#{{ titulo.codigo_parcela }} · Parcela {{ titulo.numero_parcela|default:"-" }}</strong></span>
+                  <span><small>DOCUMENTO</small><strong>{{ titulo.numero_documento|default:"-" }}</strong></span>
+                  <span><small>EMISSÃO</small><strong>{{ titulo.data_emissao|api_date }}</strong></span>
+                  <span><small>LANÇAMENTO</small><strong>{{ titulo.data_lancamento|api_date }}</strong></span>
+                  <span><small>VENCIMENTO</small><strong>{{ titulo.data_vencimento|api_date }}</strong></span>
+                  <span><small>VALOR TOTAL</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
+                  <span><small>TOTAL HONRADO</small><strong>R$ {{ titulo.valor_total_honrado|br_currency }}</strong></span>
+                  <span><small>DIAS VENCIDOS</small><strong>{{ titulo.dias_vencidos }}</strong></span>
+                  <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
+                </button>
+                {% endif %}
+                <div class="payables-title-body" x-show="titleOpen" x-cloak>
+                  <div class="payables-title-description"><small>CLASSIFICAÇÃO DA CONTA</small><strong>{{ titulo.classificacao|default:"Sem classificação" }}</strong></div>
+                  <div class="payables-title-description"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></div>
+                  <div class="payables-payment-heading"><div><strong>Pagamentos informados</strong><span>Recursos complementares registrados no Receita Certa</span></div></div>
+                  <div class="payables-payment-list">
+                    {% for pagamento in titulo.pagamentos %}
+                    <article class="payables-payment-record" x-data="{ editing: false }">
+                      <div class="payables-payment-summary"><span><small>DATA DO PAGAMENTO</small><strong>{{ pagamento.data_pagamento|api_date }}</strong></span><span><small>VALOR PAGO</small><strong>R$ {{ pagamento.valor_pago|br_currency }}</strong></span><span><small>NOME DO BANCO</small><strong>{{ pagamento.banco }}</strong></span><span><small>AGÊNCIA</small><strong>{{ pagamento.agencia|default:"Não informada" }}</strong></span><span><small>NÚMERO DA CONTA</small><strong>{{ pagamento.numero_conta|default:"Não informado" }}</strong></span><span><small>OBSERVAÇÃO</small><strong>{{ pagamento.observacao|default:"-" }}</strong></span><span><small>REGISTRADO POR</small><strong>{{ pagamento.usuario_nome }}</strong></span>{% if modo == "operacao" and not fornecedor.sem_cadastro %}<button type="button" class="payables-payment-edit" @click="editing=!editing">Editar</button>{% endif %}</div>
+                      {% if modo == "operacao" and not fornecedor.sem_cadastro %}
+                      <div class="payables-payment-edit-panel" x-show="editing" x-cloak>
+                        <form method="post" class="payables-payment-form">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_atualizar"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><input type="hidden" name="pagamento_id" value="{{ pagamento.id }}"><label><span>Data do pagamento</span><input class="form-control" type="date" name="data_pagamento" value="{{ pagamento.data_pagamento }}" required></label><label><span>Valor pago</span><input class="form-control finance-money-input" name="valor_pago" value="{{ pagamento.valor_pago|br_currency }}" inputmode="numeric" data-money-input autocomplete="off" required></label><label><span>Nome do banco</span><input class="form-control" name="banco" value="{{ pagamento.banco }}" maxlength="150" required></label><label><span>Agência</span><input class="form-control" name="agencia" value="{{ pagamento.agencia|default:'' }}" maxlength="30" required></label><label><span>Número da conta</span><input class="form-control" name="numero_conta" value="{{ pagamento.numero_conta|default:'' }}" maxlength="50" required></label><label class="is-wide"><span>Observação</span><input class="form-control" name="observacao" value="{{ pagamento.observacao|default:'' }}" maxlength="4000"></label><button class="btn btn-primary" type="submit">Atualizar pagamento</button></form>
+                        <form method="post" class="payables-payment-delete" onsubmit="return confirm('Excluir este pagamento informado?');">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_excluir"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><input type="hidden" name="pagamento_id" value="{{ pagamento.id }}"><button class="btn finance-danger-button" type="submit">Excluir pagamento</button></form>
+                      </div>
+                      {% endif %}
+                    </article>
+                    {% empty %}<div class="payables-payment-empty">Nenhum pagamento complementar informado para este título.</div>{% endfor %}
+                  </div>
+                  {% if modo == "operacao" and not fornecedor.sem_cadastro %}
+                  <form method="post" class="payables-payment-form payables-payment-form--new">{% csrf_token %}<input type="hidden" name="form_action" value="pagamento_salvar"><input type="hidden" name="codigo_fornecedor" value="{{ fornecedor.codigo_fornecedor }}"><input type="hidden" name="codigo_parcela" value="{{ titulo.codigo_parcela }}"><label><span>Data do pagamento</span><input class="form-control" type="date" name="data_pagamento" required></label><label><span>Valor pago</span><input class="form-control finance-money-input" name="valor_pago" inputmode="numeric" data-money-input autocomplete="off" placeholder="R$ 0,00" required></label><label><span>Nome do banco</span><input class="form-control" name="banco" maxlength="150" required></label><label><span>Agência</span><input class="form-control" name="agencia" maxlength="30" required></label><label><span>Número da conta</span><input class="form-control" name="numero_conta" maxlength="50" required></label><label class="is-wide"><span>Observação</span><input class="form-control" name="observacao" maxlength="4000"></label><button class="btn btn-primary" type="submit">Salvar pagamento</button></form>
+                  {% endif %}
+                </div>
+              </article>
+              {% empty %}<div class="payables-payment-empty">Nenhum título encontrado no período selecionado.</div>{% endfor %}
+            </div>
+          </section>
+          {% if modo != "operacao" %}<div class="payables-negotiation"><small>CONDIÇÃO NEGOCIADA</small><p>{{ fornecedor.condicao_negociada|default:"Negociação ainda não registrada." }}</p></div>{% endif %}

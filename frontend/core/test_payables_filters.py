@@ -1,3 +1,4 @@
+from core.payables_lazy_testing import lazy_get
 from copy import deepcopy
 from io import BytesIO
 from urllib.parse import parse_qs, urlparse
@@ -27,7 +28,7 @@ class PayablesFilterTests(TestCase):
         payload = self.payload()
         payload.update(total=40, total_pages=2)
         api_get.return_value = payload
-        response = self.client.get('/financeiro/contas-a-pagar/operacao/', {
+        response = lazy_get(self.client, '/financeiro/contas-a-pagar/operacao/', {
             'fornecedores_ids': '10,20', 'ordenar': 'maior_valor_vencido', 'faixa_atraso': '1',
         })
         self.assertContains(response, 'Fornecedor A')
@@ -48,7 +49,7 @@ class PayablesFilterTests(TestCase):
     @patch('core.views.api_get')
     def test_management_replaces_binary_criticality_with_quadrant(self, api_get):
         api_get.side_effect = [self.payload(), {'linhas': [], 'colunas': [], 'pendentes': {'quantidade': 0}}]
-        response = self.client.get('/financeiro/contas-a-pagar/gestao/', {
+        response = lazy_get(self.client, '/financeiro/contas-a-pagar/gestao/', {
             'fornecedores_ids': '10,20', 'quadrante': '5', 'criticidade': 'nao_criticos',
             'ordenar': 'maior_valor_vencido',
         })

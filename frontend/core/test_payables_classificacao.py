@@ -6,6 +6,7 @@ from openpyxl import load_workbook
 
 from .payables_export import HEADERS, build_payables_workbook
 from . import tests as existing_tests
+from .payables_lazy_testing import lazy_get
 
 
 class PayablesAccountClassificationTests(TestCase):
@@ -26,9 +27,9 @@ class PayablesAccountClassificationTests(TestCase):
     @patch("core.views.api_get")
     def test_filter_reaches_the_api_and_the_screen_shows_it(self, api_get):
         api_get.return_value = self.payload()
-        response = self.client.get(self.url, {"classificacao": "ACORDO"})
+        response = lazy_get(self.client, self.url, {"classificacao": "ACORDO"}, details=True)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(api_get.call_args.kwargs["params"]["classificacao"], "ACORDO")
+        self.assertTrue(all(c.kwargs["params"]["classificacao"] == "ACORDO" for c in api_get.call_args_list))
         self.assertContains(response, '<option value="ACORDO" selected>ACORDO</option>', html=True)
         self.assertContains(response, "Classificação da conta aplicada")
         self.assertContains(response, "Classificação: ACORDO")
@@ -37,7 +38,7 @@ class PayablesAccountClassificationTests(TestCase):
     @patch("core.views.api_get")
     def test_no_filter_sends_no_classification(self, api_get):
         api_get.return_value = self.payload()
-        response = self.client.get(self.url)
+        response = lazy_get(self.client, self.url)
         self.assertNotIn("classificacao", api_get.call_args.kwargs["params"])
         self.assertNotContains(response, "Classificação da conta aplicada")
         self.assertContains(response, '<option value="SEM_CLASSIFICACAO">Sem classificação</option>', html=True)

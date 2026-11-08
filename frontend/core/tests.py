@@ -1,3 +1,4 @@
+from core.payables_lazy_testing import lazy_get
 from datetime import date
 import json
 from pathlib import Path
@@ -1837,7 +1838,7 @@ class ContasPagarTests(TestCase):
     def test_operacao_exibe_fila_e_campos_editaveis(self, api_get):
         api_get.return_value = self.payload()
 
-        response = self.client.get('/financeiro/contas-a-pagar/operacao/')
+        response = lazy_get(self.client, '/financeiro/contas-a-pagar/operacao/', details=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Fornecedor Essencial')
@@ -1888,13 +1889,13 @@ class ContasPagarTests(TestCase):
         self.assertContains(response, '1-1 de 1 fornecedores exibidos')
         self.assertContains(response, 'id="payables-page"')
         self.assertContains(response, 'Priorizar, editar e excluir dados operacionais')
-        self.assertEqual(api_get.call_args.kwargs['params']['page_size'], 20)
+        self.assertEqual(api_get.call_args_list[0].kwargs['params']['page_size'], 20)
 
     @patch('core.views.api_get')
     def test_gestao_separa_contas_correntes_da_divida(self, api_get):
         api_get.return_value = self.payload()
 
-        response = self.client.get('/financeiro/contas-a-pagar/gestao/')
+        response = lazy_get(self.client, '/financeiro/contas-a-pagar/gestao/', details=True)
 
         self.assertContains(response, 'CONTAS CORRENTES')
         self.assertContains(response, 'DÍVIDA VENCIDA')
@@ -1908,8 +1909,8 @@ class ContasPagarTests(TestCase):
     def test_acompanhamento_exibe_operacao_do_card(self, api_get):
         api_get.return_value = self.payload()
 
-        response = self.client.get(
-            '/financeiro/contas-a-pagar/acompanhamento/'
+        response = lazy_get(
+            self.client, '/financeiro/contas-a-pagar/acompanhamento/', details=True
         )
 
         self.assertNotContains(response, 'Acompanhamento do registro')
@@ -1971,7 +1972,8 @@ class ContasPagarTests(TestCase):
     def test_filtro_entre_datas_e_enviado_para_api(self, api_get):
         api_get.return_value = self.payload()
 
-        response = self.client.get(
+        response = lazy_get(
+            self.client,
             '/financeiro/contas-a-pagar/operacao/',
             {'data_inicio': '2026-06-01', 'data_fim': '2026-06-30'},
         )
