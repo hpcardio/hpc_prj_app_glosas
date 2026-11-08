@@ -8934,7 +8934,7 @@ def _contas_pagar(request, modo):
     if modo == "gestao":
         filtros["criticidade"] = "todos"
 
-    if modo == "operacao" and request.GET.get("export") == "xlsx":
+    if modo in {"operacao", "gestao"} and request.GET.get("export") == "xlsx":
         try:
             result = api_get(
                 CONTAS_PAGAR_PATH,
@@ -8951,7 +8951,8 @@ def _contas_pagar(request, modo):
             build_payables_workbook(fornecedores),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        response["Content-Disposition"] = 'attachment; filename="contas-vencidas.xlsx"'
+        nome_arquivo = "contas-vencidas" if modo == "operacao" else "contas-a-pagar-gestao"
+        response["Content-Disposition"] = f'attachment; filename="{nome_arquivo}.xlsx"'
         response["Cache-Control"] = "private, no-store"
         return response
 

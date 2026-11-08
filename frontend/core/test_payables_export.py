@@ -141,15 +141,15 @@ class SupplierSummaryExportTests(TestCase):
         supplier["titulos"] += [recent, paid]
         workbook = load_workbook(BytesIO(build_payables_workbook([supplier])))
         summary = workbook.active
-        self.assertEqual(summary.max_column, 7)
+        self.assertEqual(summary.max_column, 8)
         self.assertEqual(summary.max_row, 2)
         self.assertEqual([c.value for c in summary[2]], [
             "Fornecedor Essencial", 500000, datetime(2026, 9, 17), 300,
-            "4 - Alta", "1 - 1–30 dias", "Q10",
+            "4 - Alta", "1 - 1–30 dias", "Q10", "Sem classificação",
         ])
         self.assertEqual(summary["D2"].data_type, "n")
         self.assertEqual(summary["C2"].number_format, "dd/mm/yyyy")
-        self.assertEqual(summary.auto_filter.ref, "A1:G2")
+        self.assertEqual(summary.auto_filter.ref, "A1:H2")
         self.assertEqual(workbook["Contas vencidas"].max_row, 4)
 
     def test_age_boundaries_and_pending_classification(self):

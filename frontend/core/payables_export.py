@@ -17,14 +17,15 @@ HEADERS = (
     "Pagar agora do fornecedor", "Saldo a negociar do fornecedor",
     "Título", "Parcela", "Documento", "Emissão", "Lançamento", "Vencimento",
     "Dias em atraso", "Valor", "Saldo a pagar", "Status", "Descrição",
-    "Nível de criticidade", "Classificação", "Faixa de atraso do título",
-    "Classificação da conta",
+    "Nível de criticidade", "Classificação de criticidade",
+    "Faixa de atraso do título", "Classificação da conta",
 )
 
 
 SUMMARY_HEADERS = (
     "Nome Fornecedor", "Valor Total Vencido", "Vencimento da última NF",
     "Valor da última NF", "Criticidade", "Caducidade", "Quadrante",
+    "Classificação da conta",
 )
 
 
@@ -48,6 +49,15 @@ def _latest_invoice(supplier):
         int(title.get("codigo_contas_pagar") or 0),
         int(title.get("codigo_parcela") or 0),
     ), default=None)
+
+
+def _account_classes(supplier):
+    """MV account classifications of the supplier's exported titles."""
+    names = sorted({
+        title.get("classificacao") or "Sem classificação"
+        for title in supplier.get("titulos", [])
+    })
+    return ", ".join(names) or "Sem classificação"
 
 
 def _supplier_summary(supplier):
@@ -74,7 +84,7 @@ def _supplier_summary(supplier):
         _money(supplier.get("valor_total_vencido")),
         _date(title["data_vencimento"]) if title else None,
         _money(invoice_value) if invoice_value is not None else None,
-        classification, age_label, quadrant,
+        classification, age_label, quadrant, _account_classes(supplier),
     ]
 
 
@@ -100,7 +110,7 @@ def _add_supplier_summary(workbook, suppliers):
         cell.fill = PatternFill("solid", fgColor="1B7088")
         cell.alignment = Alignment(wrap_text=True, vertical="center")
     sheet.row_dimensions[1].height = 42
-    for column, width in enumerate((48, 24, 25, 24, 24, 24, 22), 1):
+    for column, width in enumerate((48, 24, 25, 24, 24, 24, 22, 30), 1):
         sheet.column_dimensions[get_column_letter(column)].width = width
     workbook.active = 0
 

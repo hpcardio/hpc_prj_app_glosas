@@ -53,3 +53,36 @@ class PayablesAccountClassificationTests(TestCase):
         self.assertEqual(column, len(HEADERS))
         self.assertEqual(sheet.cell(row=2, column=column).value, "ACORDO")
         self.assertEqual(sheet.cell(row=3, column=column).value, "Sem classificação")
+
+
+class PayablesManagementClassificationTests(TestCase):
+    setUp = existing_tests.ContasPagarTests.setUp
+    url = "/financeiro/contas-a-pagar/gestao/"
+
+    @patch("core.views.api_get")
+    def test_management_has_the_filter_and_sends_it(self, api_get):
+        data = PayablesAccountClassificationTests.payload(self)
+        api_get.return_value = data
+        response = lazy_get(self.client, self.url, {"classificacao": "ACORDO"})
+        self.assertContains(response, '<option value="ACORDO" selected>ACORDO</option>', html=True)
+        self.assertContains(response, "Exportar Excel")
+        self.assertIn("classificacao=ACORDO", response.context["export_url"])
+        self.assertEqual(api_get.call_args_list[0].kwargs["params"]["classificacao"], "ACORDO")
+
+    @patch("core.views.api_get")
+    def test_management_exports_with_the_account_classification(self, api_get):
+        data = PayablesAccountClassificationTests.payload(self)
+        data["total_pages"] = 1
+        api_get.return_value = data
+        response = self.client.get(self.url, {"classificacao": "ACORDO", "export": "xlsx"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("contas-a-pagar-gestao.xlsx", response["Content-Disposition"])
+        self.assertEqual(api_get.call_args.kwargs["params"]["exportar"], "true")
+        self.assertEqual(api_get.call_args.kwargs["params"]["classificacao"], "ACORDO")
+        book = load_workbook(BytesIO(response.content))
+        titles = book["Contas vencidas"]
+        self.assertEqual(titles.cell(row=2, column=HEADERS.index("Classificação da conta") + 1).value, "ACORDO")
+        summary = book["Resumo por fornecedor"]
+        self.assertEqual(summary.cell(row=1, column=8).value, "Classificação da conta")
+        self.assertEqual(summary.cell(row=2, column=8).value, "ACORDO")
+        self.assertIn("Classificação de criticidade", HEADERS)
