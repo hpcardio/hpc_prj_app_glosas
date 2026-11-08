@@ -1,0 +1,141 @@
+{% load core_extras static %}
+
+
+
+<section class="payables-page{% if modo == 'operacao' %} payables-page--operation{% endif %}">
+  <nav class="payables-tabs" aria-label="Visões de Contas a Pagar">
+    <a class="payables-tab {% if modo == 'operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}">
+      <span class="payables-tab-number">1</span><span><strong>Operação</strong><small>Priorizar, editar e excluir dados operacionais</small></span>
+    </a>
+    <a class="payables-tab {% if modo == 'acompanhamento' %}is-active{% endif %}" href="{% url 'contas_pagar_acompanhamento' %}">
+      <span class="payables-tab-number">2</span><span><strong>Acompanhamento</strong><small>Consultar responsáveis, ações e negociações</small></span>
+    </a>
+    <a class="payables-tab {% if modo == 'gestao' %}is-active{% endif %}" href="{% url 'contas_pagar_gestao' %}">
+      <span class="payables-tab-number">3</span><span><strong>Gestão</strong><small>Analisar exposição e prioridade de caixa</small></span>
+    </a>
+  </nav>
+
+  <header class="payables-story{% if modo == 'operacao' %} is-operation{% endif %}">
+    <div class="payables-story-main">
+      {% if modo == "operacao" %}<span class="payables-story-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="6" ry="3"></ellipse><path d="M6 6v4c0 1.7 2.7 3 6 3s6-1.3 6-3V6M6 10v4c0 1.7 2.7 3 6 3s6-1.3 6-3v-4M6 14v4c0 1.7 2.7 3 6 3s6-1.3 6-3v-4"></path></svg></span>{% endif %}
+      <div>
+        <span class="payables-eyebrow">{% if modo == "operacao" %}Fila de atuação{% elif modo == "acompanhamento" %}O passivo está diminuindo?{% else %}Decisão diária de caixa{% endif %}</span>
+        <h2>{% if modo == "operacao" %}Veja rápido o que precisa ser pago e negociado.{% elif modo == "acompanhamento" %}Pagar o passado sem criar novos vencidos.{% else %}Primeiro as contas correntes; depois, a dívida vencida na ordem de prioridade.{% endif %}</h2>
+        <p>{% if modo == "operacao" %}Críticos primeiro. Em cada grupo, os mais atrasados vêm antes.{% elif modo == "acompanhamento" %}Compare o vencido inicial, a posição atual e o que entrou em atraso nos últimos sete dias.{% else %}A visão executiva separa a continuidade do hospital do passivo acumulado e mostra quanto caixa é necessário agora.{% endif %}</p>
+      </div>
+    </div>
+    {% if modo == "operacao" %}<aside class="payables-story-note">Mais controle<br>para a saúde<br>financeira do seu hospital.<span></span></aside>{% endif %}
+  </header>
+
+  <form method="get" class="panel filter-panel payables-filters{% if modo == 'operacao' or modo == 'gestao' %} payables-filters--selection{% endif %}">
+    {% if modo == "operacao" or modo == "gestao" %}{% include "partials/payables_supplier_picker.html" %}{% else %}<label class="filter-group"><span>Fornecedor</span><input class="form-control" type="search" name="q" value="{{ filtros.q }}" placeholder="Nome ou código"></label>{% endif %}
+    {% if modo == "gestao" %}
+    <label class="filter-group"><span>Quadrante</span><select class="form-select" name="quadrante"><option value="">Todos os quadrantes</option>{% for numero in quadrantes %}<option value="{{ numero }}" {% if filtros.quadrante == numero %}selected{% endif %}>Q{{ numero }}</option>{% endfor %}</select></label>
+    {% else %}
+    <label class="filter-group"><span>Criticidade</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
+    {% endif %}
+    <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
+    <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
+    <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
+    {% include "partials/payables_priority_filters.html" %}
+    {% if modo == "operacao" or modo == "gestao" %}
+    <label class="filter-group payables-order-filter"><span>Ordenar por</span><select class="form-select" name="ordenar"><option value="prioridade">Criticidade e maior atraso</option><option value="maior_valor_vencido" {% if filtros.ordenar == 'maior_valor_vencido' %}selected{% endif %}>Maior valor vencido</option></select></label>
+    {% endif %}
+    <div class="filter-actions"><button class="btn btn-primary payables-search-button" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
+  </form>
+
+  {% if filtros.data_inicio or filtros.data_fim %}
+  <div class="payables-active-period" role="status">
+    <span>Período de vencimento aplicado</span>
+    <strong>{% if filtros.data_inicio %}{{ filtros.data_inicio|api_date }}{% else %}início da base{% endif %} a {% if filtros.data_fim %}{{ filtros.data_fim|api_date }}{% else %}data mais recente{% endif %}</strong>
+    <small>Indicadores, fornecedores e títulos abaixo consideram somente este intervalo.</small>
+  </div>
+  {% endif %}
+
+  <div class="payables-kpis{% if modo == "operacao" or modo == "gestao" %} payables-kpis--operational{% endif %}{% if filtros.data_inicio or filtros.data_fim %} is-period-filtered{% endif %}">
+    {% if not filtros.data_inicio and not filtros.data_fim %}
+    <article class="is-start"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6" ry="3"></ellipse><path d="M6 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"></path></svg></span><small>{% if modo == "operacao" or modo == "gestao" %}TOTAL A PAGAR{% else %}DÍVIDA NO INÍCIO DO ACOMPANHAMENTO{% endif %}</small></div><strong>R$ {% if modo == "operacao" or modo == "gestao" %}{{ resumo.valor_a_pagar_ate_hoje|br_currency }}{% else %}{{ resumo.valor_vencido_inicial|br_currency }}{% endif %}</strong><span>{% if modo == "operacao" or modo == "gestao" %}Saldo em aberto com vencimento até hoje, independentemente do status.{% else %}Valor vencido registrado no primeiro dia acompanhado.{% endif %}</span></article>
+    {% endif %}
+    {% if modo == "operacao" or modo == "gestao" %}
+    <article class="is-upcoming">
+      <div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 11h18M8 15h3"></path></svg></span><small>A VENCER</small></div>
+      <strong>R$ {{ resumo.valor_corrente|br_currency }}</strong>
+      <span>Saldo em aberto com vencimento hoje ou em datas futuras.</span>
+    </article>
+    {% endif %}
+    <article class="is-alert"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"></path><path d="M12 9v4M12 16h.01"></path></svg></span><small>{% if modo == "operacao" or modo == "gestao" %}DIVIDA VENCIDA{% elif filtros.data_inicio or filtros.data_fim %}TOTAL EM ATRASO NO PERÍODO{% else %}DÍVIDA VENCIDA ATUAL{% endif %}</small></div><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><span>{% if modo == "operacao" or modo == "gestao" %}Contas vencidas e ainda não pagas{% else %}Total ainda vencido em {{ resumo.fornecedores_vencidos }} fornecedores{% if filtros.data_inicio or filtros.data_fim %} no intervalo selecionado{% endif %}.{% endif %}</span></article>
+    <article class="is-new-delay"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V12M12 19V5M19 19V9"></path></svg></span><small>{% if modo == "operacao" or modo == "gestao" %}NOVA DIVIDA VENCIDA - 7 DIAS{% else %}NOVOS ATRASOS · 7 DIAS{% endif %}</small></div><strong>R$ {{ resumo.novos_vencidos_7d|br_currency }}</strong><span>{% if modo == "operacao" or modo == "gestao" %}Contas que entraram em atraso nesta semana{% else %}Títulos que venceram nos últimos sete dias.{% endif %}</span></article>
+    <article class="is-primary"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><small>{% if modo == "operacao" or modo == "gestao" %}PAGAR AGORA{% else %}PAGAMENTO IMEDIATO PREVISTO{% endif %}</small></div><strong>R$ {{ resumo.pagamento_imediato|br_currency }}</strong><span>{% if modo == "operacao" or modo == "gestao" %}Valor previsto para pagamento imediato{% else %}Caixa informado para desembolso prioritário.{% endif %}</span></article>
+    <article class="is-balance"><div class="payables-kpi-heading"><span class="payables-kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h7M9 17h5"></path></svg></span><small>{% if modo == "operacao" or modo == "gestao" %}SALDO A NEGOCIAR{% else %}SALDO PARA NEGOCIAÇÃO{% endif %}</small></div><strong>R$ {{ resumo.saldo_negociar|br_currency }}</strong><span>{% if modo == "operacao" or modo == "gestao" %}Restante após o pagamento previsto{% else %}Valor aberto após o pagamento imediato.{% endif %}</span></article>
+  </div>
+
+  {% if modo == "gestao" %}<div data-payables-matrix data-lazy-fragment class="panel" aria-busy="true">
+    <p role="status">Carregando matriz de prioridades e orçamento...</p>
+    <button type="button" class="btn btn-outline-secondary" data-lazy-retry hidden>Tentar novamente</button>
+  </div>{% endif %}
+  {% if modo == "gestao" %}
+  <section class="payables-management-grid">
+    <article class="panel payables-cash-card">
+      <span class="panel-title">Comitê Diário de Caixa</span>
+      <div class="payables-cash-split"><span><small>1 · CONTAS CORRENTES</small><strong>R$ {{ resumo.valor_corrente|br_currency }}</strong><em>Proteger a operação e impedir novos vencidos.</em></span><span><small>2 · DÍVIDA VENCIDA</small><strong>R$ {{ resumo.valor_vencido_atual|br_currency }}</strong><em>Aplicar o caixa restante seguindo a fila.</em></span></div>
+    </article>
+    <article class="panel payables-rule-card">
+      <span class="panel-title">Regra de decisão</span>
+      <ol><li>Proteger o que é crítico</li><li>Entre os críticos, priorizar o mais antigo</li><li>Negociar o saldo</li><li>Tratar os não críticos</li><li>Evitar novos vencidos</li></ol>
+    </article>
+    {% if not filtros.data_inicio and not filtros.data_fim %}<article class="panel payables-trend-card">
+      <span class="panel-title">Evolução registrada</span>
+      <div class="payables-history-scroll"><table><thead><tr><th>Data</th><th>Vencido</th><th>Novos vencidos</th><th>Corrente</th></tr></thead><tbody>{% for item in historico %}<tr><td>{{ item.data_referencia|api_date }}</td><td>R$ {{ item.valor_vencido|br_currency }}</td><td>R$ {{ item.novos_vencidos|br_currency }}</td><td>R$ {{ item.valor_corrente|br_currency }}</td></tr>{% empty %}<tr><td colspan="4">A série histórica começa com a primeira consulta.</td></tr>{% endfor %}</tbody></table></div>
+    </article>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if modo == "acompanhamento" and not filtros.data_inicio and not filtros.data_fim %}{% include "partials/payables_trend.html" %}{% endif %}
+  {% if filtros.faixa_atraso or filtros.quadrante %}<p class="priority-notice">Títulos limitados à faixa selecionada. Os totais do fornecedor e os indicadores gerais mantêm seu escopo original; consulte a matriz para o total do quadrante.</p>{% endif %}
+  <section class="panel payables-list-panel">
+    <div class="panel-header payables-results-header">
+      <div class="results-heading">
+        <div><span class="panel-title">{% if modo == "operacao" %}Fornecedores por prioridade{% elif modo == "acompanhamento" %}Registros para acompanhamento{% else %}Registros para decisão gerencial{% endif %}</span>{% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} fornecedores exibidos</span>{% endif %}</div>
+        {% if modo == "operacao" %}<a class="btn btn-outline-secondary" href="{{ export_url }}">Exportar Excel</a>{% endif %}
+        {% if fornecedores %}<div class="collapse-actions"><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-expand'))">Expandir</button><button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('payables-collapse'))">Colapsar todos</button></div>{% endif %}
+      </div>
+      {% if pagination.total %}
+      <div class="results-toolbar payables-results-toolbar">
+        {% if modo == "operacao" %}<span class="payables-order-note"><small>Ordenar por</small><strong>{% if filtros.ordenar == "maior_valor_vencido" %}Maior valor vencido{% else %}Criticidade e maior atraso{% endif %}</strong></span>{% endif %}
+        <div class="pagination-control">
+          {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+          <form method="get" class="page-select-form">{% for key,value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<label for="payables-page">Página</label><select id="payables-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">{% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}</select><span>de {{ pagination.total_pages }}</span></form>
+          {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="payables-list">
+      {% for fornecedor in fornecedores %}
+      <article class="payables-item payables-record-card {% if fornecedor.critico %}is-critical{% endif %}" x-data="{ open: false }" x-effect="if (open) window.loadPayablesDetail($el)" @payables-expand.window="open=true" @payables-collapse.window="open=false">
+        <button type="button" class="payables-record-header" @click="open=!open" :aria-expanded="open" aria-controls="payables-record-{{ fornecedor.codigo_fornecedor }}">
+          <span class="payables-record-identity">
+            <span class="payables-priority">#{{ pagination.start|add:forloop.counter0 }}</span>
+            <span class="payables-supplier"><strong>{{ fornecedor.nome_fornecedor }}</strong><small>{% if fornecedor.sem_cadastro %}Sem cadastro no MV{% else %}FORNECEDOR {{ fornecedor.codigo_fornecedor }}{% endif %}</small></span>
+            <span class="priority-badge priority-level-{{ fornecedor.nivel_criticidade|default:'pending' }}">{% if fornecedor.nivel_criticidade %}{{ fornecedor.nivel_criticidade }} · {% endif %}{{ fornecedor.criticidade_label }}</span>
+          </span>
+          <span class="payables-record-pills">
+            <span class="payables-record-pill is-danger"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6" ry="3"></ellipse><path d="M6 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"></path></svg></span><span><small>Total em atraso</small><strong>R$ {{ fornecedor.valor_total_vencido|br_currency }}</strong></span></span>
+            <span class="payables-record-pill"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16v12H4zM4 11h16"></path></svg></span><span><small>Maior atraso</small><strong>{{ fornecedor.dias_atraso }} dias</strong><small>{{ fornecedor.atraso_label }}</small></span></span>
+            <span class="payables-record-pill is-payment"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h4"></path></svg></span><span><small>Pagar agora</small><strong>R$ {{ fornecedor.pagamento_imediato|br_currency }}</strong></span></span>
+            <span class="payables-record-pill is-balance"><span class="payables-record-pill-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h7M9 17h5"></path></svg></span><span><small>Saldo a negociar</small><strong>R$ {{ fornecedor.saldo_negociar|br_currency }}</strong></span></span>
+          </span>
+          <span class="payables-record-chevron" :class="{'is-open': open}">&#9654;</span>
+        </button>
+        <div id="payables-record-{{ fornecedor.codigo_fornecedor }}" class="payables-details" x-show="open" x-cloak>
+          <div data-payables-detail="{{ fornecedor.codigo_fornecedor }}" data-lazy-fragment>
+            <p role="status">Carregando títulos do fornecedor...</p>
+            <button type="button" class="btn btn-outline-secondary" data-lazy-retry hidden>Tentar novamente</button>
+          </div>
+        </div>
+      </article>
+      {% empty %}<div class="empty-state"><strong>Nenhum fornecedor encontrado.</strong><span>Ajuste os filtros ou verifique a disponibilidade da view Oracle.</span></div>{% endfor %}
+    </div>
+  </section>
+  {% if pagination.total_pages > 1 %}<div class="pagination-footer payables-pagination-footer">{% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% endif %}<span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>{% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% endif %}</div>{% endif %}
+</section>

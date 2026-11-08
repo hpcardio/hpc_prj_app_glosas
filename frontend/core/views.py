@@ -8952,33 +8952,66 @@ def _contas_pagar(request, modo):
         response["Cache-Control"] = "private, no-store"
         return response
 
-    try:
-        payload = api_get(
-            CONTAS_PAGAR_PATH,
-            params={**filtros, "page": page, "page_size": 20,
-                    **({"incluir_opcoes": "true"} if modo in {"operacao", "gestao"} else {})},
-            timeout=60,
-        )
-    except ApiError as exc:
-        payload = {"fornecedores": [], "total": 0, "total_pages": 1, "resumo": {}, "historico": []}
-        messages.error(request, format_api_error(exc, "Contas a Pagar"))
-    decorate_suppliers(payload.get("fornecedores", []))
-    matriz = None
+    if request.method == "GET" and not request.GET.get("fragmento") and "detalhes_fornecedor" not in request.GET:
+        response = render(request, "payables_entry.html", {"modo": modo})
+        response["Cache-Control"] = "private, no-store"
+        return response
     try:
         competencia = month_start(request.GET.get("competencia"))
     except ValueError:
         competencia = month_start(None)
         messages.error(request, "Competência inválida; exibindo o mês atual.")
-    if modo == "gestao":
+    if request.method == "GET" and request.GET.get("fragmento") == "matriz":
+        if modo != "gestao":
+            return HttpResponse("Consulta não disponível.", status=404)
         try:
             matriz = api_get(f"{CONTAS_PAGAR_PATH}/matriz",
-                params={**filtros, "competencia": competencia}, timeout=60)
+                params={**filtros, "competencia": competencia}, timeout=45)
             if "linhas" not in matriz:
-                matriz = None
-            else:
-                decorate_matrix(matriz, filtros)
-        except ApiError as exc:
-            messages.error(request, format_api_error(exc, "Matriz de prioridades"))
+                raise ValueError("Resposta incompleta")
+            decorate_matrix(matriz, filtros)
+        except (ApiError, ValueError):
+            return HttpResponse("Matriz indisponível. Tente novamente.", status=503)
+        response = render(request, "partials/payables_matrix.html", {
+            "matriz": matriz, "filtros": filtros, "competencia_mes": competencia[:7],
+        })
+        response["Cache-Control"] = "private, no-store"
+        response["X-ReceitaCerta-Fragment"] = "payables-matrix"
+        return response
+    if request.method == "GET" and "detalhes_fornecedor" in request.GET:
+        codigo = request.GET.get("detalhes_fornecedor", "")
+        selecionados = {item.strip() for item in filtros.get("fornecedores_ids", "").split(",") if item.strip()}
+        if not codigo or (selecionados and codigo not in selecionados):
+            return HttpResponse("Fornecedor não disponível nesta pesquisa.", status=404)
+        try:
+            detalhe = api_get(CONTAS_PAGAR_PATH,
+                params={**filtros, "fornecedores_ids": codigo, "exportar": "true"}, timeout=45)
+        except ApiError:
+            return HttpResponse("Títulos indisponíveis. Tente novamente.", status=503)
+        encontrados = [item for item in detalhe.get("fornecedores", []) if str(item.get("codigo_fornecedor")) == codigo]
+        if len(encontrados) != 1:
+            return HttpResponse("Fornecedor não disponível nesta pesquisa.", status=404)
+        decorate_suppliers(encontrados)
+        response = render(request, "partials/payables_supplier_details.html", {
+            "fornecedor": encontrados[0], "modo": modo,
+        })
+        response["Cache-Control"] = "private, no-store"
+        response["X-ReceitaCerta-Fragment"] = "payables-detail"
+        return response
+    try:
+        payload = api_get(
+            CONTAS_PAGAR_PATH,
+            params={**filtros, "page": page, "page_size": 20, "incluir_titulos": "false",
+                    **({"incluir_opcoes": "true"} if modo in {"operacao", "gestao"} else {})},
+            timeout=45,
+        )
+    except ApiError as exc:
+        if request.GET.get("fragmento") == "resumo":
+            return HttpResponse("Consulta ao MV indisponível. Tente novamente.", status=503)
+        payload = {"fornecedores": [], "total": 0, "total_pages": 1, "resumo": {}, "historico": []}
+        messages.error(request, format_api_error(exc, "Contas a Pagar"))
+    decorate_suppliers(payload.get("fornecedores", []))
+    matriz = None
     opcoes_fornecedores = payload.get("opcoes_fornecedores", [])
     nomes = {str(item["codigo"]): item["nome"] for item in opcoes_fornecedores}
     selecionados_fornecedores = [
@@ -8993,7 +9026,10 @@ def _contas_pagar(request, modo):
         redirect_filters = {**filtros, "page": total_pages}
         if modo == "gestao":
             redirect_filters["competencia"] = competencia[:7]
-        return redirect(f"{reverse(route_name)}?{urlencode(redirect_filters)}")
+        target = f"{reverse(route_name)}?{urlencode(redirect_filters)}"
+        if request.GET.get("fragmento") == "resumo":
+            return HttpResponse(status=409, headers={"X-ReceitaCerta-Redirect": target})
+        return redirect(target)
     query = {key: value for key, value in filtros.items() if value and value != "todos"}
     if modo == "gestao":
         query["competencia"] = competencia[:7]
@@ -9010,9 +9046,9 @@ def _contas_pagar(request, modo):
         "end": min(page * 20, int(payload.get("total") or 0)),
         "query": query,
     }
-    return render(
+    response = render(
         request,
-        "contas_pagar.html",
+        "partials/payables_content.html" if request.GET.get("fragmento") == "resumo" else "contas_pagar.html",
         {
             "modo": modo,
             "opcoes_fornecedores": opcoes_fornecedores,
@@ -9031,6 +9067,10 @@ def _contas_pagar(request, modo):
             "pagination": pagination,
         },
     )
+    response["Cache-Control"] = "private, no-store"
+    if request.GET.get("fragmento") == "resumo":
+        response["X-ReceitaCerta-Fragment"] = "payables-summary"
+    return response
 
 
 @require_http_methods(["GET", "POST"])

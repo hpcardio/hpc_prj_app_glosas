@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load core_extras static %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
+{% block page_title %}{% if modo == "operacao" %}Contas vencidas{% elif modo == "acompanhamento" %}Acompanhamento do passivo{% else %}Gestão de Contas a Pagar{% endif %}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/payables-priority.css' %}?v=1">
+<script defer src="{% static 'js/payables-supplier-picker.js' %}"></script>
+<script defer src="{% static 'js/payables-lazy.js' %}"></script>
+<div data-payables-summary data-lazy-fragment aria-busy="true">
+<section class="payables-page">
+  <nav class="payables-tabs" aria-label="Visões de Contas a Pagar">
+    <a class="payables-tab {% if modo == 'operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}">
+      <span class="payables-tab-number">1</span><span><strong>Operação</strong><small>Priorizar, editar e excluir dados operacionais</small></span>
+    </a>
+    <a class="payables-tab {% if modo == 'acompanhamento' %}is-active{% endif %}" href="{% url 'contas_pagar_acompanhamento' %}">
+      <span class="payables-tab-number">2</span><span><strong>Acompanhamento</strong><small>Consultar responsáveis, ações e negociações</small></span>
+    </a>
+    <a class="payables-tab {% if modo == 'gestao' %}is-active{% endif %}" href="{% url 'contas_pagar_gestao' %}">
+      <span class="payables-tab-number">3</span><span><strong>Gestão</strong><small>Analisar exposição e prioridade de caixa</small></span>
+    </a>
+  </nav>
+  <div class="panel">
+    <p role="status">Carregando informações de Contas a pagar...</p>
+    <button type="button" class="btn btn-outline-secondary" data-lazy-retry hidden>Tentar novamente</button>
+  </div>
+</section>
+</div>
+{% endblock %}

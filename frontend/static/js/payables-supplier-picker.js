@@ -1,7 +1,10 @@
 (() => {
   "use strict";
   const normalize = value => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+  function initializePickers() {
   document.querySelectorAll("[data-supplier-picker]").forEach(root => {
+    if (root.dataset.pickerReady) return;
+    root.dataset.pickerReady = 'true';
     const options = JSON.parse(document.getElementById("supplier-picker-options").textContent);
     const initial = JSON.parse(document.getElementById("supplier-picker-selected").textContent);
     const selected = new Map(initial.map(item => [String(item.codigo), item]));
@@ -76,4 +79,7 @@
     renderChips();
     renderResults();
   });
+  }
+  initializePickers();
+  document.addEventListener('htmx:afterSwap', initializePickers);
 })();
