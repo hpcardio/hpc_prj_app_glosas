@@ -18,6 +18,7 @@ HEADERS = (
     "Título", "Parcela", "Documento", "Emissão", "Lançamento", "Vencimento",
     "Dias em atraso", "Valor", "Saldo a pagar", "Status", "Descrição",
     "Nível de criticidade", "Classificação", "Faixa de atraso do título",
+    "Classificação da conta",
 )
 
 
@@ -136,6 +137,7 @@ def build_payables_workbook(fornecedores):
                 title.get("descricao_conta") or "",
                 supplier.get("nivel_criticidade"), supplier["criticidade_label"],
                 next((label for level, label in AGES if days > {5:120, 4:90, 3:60, 2:30, 1:0}[level]), "Sem atraso"),
+                title.get("classificacao") or "Sem classificação",
             ])
             row_number += 1
             for column in range(1, len(HEADERS) + 1):
