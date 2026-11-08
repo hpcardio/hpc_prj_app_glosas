@@ -10,7 +10,7 @@
   const get = role => root.querySelector(`[data-role="${role}"]`) || dialog.querySelector(`[data-role="${role}"]`);
   const readOnly = root.dataset.readonly === 'true';
   const token = root.querySelector('[name=csrfmiddlewaretoken]').value;
-  const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no MV Sistema',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada',salvo_portal:'Salvo no portal, não enviado',enviado_portal:'Enviado pelo portal'};
+  const labels = {conciliado:'Conciliado',nao_localizado:'Não localizado no MV Sistema',ambiguo:'Correspondência ambígua',dados_insuficientes:'Dados insuficientes',rascunho:'Rascunho',protocolado:'Protocolado',em_analise:'Em análise',respondido:'Respondido',envio_incerto:'Envio não confirmado',transmitindo:'Transmissão iniciada',salvo_portal:'Salvo no portal, não enviado',enviado_portal:'Enviado pelo portal',aceito_portal:'Aceito no portal'};
   let config = {}, busy = false, configLoaded = null;
   const mv = t => String(t ?? '').replace(/\bOracle\b/g, 'MV Sistema');
   function el(tag, text, parent, cls) { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; if (parent) parent.append(n); return n; }
@@ -149,7 +149,7 @@
     if(row.recurso_resultado){const d=el('details',null,sendSec);el('summary','Resposta da operadora',d);el('pre',JSON.stringify(row.recurso_resultado,null,2),d);}
     const sendTools=el('div',null,sendSec,'petrobras-actions');
     button(sendTools,'Consultar recurso',async()=>{await api(`glosas/${row.id}/consultar-recurso`,'POST',{});reload('Situação consultada.');},readOnly||!row.recurso_protocolo);
-    if(row.recurso_estado==='salvo_portal'){el('p','Recurso salvo no portal, ainda não enviado. Efetivar envia os recursos salvos do lote; só é permitido quando todos os itens glosados do lote tiverem recurso ou acato.',sendSec,'petrobras-warning');button(sendTools,'Efetivar no portal',async()=>{await api(`glosas/${row.id}/efetivar-portal`,'POST',{});reload('Recursos do lote enviados pelo portal.');},readOnly||!config.transmissao_usuario);}
+    if(row.recurso_estado==='salvo_portal'){el('p','Recurso salvo no portal, ainda não enviado.',sendSec,'petrobras-warning');efetivarBox(sendSec,row.id);}
     if(editable){
       const sendBox=el('details',null,sendSec);el('summary','Transmitir recurso',sendBox);el('p','Salve a justificativa e revise os comprovantes antes de transmitir. O envio usa o rascunho salvo.',sendBox,'petrobras-muted');
       const label=el('label',null,sendBox,'petrobras-check'),confirm=el('input',null,label);confirm.type='checkbox';el('span',' Confirmo o envio deste recurso à Petrobras.',label);
@@ -205,6 +205,24 @@
   // transmission, sent one by one with its result shown below.
   // One TISS appeal per lot/protocol: the selected items of each protocol
   // travel together in a single transmission.
+  // Efetivar is lot-wide and irreversible: only after the user acknowledges it.
+  function efetivarBox(parent,id){
+    const box=el('div',null,parent,'petrobras-actions');
+    button(box,'Revisar efetivação',async()=>{
+      const p=await api(`glosas/${id}/efetivar-portal`);
+      box.replaceChildren();
+      el('p',`Lote ${p.lote||'-'}: ${p.recursos} recurso(s) salvo(s), ${p.acatos} acato(s) e ${p.nao_recursados.length} item(ns) não recursado(s).`,box);
+      if(p.nao_recursados.length){
+        const total=p.nao_recursados.reduce((t,i)=>t+Number(i.valor_glosa||0),0);
+        const d=el('details',null,box);el('summary',`Itens que serão marcados como aceitos · ${money(total)}`,d);
+        const ul=el('ul',null,d);p.nao_recursados.forEach(i=>el('li',`${i.guia||'-'} · ${i.tuss||'-'} ${i.descricao||''} · ${money(i.valor_glosa)}`,ul));
+      }
+      const label=el('label',null,box,'petrobras-check'),ciente=el('input',null,label);ciente.type='checkbox';
+      el('span',' Estou ciente de que ao clicar em "Efetivar/Enviar Recursos Salvos" os itens NÃO RECURSADOS SERÃO MARCADOS COMO ACEITOS!!!',label);
+      const send=button(box,'Efetivar/Enviar Recursos Salvos',async()=>{await api(`glosas/${id}/efetivar-portal`,'POST',{ciente_nao_recursados:true});reload('Recursos do lote enviados pelo portal.');},true);
+      ciente.addEventListener('change',()=>{send.disabled=!ciente.checked;});
+    },readOnly||!config.transmissao_usuario);
+  }
   function renderBatch(data, box=get('batch'), only=null){
     box.replaceChildren();box.hidden=false;
     el('h4','Recursos prontos para transmitir, por protocolo/lote',box,'petrobras-subtitle');
@@ -226,6 +244,7 @@
       });
     } else el('p','Preencha a justificativa, o prazo e a origem em +Recursar e salve o rascunho.',box,'petrobras-muted');
     if(data.pendencias.length){const d=el('details',null,box);el('summary',`${data.pendencias.length} rascunhos com pendência`,d);const ul=el('ul',null,d);data.pendencias.forEach(r=>el('li',`${r.senha||r.guia||'-'} · ${r.tuss||'-'} ${r.descricao||''}: ${r.pendencia}`,ul));}
+    (data.salvos||[]).forEach(s=>{const sec=el('fieldset',null,box,'petrobras-batch-group');el('legend',`Protocolo ${s.protocolo||'-'} · lote ${s.lote||'-'} · ${s.itens} item(ns) salvo(s) no portal, não enviado(s)`,sec);efetivarBox(sec,s.id);});
     if(!data.prontos.length)return;
     const lab=el('label',null,box,'petrobras-check'),confirm=el('input',null,lab);confirm.type='checkbox';el('span',' Confirmo o envio à Petrobras de um recurso por protocolo/lote com os itens selecionados.',lab);
     const tools=el('div',null,box,'petrobras-actions');
@@ -241,9 +260,11 @@
       (r.recursos||[]).forEach(x=>el('li',`Protocolo ${x.protocolo_petrobras||'-'} · lote ${x.lote||'-'} · ${x.itens.length} item(ns): ${labels[x.situacao]||x.situacao||'-'}${x.protocolo?' · recurso '+x.protocolo:''}${x.erro?' · '+x.erro:''}${x.aviso?' · '+x.aviso:''}`,ul,x.erro||x.aviso?'petrobras-warning':''));
       r.resultados.filter(x=>!(r.recursos||[]).some(g=>g.itens.includes(x.id))).forEach(x=>el('li',`Item ${x.id}: ${x.erro||labels[x.situacao]||'-'}`,ul,'petrobras-warning'));
       const sent=(r.recursos||[]).filter(x=>['protocolado','enviado_portal'].includes(x.situacao)).length;
-      const msg=`${sent} de ${(r.recursos||[]).length} recursos protocolados (${r.protocolados} itens).`;
+      const saved=(r.recursos||[]).filter(x=>x.situacao==='salvo_portal');
+      saved.forEach(x=>efetivarBox(box,x.itens[0]));
+      const msg=`${sent} de ${(r.recursos||[]).length} recursos protocolados (${r.protocolados} itens).${saved.length?` ${saved.length} salvo(s) no portal, aguardando efetivação.`:''}`;
       button(el('div',null,box,'petrobras-actions'),'Atualizar tela',async()=>reload(msg));
-      notice(msg,sent<(r.recursos||[]).length||r.protocolados<itens.length);
+      notice(msg,sent+saved.length<(r.recursos||[]).length);
     },readOnly||!data.usuario_liberado);
     if(!data.usuario_liberado)el('p',config.transmissao_habilitada?'Envio de recurso em piloto; seu usuário ainda não foi liberado.':'Transmissão ainda não habilitada neste ambiente.',box,'petrobras-muted');
   }
@@ -262,7 +283,7 @@
   async function batchCount(){
     const opener=document.querySelector('[data-petrobras-batch=""]');
     if(!opener||readOnly)return;
-    try{const data=await api('glosas/prontos');opener.disabled=!data.prontos.length;opener.textContent=`Transmitir recursos preenchidos (${data.prontos.length})`;}catch(_){/* stays disabled */}
+    try{const data=await api('glosas/prontos');opener.disabled=!data.prontos.length&&!(data.salvos||[]).length;opener.textContent=`Transmitir recursos preenchidos (${data.prontos.length})`;}catch(_){/* stays disabled */}
   }
   document.addEventListener('click',event=>{
     const b=event.target.closest('[data-petrobras-batch]');if(!b)return;

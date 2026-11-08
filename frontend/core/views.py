@@ -8923,6 +8923,9 @@ def _contas_pagar(request, modo):
         "data_fim": (request.GET.get("data_fim") or "").strip(),
     }
     filtros.update(extra_filters(request.GET))
+    classificacao = (request.GET.get("classificacao") or "").strip()[:100]
+    if classificacao:
+        filtros["classificacao"] = classificacao
     if modo in {"operacao", "gestao"}:
         for key in ("fornecedores_ids", "quadrante", "ordenar"):
             value = (request.GET.get(key) or "").strip()
@@ -9052,6 +9055,12 @@ def _contas_pagar(request, modo):
         {
             "modo": modo,
             "opcoes_fornecedores": opcoes_fornecedores,
+            "opcoes_classificacao": payload.get("opcoes_classificacao", []),
+            "classificacao_label": next(
+                (item["nome"] for item in payload.get("opcoes_classificacao", [])
+                 if item["valor"] == filtros.get("classificacao")),
+                filtros.get("classificacao", ""),
+            ),
             "selecionados_fornecedores": selecionados_fornecedores,
             "quadrantes": [str(n) for n in range(1, 26)],
             "matriz": matriz,

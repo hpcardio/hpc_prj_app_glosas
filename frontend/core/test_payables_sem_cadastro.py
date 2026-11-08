@@ -1,3 +1,4 @@
+from core.payables_lazy_testing import lazy_get
 from io import BytesIO
 from unittest.mock import patch
 
@@ -36,7 +37,7 @@ class UnregisteredSupplierTests(TestCase):
     @patch('core.views.api_get')
     def test_unregistered_titles_visible_without_payment_forms(self, api_get):
         api_get.return_value = self.payload()
-        response = self.client.get('/financeiro/contas-a-pagar/operacao/')
+        response = lazy_get(self.client, '/financeiro/contas-a-pagar/operacao/', details=True)
         self.assertContains(response, 'CSRF')
         self.assertContains(response, 'Sem cadastro no MV')
         self.assertContains(response, 'Medicamentos')

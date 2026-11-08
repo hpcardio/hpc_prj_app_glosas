@@ -1,3 +1,4 @@
+from core.payables_lazy_testing import lazy_get
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -79,7 +80,8 @@ class PriorityTests(TestCase):
     @patch("core.views.api_get")
     def test_title_filters_are_preserved_in_export_and_pagination(self, api_get):
         api_get.return_value = {"fornecedores": [], "total": 40, "total_pages": 2}
-        response = self.client.get(
+        response = lazy_get(
+            self.client,
             "/financeiro/contas-a-pagar/operacao/",
             {"nivel_criticidade": "4", "faixa_atraso": "1", "somente_vencidos": "true"},
         )
@@ -94,7 +96,7 @@ class PriorityTests(TestCase):
             {"fornecedores": [], "total": 0, "total_pages": 1},
             ApiError("unavailable"),
         ]
-        response = self.client.get("/financeiro/contas-a-pagar/gestao/")
+        response = lazy_get(self.client, "/financeiro/contas-a-pagar/gestao/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Matriz indisponível")
         self.assertContains(response, "Comitê Diário de Caixa")
@@ -125,8 +127,8 @@ class PriorityTests(TestCase):
             "orcamento": "0.00",
         }
         api_get.side_effect = [{"fornecedores": [], "total": 0}, matrix]
-        response = self.client.get(
-            "/financeiro/contas-a-pagar/gestao/?competencia=2026-10&q=ABC"
+        response = lazy_get(
+            self.client, "/financeiro/contas-a-pagar/gestao/?competencia=2026-10&q=ABC"
         )
         self.assertContains(response, "Criticidade × tempo de atraso")
         self.assertContains(response, "nivel_criticidade=5")

@@ -1,3 +1,4 @@
+from core.payables_lazy_testing import lazy_get
 from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
@@ -90,7 +91,7 @@ class PayablesExportTests(TestCase):
         payload = existing_tests.ContasPagarTests.payload()
         payload["total_pages"] = 3
         api_get.return_value = payload
-        response = self.client.get(self.url, {"q": "A & B", "page": 2})
+        response = lazy_get(self.client, self.url, {"q": "A & B", "page": 2})
         self.assertContains(response, "Exportar Excel")
         self.assertIn("q=A+%26+B", response.context["export_url"])
         self.assertNotIn("page=", response.context["export_url"])

@@ -35,6 +35,7 @@
     <label class="filter-group"><span>Criticidade</span><select class="form-select" name="criticidade"><option value="todos">Todos</option><option value="criticos" {% if filtros.criticidade == 'criticos' %}selected{% endif %}>Críticos</option><option value="nao_criticos" {% if filtros.criticidade == 'nao_criticos' %}selected{% endif %}>Não críticos</option></select></label>
     {% endif %}
     <label class="filter-group"><span>Status</span><select class="form-select" name="status"><option value="">Todos</option><option value="PENDENTE" {% if filtros.status == 'PENDENTE' %}selected{% endif %}>Pendente</option><option value="CONTATO" {% if filtros.status == 'CONTATO' %}selected{% endif %}>Contato iniciado</option><option value="NEGOCIACAO" {% if filtros.status == 'NEGOCIACAO' %}selected{% endif %}>Em negociação</option><option value="ACORDADO" {% if filtros.status == 'ACORDADO' %}selected{% endif %}>Acordado</option></select></label>
+    {% if opcoes_classificacao %}<label class="filter-group"><span>Classificação da conta</span><select class="form-select" name="classificacao"><option value="">Todas</option>{% for opcao in opcoes_classificacao %}<option value="{{ opcao.valor }}" {% if filtros.classificacao == opcao.valor %}selected{% endif %}>{{ opcao.nome }}</option>{% endfor %}</select></label>{% endif %}
     <label class="filter-group"><span>Vencimento de</span><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}"></label>
     <label class="filter-group"><span>Vencimento até</span><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}"></label>
     {% include "partials/payables_priority_filters.html" %}
@@ -44,6 +45,13 @@
     <div class="filter-actions"><button class="btn btn-primary payables-search-button" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>Pesquisar</button><a class="btn btn-outline-secondary" href="{% if modo == 'operacao' %}{% url 'contas_pagar_operacao' %}{% elif modo == 'acompanhamento' %}{% url 'contas_pagar_acompanhamento' %}{% else %}{% url 'contas_pagar_gestao' %}{% endif %}">Limpar</a></div>
   </form>
 
+  {% if filtros.classificacao %}
+  <div class="payables-active-period" role="status">
+    <span>Classificação da conta aplicada</span>
+    <strong>{{ classificacao_label }}</strong>
+    <small>Indicadores, fornecedores e títulos abaixo consideram somente contas com esta classificação no MV.</small>
+  </div>
+  {% endif %}
   {% if filtros.data_inicio or filtros.data_fim %}
   <div class="payables-active-period" role="status">
     <span>Período de vencimento aplicado</span>
@@ -116,7 +124,7 @@
         <button type="button" class="payables-record-header" @click="open=!open" :aria-expanded="open" aria-controls="payables-record-{{ fornecedor.codigo_fornecedor }}">
           <span class="payables-record-identity">
             <span class="payables-priority">#{{ pagination.start|add:forloop.counter0 }}</span>
-            <span class="payables-supplier"><strong>{{ fornecedor.nome_fornecedor }}</strong><small>{% if fornecedor.sem_cadastro %}Sem cadastro no MV{% else %}FORNECEDOR {{ fornecedor.codigo_fornecedor }}{% endif %}</small></span>
+            <span class="payables-supplier"><strong>{{ fornecedor.nome_fornecedor }}</strong><small>{% if fornecedor.sem_cadastro %}Sem cadastro no MV{% else %}FORNECEDOR {{ fornecedor.codigo_fornecedor }}{% endif %}</small>{% if fornecedor.classificacoes %}<small class="payables-account-class">Classificação: {{ fornecedor.classificacoes|join:", " }}</small>{% endif %}</span>
             <span class="priority-badge priority-level-{{ fornecedor.nivel_criticidade|default:'pending' }}">{% if fornecedor.nivel_criticidade %}{{ fornecedor.nivel_criticidade }} · {% endif %}{{ fornecedor.criticidade_label }}</span>
           </span>
           <span class="payables-record-pills">
