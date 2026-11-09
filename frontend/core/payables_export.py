@@ -19,7 +19,11 @@ HEADERS = (
     "Dias em atraso", "Valor", "Saldo a pagar", "Status", "Descrição",
     "Nível de criticidade", "Classificação de criticidade",
     "Faixa de atraso do título", "Classificação da conta",
+    # Same fields as MV's "Contas a Pagar" spreadsheet missing above.
+    "Observação", "Desconto", "Acréscimo", "Valor pago", "Data da baixa",
 )
+MONEY_COLUMNS = {5, 7, 8, 16, 17, 25, 26, 27}
+DATE_COLUMNS = {12, 13, 14, 28}
 
 
 SUMMARY_HEADERS = (
@@ -35,6 +39,10 @@ def _money(value):
 
 def _date(value):
     return date.fromisoformat(str(value)[:10]) if value else None
+
+
+def _optional_money(value):
+    return None if value in (None, "") else _money(value)
 
 
 def _latest_invoice(supplier):
@@ -148,6 +156,13 @@ def build_payables_workbook(fornecedores):
                 supplier.get("nivel_criticidade"), supplier["criticidade_label"],
                 next((label for level, label in AGES if days > {5:120, 4:90, 3:60, 2:30, 1:0}[level]), "Sem atraso"),
                 title.get("classificacao") or "Sem classificação",
+                title.get("observacao") or "",
+                _optional_money(title.get("valor_desconto")),
+                _optional_money(title.get("valor_acrescimo")),
+                # Paid in MV, as in its spreadsheet; manual payments only
+                # change "Saldo a pagar".
+                _money(title.get("valor_honrado_oracle")),
+                _date(title.get("data_baixa")),
             ])
             row_number += 1
             for column in range(1, len(HEADERS) + 1):
@@ -155,9 +170,9 @@ def build_payables_workbook(fornecedores):
                 # API text must stay literal, including values beginning with '='.
                 if isinstance(cell.value, str):
                     cell.data_type = "s"
-                if cell.column in (5, 7, 8, 16, 17):
+                if cell.column in MONEY_COLUMNS:
                     cell.number_format = '"R$" #,##0.00'
-                elif cell.column in (12, 13, 14):
+                elif cell.column in DATE_COLUMNS:
                     cell.number_format = "dd/mm/yyyy"
     sheet.freeze_panes = "D2"
     sheet.auto_filter.ref = sheet.dimensions
@@ -168,7 +183,7 @@ def build_payables_workbook(fornecedores):
     sheet.row_dimensions[1].height = 42
     for column in range(1, len(HEADERS) + 1):
         sheet.column_dimensions[get_column_letter(column)].width = (
-            60 if column == 19 else 36 if column == 2 else 22
+            60 if column in (19, 24) else 36 if column == 2 else 22
         )
     _add_supplier_summary(workbook, fornecedores)
     output = BytesIO()
