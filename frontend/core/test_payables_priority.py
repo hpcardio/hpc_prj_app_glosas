@@ -170,14 +170,15 @@ class PriorityTests(TestCase):
     def test_excel_keeps_existing_columns_and_appends_priority(self):
         from io import BytesIO
         from openpyxl import load_workbook
-        from core.payables_export import build_payables_workbook
+        from core.payables_export import HEADERS, build_payables_workbook
         from core.tests import ContasPagarTests
 
         supplier = ContasPagarTests.payload()["fornecedores"][0]
         supplier["nivel_criticidade"] = 4
         sheet = load_workbook(BytesIO(build_payables_workbook([supplier])))["Contas vencidas"]
-        self.assertEqual(sheet["D2"].value, "Crítico")
-        self.assertEqual(sheet["S2"].value, "Medicamentos")
-        self.assertEqual(sheet["T2"].value, 4)
-        self.assertEqual(sheet["U2"].value, "Alta")
-        self.assertEqual(sheet["V2"].value, "91–120 dias")
+        value = lambda header: sheet.cell(row=2, column=HEADERS.index(header) + 1).value
+        self.assertEqual(value("Criticidade"), "Crítico")
+        self.assertEqual(value("Descrição da Conta"), "Medicamentos")
+        self.assertEqual(value("Nível de criticidade"), 4)
+        self.assertEqual(value("Classificação de criticidade"), "Alta")
+        self.assertEqual(value("Faixa de atraso do título"), "91–120 dias")

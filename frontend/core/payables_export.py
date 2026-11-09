@@ -11,19 +11,66 @@ from openpyxl.utils import get_column_letter
 from .payables_priority import AGES, decorate_suppliers
 
 
-HEADERS = (
-    "Prioridade", "Fornecedor", "Código do fornecedor", "Criticidade",
-    "Total em atraso do fornecedor", "Maior atraso do fornecedor (dias)",
-    "Pagar agora do fornecedor", "Saldo a negociar do fornecedor",
-    "Título", "Parcela", "Documento", "Emissão", "Lançamento", "Vencimento",
-    "Dias em atraso", "Valor", "Saldo a pagar", "Status", "Descrição",
-    "Nível de criticidade", "Classificação de criticidade",
-    "Faixa de atraso do título", "Classificação da conta",
-    # Same fields as MV's "Contas a Pagar" spreadsheet missing above.
-    "Observação", "Desconto", "Acréscimo", "Valor pago", "Data da baixa",
+MONEY, DATE = '"R$" #,##0.00', "dd/mm/yyyy"
+
+
+def _status(balance, days):
+    return "Pago" if balance <= 0 else "Em atraso" if days > 0 else "A vencer"
+
+
+def _age_label(days):
+    limits = {5: 120, 4: 90, 3: 60, 2: 30, 1: 0}
+    return next(
+        (label for level, label in AGES if days > limits[level]), "Sem atraso"
+    )
+
+
+# (header, cell format, width, value from (supplier, title, row context)).
+# The first twelve follow MV's "Contas a Pagar" spreadsheet, in its order and
+# with its names; Receita Certa's own columns follow them.
+COLUMNS = (
+    ("Dt. Lançamento", DATE, 14, lambda s, t, c: _date(t.get("data_lancamento"))),
+    ("Dt. Emissão", DATE, 14, lambda s, t, c: _date(t.get("data_emissao"))),
+    ("Dt. Vencimento", DATE, 14, lambda s, t, c: _date(t.get("data_vencimento"))),
+    ("Fornecedor", None, 36, lambda s, t, c: s.get("nome_fornecedor") or ""),
+    ("Descrição da Conta", None, 60, lambda s, t, c: t.get("descricao_conta") or ""),
+    ("Observação", None, 60, lambda s, t, c: t.get("observacao") or ""),
+    ("Valor Título", MONEY, 18, lambda s, t, c: _money(t.get("valor_total"))),
+    ("Desconto", MONEY, 14, lambda s, t, c: _optional_money(t.get("valor_desconto"))),
+    ("Acréscimo", MONEY, 14, lambda s, t, c: _optional_money(t.get("valor_acrescimo"))),
+    ("Nr. Documento", None, 18, lambda s, t, c: str(t.get("numero_documento") or "")),
+    # Latest MV payment that was not reversed.
+    ("Data do Pagamento", DATE, 14, lambda s, t, c: _date(t.get("data_pagamento_mv"))),
+    # Paid in MV, as in its spreadsheet; manual payments only change
+    # "Saldo a pagar".
+    ("Valor Pago", MONEY, 18, lambda s, t, c: _money(t.get("valor_honrado_oracle"))),
+    ("Prioridade", None, 12, lambda s, t, c: c["priority"]),
+    ("Código do fornecedor", None, 18, lambda s, t, c: (
+        "Sem cadastro no MV" if s.get("sem_cadastro")
+        else str(s.get("codigo_fornecedor") or ""))),
+    ("Criticidade", None, 18, lambda s, t, c: (
+        "Sem classificação" if s.get("criticidade_pendente")
+        else "Crítico" if s.get("critico") else "Não crítico")),
+    ("Total em atraso do fornecedor", MONEY, 22,
+     lambda s, t, c: _money(s.get("valor_total_vencido"))),
+    ("Maior atraso do fornecedor (dias)", None, 22,
+     lambda s, t, c: int(s.get("dias_atraso") or 0)),
+    ("Pagar agora do fornecedor", MONEY, 22,
+     lambda s, t, c: _money(s.get("pagamento_imediato"))),
+    ("Saldo a negociar do fornecedor", MONEY, 22,
+     lambda s, t, c: _money(s.get("saldo_negociar"))),
+    ("Título", None, 14, lambda s, t, c: str(t.get("codigo_parcela") or "")),
+    ("Parcela", None, 10, lambda s, t, c: str(t.get("numero_parcela") or "")),
+    ("Dias em atraso", None, 14, lambda s, t, c: c["days"]),
+    ("Saldo a pagar", MONEY, 18, lambda s, t, c: c["balance"]),
+    ("Status", None, 14, lambda s, t, c: _status(c["balance"], c["days"])),
+    ("Nível de criticidade", None, 14, lambda s, t, c: s.get("nivel_criticidade")),
+    ("Classificação de criticidade", None, 22, lambda s, t, c: s["criticidade_label"]),
+    ("Faixa de atraso do título", None, 22, lambda s, t, c: _age_label(c["days"])),
+    ("Classificação da conta", None, 26,
+     lambda s, t, c: t.get("classificacao") or "Sem classificação"),
 )
-MONEY_COLUMNS = {5, 7, 8, 16, 17, 25, 26, 27}
-DATE_COLUMNS = {12, 13, 14, 28}
+HEADERS = tuple(column[0] for column in COLUMNS)
 
 
 SUMMARY_HEADERS = (
@@ -129,62 +176,29 @@ def build_payables_workbook(fornecedores):
     sheet = workbook.active
     sheet.title = "Contas vencidas"
     sheet.append(HEADERS)
-    row_number = 1
     for priority, supplier in enumerate(fornecedores, 1):
         for title in supplier.get("titulos", []):
-            balance = _money(title.get("saldo_a_pagar"))
-            days = int(title.get("dias_vencidos") or 0)
-            sheet.append([
-                priority, supplier.get("nome_fornecedor") or "",
-                "Sem cadastro no MV" if supplier.get("sem_cadastro")
-                else str(supplier.get("codigo_fornecedor") or ""),
-                "Sem classificação" if supplier.get("criticidade_pendente")
-                else "Crítico" if supplier.get("critico") else "Não crítico",
-                _money(supplier.get("valor_total_vencido")),
-                int(supplier.get("dias_atraso") or 0),
-                _money(supplier.get("pagamento_imediato")),
-                _money(supplier.get("saldo_negociar")),
-                str(title.get("codigo_parcela") or ""),
-                str(title.get("numero_parcela") or ""),
-                str(title.get("numero_documento") or ""),
-                _date(title.get("data_emissao")),
-                _date(title.get("data_lancamento")),
-                _date(title.get("data_vencimento")), days,
-                _money(title.get("valor_total")), balance,
-                "Pago" if balance <= 0 else "Em atraso" if days > 0 else "A vencer",
-                title.get("descricao_conta") or "",
-                supplier.get("nivel_criticidade"), supplier["criticidade_label"],
-                next((label for level, label in AGES if days > {5:120, 4:90, 3:60, 2:30, 1:0}[level]), "Sem atraso"),
-                title.get("classificacao") or "Sem classificação",
-                title.get("observacao") or "",
-                _optional_money(title.get("valor_desconto")),
-                _optional_money(title.get("valor_acrescimo")),
-                # Paid in MV, as in its spreadsheet; manual payments only
-                # change "Saldo a pagar".
-                _money(title.get("valor_honrado_oracle")),
-                _date(title.get("data_baixa")),
-            ])
-            row_number += 1
-            for column in range(1, len(HEADERS) + 1):
-                cell = sheet.cell(row=row_number, column=column)
+            context = {
+                "priority": priority,
+                "balance": _money(title.get("saldo_a_pagar")),
+                "days": int(title.get("dias_vencidos") or 0),
+            }
+            sheet.append([value(supplier, title, context) for *_, value in COLUMNS])
+            for cell, (_, number_format, _, _) in zip(sheet[sheet.max_row], COLUMNS):
                 # API text must stay literal, including values beginning with '='.
                 if isinstance(cell.value, str):
                     cell.data_type = "s"
-                if cell.column in MONEY_COLUMNS:
-                    cell.number_format = '"R$" #,##0.00'
-                elif cell.column in DATE_COLUMNS:
-                    cell.number_format = "dd/mm/yyyy"
-    sheet.freeze_panes = "D2"
+                if number_format:
+                    cell.number_format = number_format
+    sheet.freeze_panes = "E2"
     sheet.auto_filter.ref = sheet.dimensions
     for cell in sheet[1]:
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="1B7088")
         cell.alignment = Alignment(wrap_text=True, vertical="center")
     sheet.row_dimensions[1].height = 42
-    for column in range(1, len(HEADERS) + 1):
-        sheet.column_dimensions[get_column_letter(column)].width = (
-            60 if column in (19, 24) else 36 if column == 2 else 22
-        )
+    for index, (_, _, width, _) in enumerate(COLUMNS, 1):
+        sheet.column_dimensions[get_column_letter(index)].width = width
     _add_supplier_summary(workbook, fornecedores)
     output = BytesIO()
     workbook.save(output)

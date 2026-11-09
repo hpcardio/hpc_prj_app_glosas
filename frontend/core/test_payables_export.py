@@ -7,7 +7,13 @@ from unittest.mock import patch
 from django.test import TestCase
 from openpyxl import load_workbook
 
+from openpyxl.utils import get_column_letter
+
 from .payables_export import HEADERS, SUMMARY_HEADERS, build_payables_workbook
+
+
+def cell(header, row):
+    return f"{get_column_letter(HEADERS.index(header) + 1)}{row}"
 from .services import ApiError
 from . import tests as existing_tests
 
@@ -39,14 +45,14 @@ class PayablesExportTests(TestCase):
         sheet = workbook["Contas vencidas"]
         self.assertEqual(sheet.max_row, 3)
         self.assertEqual(tuple(c.value for c in sheet[1]), HEADERS)
-        self.assertEqual(sheet["A3"].value, 2)
-        self.assertEqual(sheet["C3"].value, "20")
-        self.assertEqual(sheet["I3"].value, "100")
-        self.assertEqual(sheet["L2"].value, datetime(2026, 5, 18))
-        self.assertEqual(sheet["P2"].value, 650000)
-        self.assertEqual(sheet["R2"].value, "Em atraso")
-        self.assertEqual(sheet["S2"].value, "Medicamentos")
-        self.assertEqual(sheet["P2"].data_type, "n")
+        self.assertEqual(sheet[cell("Prioridade", 3)].value, 2)
+        self.assertEqual(sheet[cell("Código do fornecedor", 3)].value, "20")
+        self.assertEqual(sheet[cell("Título", 3)].value, "100")
+        self.assertEqual(sheet[cell("Dt. Emissão", 2)].value, datetime(2026, 5, 18))
+        self.assertEqual(sheet[cell("Valor Título", 2)].value, 650000)
+        self.assertEqual(sheet[cell("Status", 2)].value, "Em atraso")
+        self.assertEqual(sheet[cell("Descrição da Conta", 2)].value, "Medicamentos")
+        self.assertEqual(sheet[cell("Valor Título", 2)].data_type, "n")
         api_get.assert_called_once()
         self.assertEqual(api_get.call_args.kwargs["params"], {**filters, "exportar": "true"})
 
@@ -62,41 +68,46 @@ class PayablesExportTests(TestCase):
         workbook = load_workbook(BytesIO(build_payables_workbook([supplier])))
         self.assertEqual(workbook.active["A2"].data_type, "s")
         sheet = workbook["Contas vencidas"]
-        self.assertEqual(sheet["B2"].data_type, "s")
-        self.assertEqual(sheet["S2"].data_type, "s")
-        self.assertEqual(sheet["K2"].value, "000123")
-        self.assertIsNone(sheet["L2"].value)
-        self.assertEqual(sheet["R2"].value, "Pago")
-        self.assertEqual(sheet["R3"].value, "A vencer")
+        self.assertEqual(sheet[cell("Fornecedor", 2)].data_type, "s")
+        self.assertEqual(sheet[cell("Descrição da Conta", 2)].data_type, "s")
+        self.assertEqual(sheet[cell("Nr. Documento", 2)].value, "000123")
+        self.assertIsNone(sheet[cell("Dt. Emissão", 2)].value)
+        self.assertEqual(sheet[cell("Status", 2)].value, "Pago")
+        self.assertEqual(sheet[cell("Status", 3)].value, "A vencer")
 
-    def test_titles_bring_the_mv_spreadsheet_fields(self):
+    def test_titles_follow_the_mv_spreadsheet_order_and_fields(self):
+        self.assertEqual(HEADERS[:12], (
+            "Dt. Lançamento", "Dt. Emissão", "Dt. Vencimento", "Fornecedor",
+            "Descrição da Conta", "Observação", "Valor Título", "Desconto",
+            "Acréscimo", "Nr. Documento", "Data do Pagamento", "Valor Pago",
+        ))
+        self.assertEqual(len(HEADERS), len(set(HEADERS)))
         supplier = existing_tests.ContasPagarTests.payload()["fornecedores"][0]
         title = supplier["titulos"][0]
         title.update(observacao="=Renegociado", valor_desconto="10.50",
                      valor_acrescimo=None, valor_honrado_oracle="40.00",
-                     data_baixa="2026-06-03")
+                     data_pagamento_mv="2026-06-03")
         bare = deepcopy(title)
         for key in ("observacao", "valor_desconto", "valor_acrescimo",
-                    "valor_honrado_oracle", "data_baixa"):
+                    "valor_honrado_oracle", "data_pagamento_mv"):
             bare.pop(key)
         supplier["titulos"].append(bare)
         sheet = load_workbook(BytesIO(build_payables_workbook([supplier])))["Contas vencidas"]
-        column = {name: HEADERS.index(name) + 1 for name in HEADERS}
-        cell = lambda row, name: sheet.cell(row=row, column=column[name])
-        self.assertEqual(HEADERS[-5:], ("Observação", "Desconto", "Acréscimo",
-                                        "Valor pago", "Data da baixa"))
-        self.assertEqual(cell(2, "Observação").value, "=Renegociado")
-        self.assertEqual(cell(2, "Observação").data_type, "s")
-        self.assertEqual(cell(2, "Desconto").value, 10.5)
-        self.assertEqual(cell(2, "Desconto").number_format, '"R$" #,##0.00')
-        self.assertIsNone(cell(2, "Acréscimo").value)
-        self.assertEqual(cell(2, "Valor pago").value, 40)
-        self.assertEqual(cell(2, "Data da baixa").value, datetime(2026, 6, 3))
-        self.assertEqual(cell(2, "Data da baixa").number_format, "dd/mm/yyyy")
-        self.assertIsNone(cell(3, "Observação").value)
-        self.assertIsNone(cell(3, "Desconto").value)
-        self.assertEqual(cell(3, "Valor pago").value, 0)
-        self.assertIsNone(cell(3, "Data da baixa").value)
+        self.assertEqual(tuple(c.value for c in sheet[1]), HEADERS)
+        self.assertEqual(sheet.freeze_panes, "E2")
+        self.assertEqual(sheet[cell("Observação", 2)].value, "=Renegociado")
+        self.assertEqual(sheet[cell("Observação", 2)].data_type, "s")
+        self.assertEqual(sheet[cell("Desconto", 2)].value, 10.5)
+        self.assertEqual(sheet[cell("Desconto", 2)].number_format, '"R$" #,##0.00')
+        self.assertIsNone(sheet[cell("Acréscimo", 2)].value)
+        self.assertEqual(sheet[cell("Valor Pago", 2)].value, 40)
+        self.assertEqual(sheet[cell("Data do Pagamento", 2)].value, datetime(2026, 6, 3))
+        self.assertEqual(sheet[cell("Data do Pagamento", 2)].number_format, "dd/mm/yyyy")
+        self.assertEqual(sheet[cell("Dt. Lançamento", 2)].number_format, "dd/mm/yyyy")
+        self.assertIsNone(sheet[cell("Observação", 3)].value)
+        self.assertIsNone(sheet[cell("Desconto", 3)].value)
+        self.assertEqual(sheet[cell("Valor Pago", 3)].value, 0)
+        self.assertIsNone(sheet[cell("Data do Pagamento", 3)].value)
 
     @patch("core.views.api_get")
     def test_empty_export_has_headers(self, api_get):
