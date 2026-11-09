@@ -414,8 +414,9 @@
                           {% elif item.petrobras %}
                           <div class="petrobras-item-action">
                             <div class="petrobras-item-buttons">
-                              <button type="button" class="btn-glosar {% if item.petrobras.recurso_estado != 'rascunho' or item.petrobras.justificativa %}btn-glosar--filled{% endif %}" data-petrobras-item="{{ item.petrobras_json }}">+Recursar</button>
-                              <button type="button" class="btn-acatar {% if item.petrobras.acato %}btn-acatar--filled{% endif %}" data-petrobras-acato="{{ item.petrobras_json }}">+Acatar</button>
+                              {# Accepted on the portal is an acato, not an appeal. #}
+                              <button type="button" class="btn-glosar {% if item.petrobras.recurso_estado != 'aceito_portal' and item.petrobras.recurso_estado != 'rascunho' or item.petrobras.recurso_estado == 'rascunho' and item.petrobras.justificativa %}btn-glosar--filled{% endif %}" data-petrobras-item="{{ item.petrobras_json }}">+Recursar</button>
+                              <button type="button" class="btn-acatar {% if item.petrobras.acato or item.petrobras.recurso_estado == 'aceito_portal' %}btn-acatar--filled{% endif %}" data-petrobras-acato="{{ item.petrobras_json }}">+Acatar</button>
                             </div>
                           </div>
                           {% endif %}

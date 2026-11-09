@@ -495,6 +495,23 @@ class PetrobrasFollowUpViewTests(TestCase):
 
     @patch("core.petrobras.api_get")
     @patch("core.views.api_get")
+    def test_item_accepted_on_the_portal_shows_as_acato(self, views_api, payer_api):
+        views_api.return_value = {"cards": [], "total": 0}
+        accepted = {**petrobras_row(1, None), "recurso_estado": "aceito_portal"}
+        payer_api.return_value = self.payer(1, [accepted])
+        appeal = 'class="btn-glosar btn-glosar--filled" data-petrobras-item='
+        acato = 'class="btn-acatar btn-acatar--filled" data-petrobras-acato='
+        html = self.client.get("/follow-up-glosas/").content.decode()
+        self.assertIn(acato, html)
+        self.assertNotIn(appeal, html)
+        sent = {**petrobras_row(1, None), "recurso_estado": "enviado_portal"}
+        payer_api.return_value = self.payer(1, [sent])
+        html = self.client.get("/follow-up-glosas/").content.decode()
+        self.assertIn(appeal, html)
+        self.assertNotIn(acato, html)
+
+    @patch("core.petrobras.api_get")
+    @patch("core.views.api_get")
     def test_protocolo_petro_filters_only_payer_records(self, views_api, payer_api):
         payer_api.return_value = self.payer(1, [petrobras_row(1, None)])
         response = self.client.get("/follow-up-glosas/?protocolo_petro=13827422")
