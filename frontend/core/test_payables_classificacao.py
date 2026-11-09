@@ -50,7 +50,7 @@ class PayablesAccountClassificationTests(TestCase):
         )
         sheet = load_workbook(BytesIO(build_payables_workbook(data["fornecedores"])))["Contas vencidas"]
         column = HEADERS.index("Classificação da conta") + 1
-        self.assertEqual(column, 23)  # Position kept; MV fields follow it.
+        self.assertEqual(column, len(HEADERS))
         self.assertEqual(sheet.cell(row=2, column=column).value, "ACORDO")
         self.assertEqual(sheet.cell(row=3, column=column).value, "Sem classificação")
 

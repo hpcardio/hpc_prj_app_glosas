@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from openpyxl import load_workbook
 
-from core.payables_export import build_payables_workbook
+from core.payables_export import HEADERS, build_payables_workbook
 from core.payables_priority import decorate_suppliers
 from core.tests import ContasPagarTests
 from core.test_payables_priority import PriorityTests
@@ -30,9 +30,9 @@ class UnregisteredSupplierTests(TestCase):
         self.assertEqual(workbook.active['E2'].value, 'Sem classifica\u00e7\u00e3o')
         self.assertEqual(workbook.active['G2'].value, 'Classifica\u00e7\u00e3o pendente')
         sheet = workbook['Contas vencidas']
-        self.assertEqual(sheet['C2'].value, 'Sem cadastro no MV')
-        self.assertEqual(sheet['D2'].value, 'Sem classifica\u00e7\u00e3o')
-        self.assertIsNone(sheet['T2'].value)
+        self.assertEqual(sheet.cell(row=2, column=HEADERS.index('Código do fornecedor') + 1).value, 'Sem cadastro no MV')
+        self.assertEqual(sheet.cell(row=2, column=HEADERS.index('Criticidade') + 1).value, 'Sem classifica\u00e7\u00e3o')
+        self.assertIsNone(sheet.cell(row=2, column=HEADERS.index('Nível de criticidade') + 1).value)
 
     @patch('core.views.api_get')
     def test_unregistered_titles_visible_without_payment_forms(self, api_get):
@@ -78,8 +78,8 @@ class UnregisteredSupplierTests(TestCase):
         self.assertEqual(supplier['nivel_criticidade'], 5)
         self.assertEqual(book.active['E2'].value, '5 - Extrema')
         self.assertEqual(book.active['G2'].value, 'Q2')
-        self.assertEqual(book['Contas vencidas']['D2'].value, 'Crítico')
-        self.assertEqual(book['Contas vencidas']['C2'].value, 'Sem cadastro no MV')
+        self.assertEqual(book['Contas vencidas'].cell(row=2, column=HEADERS.index('Criticidade') + 1).value, 'Crítico')
+        self.assertEqual(book['Contas vencidas'].cell(row=2, column=HEADERS.index('Código do fornecedor') + 1).value, 'Sem cadastro no MV')
 
     @patch('core.views.api_patch')
     def test_unregistered_classification_requires_level_and_valid_identity(self, api_patch):
