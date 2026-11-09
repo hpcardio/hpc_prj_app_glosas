@@ -163,7 +163,7 @@ def _item(row):
         "cd_lancamento": oracle.get("cd_lancamento"),
         "nm_convenio": oracle.get("nm_convenio") or CONVENIO_PADRAO,
         "tp_atendimento": oracle.get("tp_atendimento"),
-        "cd_pro_fat": oracle.get("cd_pro_fat") or fonte.get("tuss"),
+        "cd_pro_fat": oracle.get("cd_pro_fat") or fonte.get("tuss") or row.get("tuss"),
         "cd_tuss": None,
         "cd_gru_fat": oracle.get("cd_gru_fat"),
         "ds_gru_fat": oracle.get("ds_gru_fat"),
@@ -211,6 +211,41 @@ def _item(row):
     }
 
 
+# Attendance of an MV-linked item; an unlinked item of the same guide
+# (e.g. an ambiguous match) is shown in it when the guide has only one.
+ATENDIMENTO_CAMPOS = (
+    "cd_paciente", "nm_paciente", "cd_remessa", "cd_atendimento",
+    "tp_atendimento", "dt_atendimento", "dt_alta", "nm_convenio",
+)
+
+
+def _atendimento_da_guia(itens):
+    """Unlinked items join the guide's single MV attendance, if any.
+
+    Same wallet and guide with every linked item in one attendance: the
+    unlinked item belongs to it too, so the screen does not open a second
+    "Não informado" attendance. The match itself stays ambiguous; only the
+    billing group of a linked item with the same code is borrowed.
+    """
+    ligados = [i for i in itens if i["cd_atendimento"]]
+    contextos = {tuple(i[c] for c in ATENDIMENTO_CAMPOS) for i in ligados}
+    if len(contextos) != 1:
+        return
+    base = ligados[0]
+    grupos = {
+        i["cd_pro_fat"]: (i["cd_gru_fat"], i["ds_gru_fat"])
+        for i in ligados
+        if i["ds_gru_fat"]
+    }
+    for item in itens:
+        if item["cd_atendimento"]:
+            continue
+        item.update({c: base[c] for c in ATENDIMENTO_CAMPOS})
+        if not item["ds_gru_fat"] and item["cd_pro_fat"] in grupos:
+            item["cd_gru_fat"], item["ds_gru_fat"] = grupos[item["cd_pro_fat"]]
+        item["atendimento_pela_guia"] = True
+
+
 def follow_up_cards(data):
     """Demonstrativo > protocolo > beneficiário/guia > itens, as API cards."""
     por_demonstrativo = {}
@@ -245,6 +280,8 @@ def follow_up_cards(data):
                     paciente["nm_paciente"] = item["nm_paciente"]
                     paciente["codigo_paciente"] = item["cd_paciente"] or 0
                 paciente["itens"].append(item)
+            for paciente in pacientes.values():
+                _atendimento_da_guia(paciente["itens"])
             glosado = sum((i["valor_glosa"] for i in itens), Decimal(0))
             tratado = sum((i["valor_total_tratado"] for i in itens), Decimal(0))
             convenios = {i["nm_convenio"] for i in itens}

@@ -287,6 +287,32 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
         self.assertEqual(str(card["valor_glosado"]), "0.02")
         self.assertEqual(str(card["valor_total_tratado"]), "0")
 
+    def test_unlinked_item_joins_the_single_attendance_of_its_guide(self):
+        ambiguous = petrobras_row(2, None)
+        card = petrobras.follow_up_cards({
+            "demonstrativos": ["D1"],
+            "items": [petrobras_row(1, ORACLE), ambiguous],
+        })[0]
+        (paciente,) = card["pacientes"]
+        linked, unlinked = paciente["itens"]
+        self.assertEqual(unlinked["cd_atendimento"], 789)
+        self.assertEqual(unlinked["tp_atendimento"], "Externo")
+        self.assertEqual(unlinked["dt_atendimento"], "2026-07-08")
+        self.assertEqual(unlinked["ds_gru_fat"], "EXAMES")
+        self.assertTrue(unlinked["atendimento_pela_guia"])
+        self.assertIsNone(unlinked["cd_lancamento"])
+        self.assertNotIn("atendimento_pela_guia", linked)
+
+    def test_unlinked_item_stays_apart_when_the_guide_has_two_attendances(self):
+        other = {**ORACLE, "cd_atendimento": 790}
+        card = petrobras.follow_up_cards({
+            "demonstrativos": ["D1"],
+            "items": [petrobras_row(1, ORACLE), petrobras_row(2, other), petrobras_row(3, None)],
+        })[0]
+        unlinked = card["pacientes"][0]["itens"][2]
+        self.assertIsNone(unlinked["cd_atendimento"])
+        self.assertNotIn("atendimento_pela_guia", unlinked)
+
     def test_beneficiary_groups_by_wallet_and_senha(self):
         other_guide = petrobras_row(2, None)
         other_guide["guia_prestador"] = "00000000000009999999"
