@@ -93,7 +93,8 @@ class PetrobrasTests(SimpleTestCase):
         self.assertIn("salvo_portal:'Salvo no portal, não enviado'", js)
         self.assertIn("api(`glosas/${id}/efetivar-portal`,'POST',{ciente_nao_recursados:true})", js)
         # Situation done directly on the portal is read, never written there.
-        self.assertIn("api('portal/situacao','POST',{})", js)
+        self.assertIn("api('portal/situacao','POST',apos?{apos}:{})", js)
+        self.assertIn("apos=r.proximo;if(!apos)break;", js)
         self.assertIn('Estou ciente de que ao clicar em "Efetivar/Enviar Recursos Salvos" os itens NÃO RECURSADOS SERÃO MARCADOS COMO ACEITOS!!!', js)
         self.assertIn("ciente.addEventListener('change',()=>{send.disabled=!ciente.checked;});", js)
 
