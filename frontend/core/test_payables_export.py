@@ -69,6 +69,35 @@ class PayablesExportTests(TestCase):
         self.assertEqual(sheet["R2"].value, "Pago")
         self.assertEqual(sheet["R3"].value, "A vencer")
 
+    def test_titles_bring_the_mv_spreadsheet_fields(self):
+        supplier = existing_tests.ContasPagarTests.payload()["fornecedores"][0]
+        title = supplier["titulos"][0]
+        title.update(observacao="=Renegociado", valor_desconto="10.50",
+                     valor_acrescimo=None, valor_honrado_oracle="40.00",
+                     data_baixa="2026-06-03")
+        bare = deepcopy(title)
+        for key in ("observacao", "valor_desconto", "valor_acrescimo",
+                    "valor_honrado_oracle", "data_baixa"):
+            bare.pop(key)
+        supplier["titulos"].append(bare)
+        sheet = load_workbook(BytesIO(build_payables_workbook([supplier])))["Contas vencidas"]
+        column = {name: HEADERS.index(name) + 1 for name in HEADERS}
+        cell = lambda row, name: sheet.cell(row=row, column=column[name])
+        self.assertEqual(HEADERS[-5:], ("Observação", "Desconto", "Acréscimo",
+                                        "Valor pago", "Data da baixa"))
+        self.assertEqual(cell(2, "Observação").value, "=Renegociado")
+        self.assertEqual(cell(2, "Observação").data_type, "s")
+        self.assertEqual(cell(2, "Desconto").value, 10.5)
+        self.assertEqual(cell(2, "Desconto").number_format, '"R$" #,##0.00')
+        self.assertIsNone(cell(2, "Acréscimo").value)
+        self.assertEqual(cell(2, "Valor pago").value, 40)
+        self.assertEqual(cell(2, "Data da baixa").value, datetime(2026, 6, 3))
+        self.assertEqual(cell(2, "Data da baixa").number_format, "dd/mm/yyyy")
+        self.assertIsNone(cell(3, "Observação").value)
+        self.assertIsNone(cell(3, "Desconto").value)
+        self.assertEqual(cell(3, "Valor pago").value, 0)
+        self.assertIsNone(cell(3, "Data da baixa").value)
+
     @patch("core.views.api_get")
     def test_empty_export_has_headers(self, api_get):
         api_get.return_value = {"fornecedores": [], "total_pages": 1}
