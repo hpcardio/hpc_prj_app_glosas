@@ -176,6 +176,7 @@ def build_payables_workbook(fornecedores):
     sheet = workbook.active
     sheet.title = "Contas vencidas"
     sheet.append(HEADERS)
+    row_number = 1
     for priority, supplier in enumerate(fornecedores, 1):
         for title in supplier.get("titulos", []):
             context = {
@@ -184,7 +185,10 @@ def build_payables_workbook(fornecedores):
                 "days": int(title.get("dias_vencidos") or 0),
             }
             sheet.append([value(supplier, title, context) for *_, value in COLUMNS])
-            for cell, (_, number_format, _, _) in zip(sheet[sheet.max_row], COLUMNS):
+            row_number += 1
+            # Counted, not sheet.max_row/sheet[n]: both scan every cell.
+            for column, (_, number_format, _, _) in enumerate(COLUMNS, 1):
+                cell = sheet.cell(row=row_number, column=column)
                 # API text must stay literal, including values beginning with '='.
                 if isinstance(cell.value, str):
                     cell.data_type = "s"
