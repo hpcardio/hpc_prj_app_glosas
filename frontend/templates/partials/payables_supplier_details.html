@@ -35,6 +35,7 @@
                 <div class="payables-title-body" x-show="titleOpen" x-cloak>
                   <div class="payables-title-description"><small>CLASSIFICAÇÃO DA CONTA</small><strong>{{ titulo.classificacao|default:"Sem classificação" }}</strong></div>
                   <div class="payables-title-description"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></div>
+                  <div class="payables-title-description"><small>DATA DO PAGAMENTO (MV)</small><strong>{{ titulo.data_pagamento_mv|api_date }}</strong></div>
                   <div class="payables-payment-heading"><div><strong>Pagamentos informados</strong><span>Recursos complementares registrados no Receita Certa</span></div></div>
                   <div class="payables-payment-list">
                     {% for pagamento in titulo.pagamentos %}

@@ -4,7 +4,7 @@ from datetime import datetime
 from io import BytesIO
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from openpyxl import load_workbook
 
 from openpyxl.utils import get_column_letter
@@ -229,3 +229,22 @@ class SupplierSummaryExportTests(TestCase):
         sheet = load_workbook(BytesIO(build_payables_workbook([supplier]))).active
         self.assertEqual(sheet["D2"].value, 1300000)
         self.assertEqual(sheet["C2"].value, datetime(2026, 7, 9))
+
+
+class PayablesTitlePaymentDateTests(SimpleTestCase):
+    def render(self, **titulo):
+        from django.template.loader import render_to_string
+        base = {"codigo_parcela": 1, "numero_parcela": 1, "valor_total": 100,
+                "saldo_a_pagar": 100, "dias_vencidos": 0, "pagamentos": []}
+        fornecedor = {"codigo_fornecedor": 10, "titulos": [{**base, **titulo}]}
+        return render_to_string("partials/payables_supplier_details.html",
+                                {"fornecedor": fornecedor, "modo": "operacao"})
+
+    def test_title_shows_the_mv_payment_date(self):
+        html = self.render(data_pagamento_mv="2026-06-03")
+        self.assertIn("DATA DO PAGAMENTO (MV)", html)
+        self.assertIn("03/06/2026", html)
+
+    def test_title_without_payment_date_shows_dash(self):
+        html = self.render(data_pagamento_mv=None)
+        self.assertIn("<small>DATA DO PAGAMENTO (MV)</small><strong>-</strong>", html)
