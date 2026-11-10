@@ -15239,3 +15239,46 @@ button.follow-up-glosa-chevron:focus-visible {
 .petrobras-mv-ref small {
   color: #8a98a4;
 }
+
+/* Associação Manual: IPM / Petrobras origin tabs and Petrobras guide keys. */
+.association-origin-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.association-origin-tab {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-weight: 600;
+  padding: 6px 16px;
+  text-decoration: none;
+}
+
+.association-origin-tab.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.petrobras-link-reasons {
+  margin-bottom: 10px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.petrobras-link-reasons ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.petrobras-link-reasons small,
+.petrobras-link-form .filter-group small {
+  color: var(--muted);
+}
+
+.petrobras-link-form .association-source-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+}

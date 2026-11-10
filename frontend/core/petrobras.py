@@ -364,3 +364,60 @@ def follow_up_campos_extras(cards):
                         item["petrobras"], default=str, ensure_ascii=False
                     )
     return cards
+
+
+# Manual association: the user types only the MV key of the guide (senha
+# and/or carteira); the item link stays the automatic reconciliation and the
+# linked items then appear in the Follow-Up with their remessa.
+VINCULOS_PATH = "/app_glosas/petrobras/vinculos-pendentes"
+ORIGEM_ASSOCIACAO = "petrobras"
+CAMPOS_CHAVE = {
+    "senha": "Senha da guia no MV",
+    "carteira": "Carteira no MV",
+}
+
+
+def associacao_aplicavel(request):
+    origem = request.POST.get("origem") or request.GET.get("origem")
+    return settings.PETROBRAS_ENABLED and origem == ORIGEM_ASSOCIACAO
+
+
+def vinculos_pendentes(filtros, offset, limit):
+    params = {key: value for key, value in filtros.items() if value}
+    params.update({"offset": str(offset), "limit": str(limit)})
+    dados = api_get(VINCULOS_PATH, params=params, timeout=60)
+    for guia in dados.get("guias") or []:
+        manual = guia.get("chave_manual") or {}
+        guia["lote_protocolo"] = (
+            f"{guia.get('lote') or '-'}/{guia.get('protocolo') or '-'}"
+        )
+        guia["campos_form"] = [
+            {
+                "nome": campo,
+                "rotulo": CAMPOS_CHAVE[campo],
+                "valor": manual.get(campo) or "",
+                "petrobras": guia.get(f"{campo}_petrobras") or NAO_INFORMADO,
+            }
+            for campo in guia.get("campos") or []
+            if campo in CAMPOS_CHAVE
+        ]
+    return dados
+
+
+def salvar_chave(post):
+    """Only the fields shown for the guide are sent; others stay as typed."""
+    payload = {
+        "protocolo_id": int(post.get("protocolo_id") or 0),
+        "guia_prestador": (post.get("guia_prestador") or "").strip(),
+    }
+    for campo in CAMPOS_CHAVE:
+        if campo in post:
+            payload[campo] = re.sub(r"\s+", "", post.get(campo) or "")
+    if not any(campo in payload for campo in CAMPOS_CHAVE):
+        raise ValueError("Informe o dado solicitado para a guia.")
+    # The API re-checks the guide in the MV before answering.
+    response = api_request("PUT", VINCULOS_PATH, json=payload, timeout=120)
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ApiError("API retornou uma resposta invalida para JSON.") from exc
