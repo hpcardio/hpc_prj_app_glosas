@@ -263,6 +263,24 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
             timeout=60,
         )
 
+    def test_each_lot_protocol_of_a_demonstrativo_gets_its_own_card(self):
+        from core.views import group_follow_up_glosas_by_process
+        cards = petrobras.follow_up_cards({
+            "demonstrativos": ["D1"],
+            "items": [
+                petrobras_row(1, None),
+                petrobras_row(2, None, protocolo="13872578", lote="36026073"),
+                petrobras_row(3, None, protocolo="13872578", lote="36026073"),
+            ],
+        })
+        groups = group_follow_up_glosas_by_process(cards)
+        self.assertEqual(
+            [g["processo"]["exibicao"] for g in groups],
+            ["35783619/13822887", "36026073/13872578"],
+        )
+        self.assertEqual([len(g["remessas"]) for g in groups], [1, 1])
+        self.assertEqual({g["processo"]["numero_processo"] for g in groups}, {"D1"})
+
     def test_card_lists_every_payer_lot_of_the_protocol(self):
         cards = petrobras.follow_up_cards({
             "demonstrativos": ["D1"],
