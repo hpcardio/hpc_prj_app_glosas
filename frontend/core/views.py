@@ -3740,6 +3740,9 @@ def group_follow_up_glosas_by_process(cards):
         if numero_processo and processo.get("origem"):
             # Payer demonstrativos never merge with an internal process.
             key = f"{processo['origem']}:{numero_processo.casefold()}"
+            if processo.get("exibicao"):
+                # Petrobras: one card per LOTE/PROT. of the demonstrativo.
+                key += f":{str(processo['exibicao']).casefold()}"
         elif numero_processo:
             key = f"processo:{numero_processo.casefold()}"
         elif card.get("conciliacao_remessa_id") is not None:
