@@ -1,0 +1,6 @@
+{% if petrobras_enabled %}
+<nav class="association-origin-tabs" aria-label="Origem das glosas">
+  <a href="{{ request.path }}" class="association-origin-tab {% if origem != 'petrobras' %}is-active{% endif %}" {% if origem != 'petrobras' %}aria-current="page"{% endif %}>IPM</a>
+  <a href="{{ request.path }}?origem=petrobras" class="association-origin-tab {% if origem == 'petrobras' %}is-active{% endif %}" {% if origem == 'petrobras' %}aria-current="page"{% endif %}>Petrobras</a>
+</nav>
+{% endif %}

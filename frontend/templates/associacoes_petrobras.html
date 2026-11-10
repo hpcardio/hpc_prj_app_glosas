@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
+{% block page_title %}Associação Manual{% endblock %}
+{% block content_class %}content--natural-scroll{% endblock %}
+{% block content %}
+{% include "partials/associacao_origem_tabs.html" with origem="petrobras" %}
+
+<section class="panel filter-panel">
+  <form class="remessa-filters" method="get">
+    <input type="hidden" name="origem" value="petrobras">
+    <div class="filter-row association-filter-row">
+      <div class="filter-group">
+        <label for="petrobras-association-protocolo">Protocolo Petrobras</label>
+        <input id="petrobras-association-protocolo" name="protocolo" value="{{ filtros.protocolo }}" class="form-control" inputmode="numeric" placeholder="Número do protocolo">
+      </div>
+      <div class="filter-group">
+        <label for="petrobras-association-lote">Lote Petrobras</label>
+        <input id="petrobras-association-lote" name="lote" value="{{ filtros.lote }}" class="form-control" inputmode="numeric" placeholder="Número do lote">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary">Filtrar</button>
+        <a href="{{ request.path }}?origem=petrobras" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel results-summary-panel ipm-association-page">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Guias Petrobras sem vínculo com o MV</span>
+        {% if pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} guias exibidas</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total"><span>Guias pendentes</span><strong>{{ resumo.guias|default:0 }}</strong></span>
+        <span class="result-total"><span>Itens sem vínculo</span><strong>{{ resumo.itens|default:0 }}</strong></span>
+        <span class="result-total"><span>Guias com dado a informar</span><strong>{{ resumo.com_campos|default:0 }}</strong></span>
+        <span class="result-total"><span>Valor glosado</span><strong>R$ {{ resumo.valor_glosa|br_currency }}</strong></span>
+      </div>
+      {% if pagination.total_pages > 1 %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="petrobras-association-page">Página</label>
+          <select id="petrobras-association-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if truncado %}
+  <div class="association-no-evidence">A lista atingiu o limite de itens consultados; filtre por protocolo ou lote.</div>
+  {% endif %}
+  {% if consulta_indisponivel %}
+  <div class="service-unavailable">
+    <div class="service-unavailable-icon" aria-hidden="true">!</div>
+    <div><strong>Consulta temporariamente indisponível</strong><p>Não foi possível consultar os vínculos Petrobras.</p></div>
+  </div>
+  {% elif not guias %}
+  <div class="empty-state"><strong>Nenhuma guia pendente</strong><p>Todas as glosas Petrobras exibidas no Follow-Up estão vinculadas ao MV.</p></div>
+  {% else %}
+  <div class="ipm-association-list">
+    {% for guia in guias %}
+    <article class="ipm-process-card petrobras-link-card" x-data="{ open: {{ forloop.first|yesno:'true,false' }} }">
+      <button type="button" class="ipm-process-header" @click="open = !open" :aria-expanded="open">
+        <span class="follow-up-glosa-chevron" :class="{ 'is-open': open }">&#9654;</span>
+        <span class="follow-up-glosa-card-field"><small>LOTE/PROT.</small><strong>{{ guia.lote_protocolo }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>GUIA PRESTADOR</small><strong>{{ guia.guia_prestador|default:"Não informado" }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>GUIA OPERADORA</small><strong>{{ guia.guia_operadora|default:"Não informado" }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>{{ guia.cd_remessa|default:"Não informado" }}</strong></span>
+        <span class="follow-up-glosa-card-field"><small>ITENS</small><strong>{{ guia.itens }}</strong></span>
+        <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--danger"><small>GLOSADO</small><strong>R$ {{ guia.valor_glosa|br_currency }}</strong></span>
+        {% if guia.campos_form %}<span class="association-status">Dado a informar</span>{% else %}<span class="association-status">Sem dado a informar</span>{% endif %}
+      </button>
+      <div class="ipm-process-body" x-show="open" x-cloak>
+        <div class="petrobras-link-reasons">
+          <strong>Por que não vinculou</strong>
+          <ul>
+            {% for pendencia in guia.pendencias %}
+            <li>{{ pendencia.descricao }} <small>({{ pendencia.itens }} item{{ pendencia.itens|pluralize:"ns" }})</small></li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% if guia.campos_form %}
+        <form method="post" class="association-item-form petrobras-link-form">
+          {% csrf_token %}
+          <input type="hidden" name="origem" value="petrobras">
+          <input type="hidden" name="protocolo_id" value="{{ guia.protocolo_id }}">
+          <input type="hidden" name="guia_prestador" value="{{ guia.guia_prestador }}">
+          <input type="hidden" name="protocolo_filtro" value="{{ filtros.protocolo }}">
+          <input type="hidden" name="lote_filtro" value="{{ filtros.lote }}">
+          <input type="hidden" name="page" value="{{ pagination.page }}">
+          <div class="association-source-grid">
+            {% for campo in guia.campos_form %}
+            <div class="filter-group">
+              <label for="petrobras-{{ campo.nome }}-{{ forloop.parentloop.counter }}">{{ campo.rotulo }}</label>
+              <input id="petrobras-{{ campo.nome }}-{{ forloop.parentloop.counter }}" name="{{ campo.nome }}" value="{{ campo.valor }}" class="form-control" maxlength="{% if campo.nome == 'carteira' %}30{% else %}20{% endif %}" pattern="\S+" required autocomplete="off">
+              <small>Enviado pela Petrobras: {{ campo.petrobras }}</small>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="association-item-actions">
+            <span>Os itens da guia serão vinculados automaticamente e passarão a compor o Follow-Up de Glosas.</span>
+            <button class="btn btn-primary btn-sm">Salvar e vincular</button>
+          </div>
+        </form>
+        {% else %}
+        <div class="association-no-evidence">Não há dado de guia que resolva esta pendência; o vínculo depende do lançamento no MV.</div>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

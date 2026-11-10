@@ -7132,6 +7132,8 @@ def conta_atendimento_recurso_pdf(request):
 
 @require_http_methods(["GET", "POST"])
 def associacoes_remessas_ipm(request):
+    if petrobras.associacao_aplicavel(request):
+        return associacoes_petrobras(request)
     if request.method == "POST":
         acao = (request.POST.get("acao") or "associar").strip()
         associacao_id = as_int_or_zero(request.POST.get("associacao_id"))
@@ -7305,6 +7307,102 @@ def associacoes_remessas_ipm(request):
             "resumo": resumo,
             "pagination": pagination,
             "consulta_indisponivel": consulta_indisponivel,
+            "petrobras_enabled": settings.PETROBRAS_ENABLED,
+        },
+    )
+
+
+def associacoes_petrobras(request):
+    """Petrobras guides not linked to the MV and the key each one needs."""
+    filtros = {
+        "protocolo": (
+            request.POST.get("protocolo_filtro")
+            or request.GET.get("protocolo")
+            or ""
+        ).strip(),
+        "lote": (
+            request.POST.get("lote_filtro") or request.GET.get("lote") or ""
+        ).strip(),
+    }
+    base_query = {
+        "origem": petrobras.ORIGEM_ASSOCIACAO,
+        **{key: value for key, value in filtros.items() if value},
+    }
+    if request.method == "POST":
+        try:
+            resultado = petrobras.salvar_chave(request.POST)
+            vinculados = as_int_or_zero(resultado.get("conciliados"))
+            itens = as_int_or_zero(resultado.get("itens"))
+            if vinculados == itens:
+                messages.success(
+                    request,
+                    f"{vinculados} item(ns) vinculado(s) ao MV e "
+                    "disponível(is) no Follow-Up.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Dado salvo: {vinculados} de {itens} item(ns) "
+                    "vinculado(s). Confira a pendência restante da guia.",
+                )
+            clear_filter_caches()
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        except ApiError as exc:
+            messages.error(
+                request, format_api_error(exc, "Vínculo manual Petrobras")
+            )
+        query = dict(base_query)
+        if request.POST.get("page"):
+            query["page"] = request.POST["page"]
+        return redirect(f"{request.path}?{urlencode(query)}")
+
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 10
+    offset = (page - 1) * limit
+    dados, consulta_indisponivel = {}, False
+    try:
+        dados = petrobras.vinculos_pendentes(filtros, offset, limit)
+    except ApiError as exc:
+        consulta_indisponivel = is_service_unavailable_error(exc)
+        if not consulta_indisponivel:
+            messages.error(
+                request, format_api_error(exc, "Vínculos pendentes Petrobras")
+            )
+    guias = dados.get("guias") or []
+    total = as_int_or_zero(dados.get("total"))
+    total_pages = max(ceil(total / limit), 1)
+    if page > total_pages:
+        return redirect(
+            f"{request.path}?{urlencode({**base_query, 'page': total_pages})}"
+        )
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": f"?{urlencode({**base_query, 'page': page - 1})}",
+        "next_url": f"?{urlencode({**base_query, 'page': page + 1})}",
+        "start": offset + 1 if guias else 0,
+        "end": offset + len(guias),
+        "total": total,
+        "query": base_query,
+    }
+    return render(
+        request,
+        "associacoes_petrobras.html",
+        {
+            "guias": guias,
+            "filtros": filtros,
+            "resumo": dados.get("resumo") or {},
+            "truncado": dados.get("truncado"),
+            "pagination": pagination,
+            "consulta_indisponivel": consulta_indisponivel,
+            "petrobras_enabled": True,
         },
     )
 

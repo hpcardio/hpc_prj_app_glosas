@@ -651,3 +651,78 @@ class PetrobrasModalScriptTests(SimpleTestCase):
         self.assertLess(js.index("reasons(box,row);"), js.index("details(box,row);"))
         for label in ["Paciente", "Atendimento", "Carteira", "Guia (senha)", "Lote", "Cód. do procedimento", "Procedimento", "Data de realização", "Quantidade", "Valor"]:
             self.assertIn(f"['{label}',", js)
+
+
+def guia_pendente(**extra):
+    return {
+        "protocolo_id": 5, "protocolo": "13539164", "lote": "31063928",
+        "lote_prestador": "1867", "guia_prestador": "00000000000002478783",
+        "guia_operadora": "119475921", "senha_petrobras": None,
+        "carteira_petrobras": "0001", "chave_manual": None, "itens": 56,
+        "valor_glosa": "27771.25", "situacoes": {"dados_insuficientes": 56},
+        "cd_remessa": None,
+        "pendencias": [{
+            "codigo": "senha_ausente", "campo": "senha", "itens": 56,
+            "descricao": "A Petrobras não informou a senha da guia.",
+        }],
+        "campos": ["senha"],
+        **extra,
+    }
+
+
+@override_settings(PETROBRAS_ENABLED=True)
+class PetrobrasManualAssociationTests(TestCase):
+    URL = "/associacoes-remessas-ipm/"
+    setUp = PetrobrasFollowUpViewTests.setUp
+
+    def listing(self, *guias):
+        return {
+            "total": len(guias), "offset": 0, "limit": 10, "truncado": False,
+            "resumo": {"guias": len(guias), "itens": 56, "valor_glosa": "27771.25", "com_campos": 1},
+            "guias": list(guias),
+        }
+
+    @patch("core.petrobras.api_get")
+    def test_lists_reason_and_only_the_needed_field(self, api):
+        api.return_value = self.listing(guia_pendente())
+        response = self.client.get(self.URL, {"origem": "petrobras", "protocolo": "13539164"})
+        self.assertEqual(api.call_args.args[0], "/app_glosas/petrobras/vinculos-pendentes")
+        self.assertEqual(api.call_args.kwargs["params"]["protocolo"], "13539164")
+        self.assertContains(response, "31063928/13539164")
+        self.assertContains(response, "A Petrobras não informou a senha da guia.")
+        self.assertContains(response, 'name="senha"')
+        self.assertNotContains(response, 'name="carteira"')
+        self.assertContains(response, "Salvar e vincular")
+
+    @patch("core.petrobras.api_get")
+    def test_guide_without_fillable_gap_has_no_form(self, api):
+        api.return_value = self.listing(guia_pendente(
+            campos=[], pendencias=[{"codigo": "multiplos_lancamentos", "campo": None, "itens": 2,
+                                    "descricao": "Mais de um lançamento do MV para o mesmo procedimento."}],
+        ))
+        response = self.client.get(self.URL, {"origem": "petrobras"})
+        self.assertContains(response, "Mais de um lançamento do MV")
+        self.assertNotContains(response, "Salvar e vincular")
+
+    @patch("core.petrobras.api_request")
+    def test_save_sends_only_shown_fields_and_redirects(self, api):
+        api.return_value = Mock(json=Mock(return_value={"itens": 56, "conciliados": 56, "situacao": {"conciliado": 56}}))
+        response = self.client.post(self.URL, {
+            "origem": "petrobras", "protocolo_id": "5",
+            "guia_prestador": "00000000000002478783", "senha": " A42 0168 ",
+            "protocolo_filtro": "13539164", "page": "1",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("origem=petrobras", response["Location"])
+        self.assertIn("protocolo=13539164", response["Location"])
+        method, path = api.call_args.args[:2]
+        self.assertEqual((method, path), ("PUT", "/app_glosas/petrobras/vinculos-pendentes"))
+        self.assertEqual(api.call_args.kwargs["json"], {
+            "protocolo_id": 5, "guia_prestador": "00000000000002478783", "senha": "A420168",
+        })
+
+    @patch("core.views.api_get")
+    def test_ipm_screen_shows_origin_tabs(self, api):
+        api.return_value = {"processos": [], "total": 0, "resumo": {}}
+        response = self.client.get(self.URL)
+        self.assertContains(response, 'href="/associacoes-remessas-ipm/?origem=petrobras"')
