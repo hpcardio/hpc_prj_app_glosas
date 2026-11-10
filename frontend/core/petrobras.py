@@ -246,6 +246,12 @@ def _atendimento_da_guia(itens):
         item["atendimento_pela_guia"] = True
 
 
+def _lote_protocolo(fontes, protocolo):
+    """Payer lot(s) and protocol as "lote/protocolo" for the card header."""
+    lotes = sorted({str(f.get("lote")) for f in fontes if f.get("lote")})
+    return f"{', '.join(lotes) or '-'}/{protocolo or '-'}"
+
+
 def follow_up_cards(data):
     """Demonstrativo > protocolo > beneficiário/guia > itens, as API cards."""
     por_demonstrativo = {}
@@ -301,8 +307,11 @@ def follow_up_cards(data):
                 "valor_total_tratado": tratado,
                 "possui_recurso": False,
                 "processo": {
+                    # The demonstrativo still keys links and filters; the card
+                    # shows the payer's lot and protocol instead.
                     "numero_processo": demonstrativo,
-                    "rotulo": "DEMONSTRATIVO",
+                    "rotulo": "LOTE/PROT.",
+                    "exibicao": _lote_protocolo(fontes, protocolo),
                     "origem": "petrobras",
                     "data_abertura": max(
                         (f.get("data_emissao") or "" for f in fontes),

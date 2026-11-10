@@ -263,6 +263,14 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
             timeout=60,
         )
 
+    def test_card_lists_every_payer_lot_of_the_protocol(self):
+        cards = petrobras.follow_up_cards({
+            "demonstrativos": ["D1"],
+            "items": [petrobras_row(1, None), petrobras_row(2, None, lote="36026073")],
+        })
+        self.assertEqual(cards[0]["processo"]["exibicao"], "35783619, 36026073/13822887")
+        self.assertEqual(cards[0]["processo"]["numero_processo"], "D1")
+
     def test_cards_use_oracle_when_matched_and_payer_otherwise(self):
         cards = petrobras.follow_up_cards({
             "demonstrativos": ["D1"],
@@ -271,7 +279,8 @@ class PetrobrasFollowUpCardsTests(SimpleTestCase):
         self.assertEqual(len(cards), 1)
         card = cards[0]
         self.assertEqual(card["processo"]["numero_processo"], "D1")
-        self.assertEqual(card["processo"]["rotulo"], "DEMONSTRATIVO")
+        self.assertEqual(card["processo"]["rotulo"], "LOTE/PROT.")
+        self.assertEqual(card["processo"]["exibicao"], "35783619/13822887")
         self.assertEqual(card["numero_protocolo"], "13822887")
         self.assertEqual(card["cd_remessa"], 987)
         nomes = [p["nm_paciente"] for p in card["pacientes"]]
@@ -538,7 +547,8 @@ class PetrobrasFollowUpViewTests(TestCase):
         self.assertEqual(response.context["pagination"]["total"], 1)
         self.assertEqual(response.context["resumo"]["quantidade_glosas"], 2)
         self.assertEqual(response.context["resumo"]["valor_total_pendente"], 6.0)
-        self.assertContains(response, "DEMONSTRATIVO")
+        self.assertContains(response, "<small>LOTE/PROT.</small><strong>35783619/13822887</strong>")
+        self.assertNotContains(response, "<small>DEMONSTRATIVO</small>")
         self.assertContains(response, "<small>GUIA</small>")
         self.assertNotContains(response, "GUIA DO PRESTADOR")
         self.assertNotContains(response, "<small>SENHA</small>")

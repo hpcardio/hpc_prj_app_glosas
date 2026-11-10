@@ -185,7 +185,7 @@
             aria-controls="follow-up-process-remessas-{{ forloop.counter }}"
             aria-label="Expandir ou recolher processo"
           >&#9654;</button>
-          <span class="follow-up-glosa-card-field"><small>{{ processo_card.processo.rotulo|default:"PROCESSO" }}</small><strong>{{ processo_card.processo.numero_processo|default:"-" }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>{{ processo_card.processo.rotulo|default:"PROCESSO" }}</small><strong>{{ processo_card.processo.exibicao|default:processo_card.processo.numero_processo|default:"-" }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong>{{ processo_card.convenio }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>COMP. PROD.</small><strong>{{ processo_card.competencia_producao|default:"-" }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>DT. ABERTURA</small><strong>{{ processo_card.processo.data_abertura_formatada|default:"-" }}</strong></span>
