@@ -9034,8 +9034,9 @@ def _contas_pagar(request, modo):
                 filtros[key] = value
     if modo == "gestao":
         filtros["criticidade"] = "todos"
-    # Contas Vencidas lists the paid titles beside the open ones (detail and
-    # export only); supplier totals stay on open titles.
+    # Contas Vencidas lists paid titles beside the open ones, and suppliers
+    # whose titles are all paid (list, picker, detail and export); totals and
+    # summary stay on open titles.
     titulos_pagos = {"incluir_pagos": "true"} if modo == "operacao" else {}
 
     if modo in {"operacao", "gestao"} and request.GET.get("export") == "xlsx":
@@ -9111,7 +9112,8 @@ def _contas_pagar(request, modo):
         payload = api_get(
             CONTAS_PAGAR_PATH,
             params={**filtros, "page": page, "page_size": 20, "incluir_titulos": "false",
-                    **({"incluir_opcoes": "true"} if modo in {"operacao", "gestao"} else {})},
+                    **({"incluir_opcoes": "true"} if modo in {"operacao", "gestao"} else {}),
+                    **titulos_pagos},
             timeout=45,
         )
     except ApiError as exc:
