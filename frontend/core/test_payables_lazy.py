@@ -28,6 +28,10 @@ class PayablesLazyLoadingTests(TestCase):
         self.assertEqual(response["X-ReceitaCerta-Fragment"], "payables-summary")
         self.assertContains(response, 'data-payables-detail="10"')
         self.assertEqual(api_get.call_args.kwargs["params"]["incluir_titulos"], "false")
+        # Operation lists suppliers whose titles are all paid, too.
+        self.assertEqual(api_get.call_args.kwargs["params"]["incluir_pagos"], "true")
+        self.client.get("/financeiro/contas-a-pagar/gestao/", {"fragmento": "resumo"})
+        self.assertNotIn("incluir_pagos", api_get.call_args.kwargs["params"])
 
     @patch("core.views.api_get")
     def test_summary_failure_returns_503_for_retry(self, api_get):
