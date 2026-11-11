@@ -111,3 +111,9 @@
 .payables-toggle.is-on .payables-toggle-track span { left: 18px; }
 .payables-card-filter-note { color: #48615b; font-size: .85rem; }
 .payables-card-filter-note a { margin-left: 6px; font-weight: 700; color: #0f6b5d; }
+/* In-place filter: keep the page visible while the filtered list loads. */
+.payables-page.is-filtering { cursor: progress; }
+.payables-page.is-filtering .payables-list,
+.payables-page.is-filtering .payables-results-toolbar { opacity: .45; pointer-events: none; }
+.payables-kpis article.is-pending { outline: 3px dashed #0f6b5d; outline-offset: -1px; }
+.payables-filtering-status { margin: 0; padding: 10px 16px; background: #eef8f5; color: #0f6b5d; font-weight: 700; }

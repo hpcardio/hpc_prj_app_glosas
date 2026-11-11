@@ -93,7 +93,8 @@ def summary_card_links(filters):
         }
         if filters.get(key) != value:
             query[key] = value
-        return "?" + urlencode(query)
+        # "./" is the page itself, without a dangling "?".
+        return "?" + urlencode(query) if query else "./"
 
     links = {
         key: {

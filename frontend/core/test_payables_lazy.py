@@ -100,6 +100,8 @@ class PayablesSummaryCardFilterTests(TestCase):
         self.assertContains(response, 'href="?vencidos_dia_anterior=true" title="Remover filtro"')
         self.assertContains(response, 'href="?vencidos_dia_anterior=true&amp;componente=a_vencer"')
         self.assertContains(response, 'href="?componente=vencida" role="switch"')
+        # Clicks are handled in place by payables-lazy.js (no full reload).
+        self.assertContains(response, "data-payables-filter", count=8)
         self.assertContains(response, 'name="componente" value="vencida"')
         self.assertIn("componente=vencida", response.context["export_url"])
 
@@ -122,3 +124,10 @@ class PayablesSummaryCardFilterTests(TestCase):
         api_get.return_value = existing_tests.ContasPagarTests.payload()
         self.client.get(self.url, {"detalhes_fornecedor": "10", "componente": "novos_7d"})
         self.assertEqual(api_get.call_args.kwargs["params"]["componente"], "novos_7d")
+
+    @patch("core.views.api_get")
+    def test_removing_the_last_filter_links_to_the_clean_page(self, api_get):
+        api_get.return_value = existing_tests.ContasPagarTests.payload()
+        response = self.client.get(self.url, {"fragmento": "resumo", "componente": "vencida"})
+        self.assertContains(response, 'href="./" title="Remover filtro"')
+        self.assertNotContains(response, 'href="?"')
