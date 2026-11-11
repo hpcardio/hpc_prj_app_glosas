@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -42,6 +43,25 @@ class PayablesLazyLoadingTests(TestCase):
         self.assertEqual(api_get.call_args.kwargs["params"]["fornecedores_ids"], "10")
         refused = self.client.get(self.url, {"detalhes_fornecedor": "10", "fornecedores_ids": "20"})
         self.assertEqual(refused.status_code, 404)
+
+    @patch("core.views.api_get")
+    def test_detail_fragment_lists_paid_titles_in_operation(self, api_get):
+        payload = existing_tests.ContasPagarTests.payload()
+        pago = deepcopy(payload["fornecedores"][0]["titulos"][0])
+        pago.update(codigo_parcela=777, tipo_quitacao="quitado", saldo_a_pagar="0.00",
+                    dias_vencidos=0, valor_honrado_oracle="1234.56",
+                    data_pagamento_mv="2026-10-05")
+        payload["fornecedores"][0]["titulos"].append(pago)
+        api_get.return_value = payload
+        response = self.client.get(self.url, {"detalhes_fornecedor": "10"})
+        self.assertEqual(api_get.call_args.kwargs["params"]["incluir_pagos"], "true")
+        self.assertContains(response, "#777")
+        self.assertContains(response, "VALOR PAGO (MV)")
+        self.assertContains(response, "1.234,56")
+        self.assertContains(response, "05/10/2026")
+        self.assertContains(response, 'class="is-paid">Pago<')
+        self.client.get("/financeiro/contas-a-pagar/gestao/", {"detalhes_fornecedor": "10"})
+        self.assertNotIn("incluir_pagos", api_get.call_args.kwargs["params"])
 
     @patch("core.views.api_get")
     def test_matrix_fragment_only_in_management(self, api_get):

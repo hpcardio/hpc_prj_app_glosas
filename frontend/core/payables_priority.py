@@ -92,6 +92,13 @@ def decorate_suppliers(suppliers):
             0,
         )
         item["atraso_label"] = ages.get(age, "Sem atraso")
+        for title in item.get("titulos", []):
+            # The API sends money as text; the template cannot compare it.
+            try:
+                balance = Decimal(str(title.get("saldo_a_pagar") or 0))
+            except (InvalidOperation, ValueError):
+                balance = Decimal("1")
+            title["pago"] = balance <= 0
     return suppliers
 
 
