@@ -9034,12 +9034,15 @@ def _contas_pagar(request, modo):
                 filtros[key] = value
     if modo == "gestao":
         filtros["criticidade"] = "todos"
+    # Contas Vencidas lists the paid titles beside the open ones (detail and
+    # export only); supplier totals stay on open titles.
+    titulos_pagos = {"incluir_pagos": "true"} if modo == "operacao" else {}
 
     if modo in {"operacao", "gestao"} and request.GET.get("export") == "xlsx":
         try:
             result = api_get(
                 CONTAS_PAGAR_PATH,
-                params={**filtros, "exportar": "true"},
+                params={**filtros, "exportar": "true", **titulos_pagos},
                 timeout=60,
             )
             if int(result.get("total_pages") or 1) != 1:
@@ -9090,7 +9093,8 @@ def _contas_pagar(request, modo):
             return HttpResponse("Fornecedor não disponível nesta pesquisa.", status=404)
         try:
             detalhe = api_get(CONTAS_PAGAR_PATH,
-                params={**filtros, "fornecedores_ids": codigo, "exportar": "true"}, timeout=45)
+                params={**filtros, "fornecedores_ids": codigo, "exportar": "true", **titulos_pagos},
+                timeout=45)
         except ApiError:
             return HttpResponse("Títulos indisponíveis. Tente novamente.", status=503)
         encontrados = [item for item in detalhe.get("fornecedores", []) if str(item.get("codigo_fornecedor")) == codigo]

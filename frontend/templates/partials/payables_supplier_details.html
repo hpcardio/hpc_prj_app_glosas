@@ -16,7 +16,7 @@
                   <span><small>DIAS EM ATRASO</small><strong class="payables-days-badge{% if titulo.dias_vencidos > 0 %} is-overdue{% endif %}">{{ titulo.dias_vencidos }}</strong></span>
                   <span><small>VALOR</small><strong>R$ {{ titulo.valor_total|br_currency }}</strong></span>
                   <span class="is-balance"><small>SALDO A PAGAR</small><strong>R$ {{ titulo.saldo_a_pagar|br_currency }}</strong></span>
-                  <span class="payables-title-status"><small>STATUS</small><strong class="{% if titulo.saldo_a_pagar <= 0 %}is-paid{% elif titulo.dias_vencidos > 0 %}is-overdue{% else %}is-current{% endif %}">{% if titulo.saldo_a_pagar <= 0 %}Pago{% elif titulo.dias_vencidos > 0 %}Em atraso{% else %}A vencer{% endif %}</strong></span>
+                  <span class="payables-title-status"><small>STATUS</small><strong class="{% if titulo.pago %}is-paid{% elif titulo.dias_vencidos > 0 %}is-overdue{% else %}is-current{% endif %}">{% if titulo.pago %}Pago{% elif titulo.dias_vencidos > 0 %}Em atraso{% else %}A vencer{% endif %}</strong></span>
                 </button>
                 {% else %}
                 <button type="button" class="payables-title-header" @click="titleOpen=!titleOpen" :aria-expanded="titleOpen">
@@ -36,6 +36,7 @@
                   <div class="payables-title-description"><small>CLASSIFICAÇÃO DA CONTA</small><strong>{{ titulo.classificacao|default:"Sem classificação" }}</strong></div>
                   <div class="payables-title-description"><small>DESCRIÇÃO</small><strong>{{ titulo.descricao_conta|default:"Sem descrição" }}</strong></div>
                   <div class="payables-title-description"><small>DATA DO PAGAMENTO (MV)</small><strong>{{ titulo.data_pagamento_mv|api_date }}</strong></div>
+                  <div class="payables-title-description"><small>VALOR PAGO (MV)</small><strong>R$ {{ titulo.valor_honrado_oracle|default:0|br_currency }}</strong></div>
                   <div class="payables-payment-heading"><div><strong>Pagamentos informados</strong><span>Recursos complementares registrados no Receita Certa</span></div></div>
                   <div class="payables-payment-list">
                     {% for pagamento in titulo.pagamentos %}
