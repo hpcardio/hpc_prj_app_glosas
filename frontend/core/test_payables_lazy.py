@@ -131,3 +131,22 @@ class PayablesSummaryCardFilterTests(TestCase):
         response = self.client.get(self.url, {"fragmento": "resumo", "componente": "vencida"})
         self.assertContains(response, 'href="./" title="Remover filtro"')
         self.assertNotContains(response, 'href="?"')
+
+
+class PayablesPurchaseOrderProvisionTests(TestCase):
+    """Operação hides purchase-order provisions; other views keep them."""
+
+    setUp = existing_tests.ContasPagarTests.setUp
+    url = "/financeiro/contas-a-pagar/operacao/"
+
+    @patch("core.views.api_get")
+    def test_operation_asks_without_purchase_order_provisions(self, api_get):
+        api_get.return_value = existing_tests.ContasPagarTests.payload()
+        for params in ({"fragmento": "resumo"}, {"detalhes_fornecedor": "10"}):
+            self.client.get(self.url, params)
+            self.assertEqual(api_get.call_args.kwargs["params"]["excluir_provisoes_oc"], "true")
+        self.client.get(self.url, {"export": "xlsx"})
+        self.assertEqual(api_get.call_args.kwargs["params"]["excluir_provisoes_oc"], "true")
+        for modo in ("gestao", "acompanhamento"):
+            self.client.get(f"/financeiro/contas-a-pagar/{modo}/", {"fragmento": "resumo"})
+            self.assertNotIn("excluir_provisoes_oc", api_get.call_args.kwargs["params"])

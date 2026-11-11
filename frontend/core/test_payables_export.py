@@ -55,7 +55,8 @@ class PayablesExportTests(TestCase):
         self.assertEqual(sheet[cell("Valor Título", 2)].data_type, "n")
         api_get.assert_called_once()
         self.assertEqual(api_get.call_args.kwargs["params"],
-                         {**filters, "exportar": "true", "incluir_pagos": "true"})
+                         {**filters, "exportar": "true", "incluir_pagos": "true",
+                          "excluir_provisoes_oc": "true"})
 
     def test_literal_text_statuses_and_missing_dates(self):
         supplier = existing_tests.ContasPagarTests.payload()["fornecedores"][0]
