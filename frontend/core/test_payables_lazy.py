@@ -72,3 +72,53 @@ class PayablesLazyLoadingTests(TestCase):
         response = self.client.get(self.url, {"fragmento": "matriz"})
         self.assertEqual(response.status_code, 404)
         api_get.assert_not_called()
+
+
+class PayablesSummaryCardFilterTests(TestCase):
+    """Operação: summary cards and the day-before toggle filter the list."""
+
+    setUp = existing_tests.ContasPagarTests.setUp
+    url = "/financeiro/contas-a-pagar/operacao/"
+
+    @patch("core.views.api_get")
+    def test_card_and_toggle_reach_the_api_and_stay_in_links(self, api_get):
+        payload = existing_tests.ContasPagarTests.payload()
+        payload["resumo"]["vencidos_dia_anterior"] = "321.00"
+        api_get.return_value = payload
+        response = self.client.get(self.url, {
+            "fragmento": "resumo", "componente": "vencida",
+            "vencidos_dia_anterior": "true", "page": "1",
+        })
+        params = api_get.call_args.kwargs["params"]
+        self.assertEqual(params["componente"], "vencida")
+        self.assertEqual(params["vencidos_dia_anterior"], "true")
+        self.assertContains(response, "is-alert is-filterable is-selected")
+        self.assertContains(response, 'aria-checked="true"')
+        self.assertContains(response, "R$ 321,00")
+        self.assertContains(response, "Exibindo os fornecedores que compõem <strong>Dívida vencida</strong>")
+        # Clicking the active card again removes it; other cards switch to theirs.
+        self.assertContains(response, 'href="?vencidos_dia_anterior=true" title="Remover filtro"')
+        self.assertContains(response, 'href="?vencidos_dia_anterior=true&amp;componente=a_vencer"')
+        self.assertContains(response, 'href="?componente=vencida" role="switch"')
+        self.assertContains(response, 'name="componente" value="vencida"')
+        self.assertIn("componente=vencida", response.context["export_url"])
+
+    @patch("core.views.api_get")
+    def test_invalid_card_is_ignored_and_other_views_have_no_links(self, api_get):
+        api_get.return_value = existing_tests.ContasPagarTests.payload()
+        response = self.client.get(self.url, {"fragmento": "resumo", "componente": "x"})
+        self.assertNotIn("componente", api_get.call_args.kwargs["params"])
+        self.assertContains(response, 'aria-checked="false"')
+        self.assertNotContains(response, "is-selected")
+        gestao = self.client.get("/financeiro/contas-a-pagar/gestao/", {
+            "fragmento": "resumo", "componente": "vencida", "vencidos_dia_anterior": "true",
+        })
+        self.assertNotIn("componente", api_get.call_args.kwargs["params"])
+        self.assertNotIn("vencidos_dia_anterior", api_get.call_args.kwargs["params"])
+        self.assertNotContains(gestao, "payables-kpi-link")
+
+    @patch("core.views.api_get")
+    def test_detail_fragment_forwards_the_card(self, api_get):
+        api_get.return_value = existing_tests.ContasPagarTests.payload()
+        self.client.get(self.url, {"detalhes_fornecedor": "10", "componente": "novos_7d"})
+        self.assertEqual(api_get.call_args.kwargs["params"]["componente"], "novos_7d")

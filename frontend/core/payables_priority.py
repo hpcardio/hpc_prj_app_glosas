@@ -62,6 +62,54 @@ def extra_filters(query):
     }
 
 
+# Operação summary cards that filter the supplier list (API "componente").
+SUMMARY_CARDS = (
+    ("a_pagar", "Total a pagar"),
+    ("a_vencer", "A vencer"),
+    ("vencida", "Dívida vencida"),
+    ("novos_7d", "Nova dívida vencida - 7 dias"),
+    ("pagar_agora", "Pagar agora"),
+    ("saldo_negociar", "Saldo a negociar"),
+)
+
+
+def summary_card_filters(query):
+    """Card and day-before toggle kept in the query string."""
+    filters = {}
+    if query.get("componente") in dict(SUMMARY_CARDS):
+        filters["componente"] = query["componente"]
+    if query.get("vencidos_dia_anterior") == "true":
+        filters["vencidos_dia_anterior"] = "true"
+    return filters
+
+
+def summary_card_links(filters):
+    """Links that switch each card (and the toggle) on or off, page 1."""
+    def toggled(key, value):
+        query = {
+            name: current
+            for name, current in filters.items()
+            if current and current != "todos" and name != key
+        }
+        if filters.get(key) != value:
+            query[key] = value
+        return "?" + urlencode(query)
+
+    links = {
+        key: {
+            "url": toggled("componente", key),
+            "active": filters.get("componente") == key,
+            "label": label,
+        }
+        for key, label in SUMMARY_CARDS
+    }
+    links["vencidos_dia_anterior"] = {
+        "url": toggled("vencidos_dia_anterior", "true"),
+        "active": filters.get("vencidos_dia_anterior") == "true",
+    }
+    return links
+
+
 def month_start(value):
     if not value:
         return timezone.localdate().replace(day=1).isoformat()
