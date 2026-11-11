@@ -1,12 +1,10 @@
 """Supplier summary and title detail for the filtered operation export."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
 from textwrap import wrap
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
+import xlsxwriter
 
 from .payables_priority import AGES, decorate_suppliers
 
@@ -143,67 +141,93 @@ def _supplier_summary(supplier):
     ]
 
 
-def _add_supplier_summary(workbook, suppliers):
-    sheet = workbook.create_sheet("Resumo por fornecedor", 0)
-    sheet.append(SUMMARY_HEADERS)
-    for supplier in suppliers:
-        sheet.append(_supplier_summary(supplier))
-    for row in sheet.iter_rows(min_row=2, max_row=len(suppliers) + 1):
-        for cell in row:
-            if isinstance(cell.value, str):
-                cell.data_type = "s"
-            cell.alignment = Alignment(vertical="center", wrap_text=True)
-        row[1].number_format = row[3].number_format = '"R$" #,##0.00'
-        row[2].number_format = "dd/mm/yyyy"
-        sheet.row_dimensions[row[0].row].height = 16 * max(
-            2, len(wrap(str(row[0].value or ""), width=44))
-        )
-    sheet.freeze_panes = "B2"
-    sheet.auto_filter.ref = sheet.dimensions
-    for cell in sheet[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1B7088")
-        cell.alignment = Alignment(wrap_text=True, vertical="center")
-    sheet.row_dimensions[1].height = 42
-    for column, width in enumerate((48, 24, 25, 24, 24, 24, 22, 30), 1):
-        sheet.column_dimensions[get_column_letter(column)].width = width
-    workbook.active = 0
+HEADER_STYLE = {
+    "bold": True, "font_color": "#FFFFFF", "bg_color": "#1B7088",
+    "text_wrap": True, "valign": "vcenter",
+}
+
+
+# Written with XlsxWriter in constant-memory mode: the full Contas Vencidas
+# export has ~75 thousand rows and openpyxl took ~50 s in production, past
+# the 60 s proxy limit. Rows are streamed in order; strings are always
+# written as text, so API values beginning with '=' stay literal.
+class _Formats:
+    def __init__(self, workbook):
+        self.workbook, self.cache = workbook, {}
+
+    def get(self, number_format=None, wrap=False):
+        key = (number_format, wrap)
+        if key not in self.cache:
+            props = {"num_format": number_format} if number_format else {}
+            if wrap:
+                props.update(text_wrap=True, valign="vcenter")
+            self.cache[key] = self.workbook.add_format(props) if props else None
+        return self.cache[key]
+
+
+def _write(sheet, row, column, value, cell_format=None):
+    if value is None or value == "":
+        # Blank, as openpyxl wrote empty text.
+        if cell_format is not None:
+            sheet.write_blank(row, column, None, cell_format)
+    elif isinstance(value, str):
+        sheet.write_string(row, column, value, cell_format)
+    elif isinstance(value, (date, datetime)):
+        sheet.write_datetime(row, column, value, cell_format)
+    elif isinstance(value, bool):
+        sheet.write_boolean(row, column, value, cell_format)
+    else:
+        sheet.write_number(row, column, float(value), cell_format)
+
+
+def _write_header(sheet, header_format, headers, widths):
+    sheet.set_row(0, 42)
+    for column, (header, width) in enumerate(zip(headers, widths)):
+        sheet.set_column(column, column, width)
+        sheet.write_string(0, column, header, header_format)
+
+
+def _add_supplier_summary(workbook, formats, header_format, suppliers):
+    sheet = workbook.add_worksheet("Resumo por fornecedor")
+    _write_header(sheet, header_format, SUMMARY_HEADERS,
+                  (48, 24, 25, 24, 24, 24, 22, 30))
+    sheet.freeze_panes(1, 1)
+    sheet.autofilter(0, 0, len(suppliers), len(SUMMARY_HEADERS) - 1)
+    cell_formats = [
+        formats.get({1: MONEY, 2: DATE, 3: MONEY}.get(column), wrap=True)
+        for column in range(len(SUMMARY_HEADERS))
+    ]
+    for row, supplier in enumerate(suppliers, 1):
+        values = _supplier_summary(supplier)
+        sheet.set_row(row, 16 * max(2, len(wrap(str(values[0] or ""), width=44))))
+        for column, value in enumerate(values):
+            _write(sheet, row, column, value, cell_formats[column])
+    sheet.activate()
 
 
 def build_payables_workbook(fornecedores):
     fornecedores = decorate_suppliers(fornecedores)
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "Contas vencidas"
-    sheet.append(HEADERS)
-    row_number = 1
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output, {"constant_memory": True})
+    formats = _Formats(workbook)
+    header_format = workbook.add_format(HEADER_STYLE)
+    _add_supplier_summary(workbook, formats, header_format, fornecedores)
+    sheet = workbook.add_worksheet("Contas vencidas")
+    _write_header(sheet, header_format, HEADERS, [width for _, _, width, _ in COLUMNS])
+    total_rows = sum(len(item.get("titulos", [])) for item in fornecedores)
+    sheet.freeze_panes(1, 4)
+    sheet.autofilter(0, 0, total_rows, len(COLUMNS) - 1)
+    columns = [(formats.get(number_format), value) for _, number_format, _, value in COLUMNS]
+    row = 0
     for priority, supplier in enumerate(fornecedores, 1):
         for title in supplier.get("titulos", []):
+            row += 1
             context = {
                 "priority": priority,
                 "balance": _money(title.get("saldo_a_pagar")),
                 "days": int(title.get("dias_vencidos") or 0),
             }
-            sheet.append([value(supplier, title, context) for *_, value in COLUMNS])
-            row_number += 1
-            # Counted, not sheet.max_row/sheet[n]: both scan every cell.
-            for column, (_, number_format, _, _) in enumerate(COLUMNS, 1):
-                cell = sheet.cell(row=row_number, column=column)
-                # API text must stay literal, including values beginning with '='.
-                if isinstance(cell.value, str):
-                    cell.data_type = "s"
-                if number_format:
-                    cell.number_format = number_format
-    sheet.freeze_panes = "E2"
-    sheet.auto_filter.ref = sheet.dimensions
-    for cell in sheet[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1B7088")
-        cell.alignment = Alignment(wrap_text=True, vertical="center")
-    sheet.row_dimensions[1].height = 42
-    for index, (_, _, width, _) in enumerate(COLUMNS, 1):
-        sheet.column_dimensions[get_column_letter(index)].width = width
-    _add_supplier_summary(workbook, fornecedores)
-    output = BytesIO()
-    workbook.save(output)
+            for column, (cell_format, value) in enumerate(columns):
+                _write(sheet, row, column, value(supplier, title, context), cell_format)
+    workbook.close()
     return output.getvalue()
