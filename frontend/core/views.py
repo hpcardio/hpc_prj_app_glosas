@@ -9039,13 +9039,18 @@ def _contas_pagar(request, modo):
     # Contas Vencidas lists paid titles beside the open ones, and suppliers
     # whose titles are all paid (list, picker, detail and export); totals and
     # summary stay on open titles.
-    titulos_pagos = {"incluir_pagos": "true"} if modo == "operacao" else {}
+    # Operação also hides purchase-order provisions (MV "Previsão de
+    # Materiais"); document provisions stay.
+    params_operacao = (
+        {"incluir_pagos": "true", "excluir_provisoes_oc": "true"}
+        if modo == "operacao" else {}
+    )
 
     if modo in {"operacao", "gestao"} and request.GET.get("export") == "xlsx":
         try:
             result = api_get(
                 CONTAS_PAGAR_PATH,
-                params={**filtros, "exportar": "true", **titulos_pagos},
+                params={**filtros, "exportar": "true", **params_operacao},
                 timeout=60,
             )
             if int(result.get("total_pages") or 1) != 1:
@@ -9096,7 +9101,7 @@ def _contas_pagar(request, modo):
             return HttpResponse("Fornecedor não disponível nesta pesquisa.", status=404)
         try:
             detalhe = api_get(CONTAS_PAGAR_PATH,
-                params={**filtros, "fornecedores_ids": codigo, "exportar": "true", **titulos_pagos},
+                params={**filtros, "fornecedores_ids": codigo, "exportar": "true", **params_operacao},
                 timeout=45)
         except ApiError:
             return HttpResponse("Títulos indisponíveis. Tente novamente.", status=503)
@@ -9115,7 +9120,7 @@ def _contas_pagar(request, modo):
             CONTAS_PAGAR_PATH,
             params={**filtros, "page": page, "page_size": 20, "incluir_titulos": "false",
                     **({"incluir_opcoes": "true"} if modo in {"operacao", "gestao"} else {}),
-                    **titulos_pagos},
+                    **params_operacao},
             timeout=45,
         )
     except ApiError as exc:
