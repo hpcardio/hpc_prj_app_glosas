@@ -3,8 +3,8 @@
 {% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
 {% block page_title %}{% if modo == "operacao" %}Contas vencidas{% elif modo == "acompanhamento" %}Acompanhamento do passivo{% else %}Gestão de Contas a Pagar{% endif %}{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/payables-priority.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/payables-priority.css' %}?v=3">
 <script defer src="{% static 'js/payables-supplier-picker.js' %}"></script>
-<script defer src="{% static 'js/payables-lazy.js' %}"></script>
+<script defer src="{% static 'js/payables-lazy.js' %}?v=2"></script>
 {% include "partials/payables_content.html" %}
 {% endblock %}

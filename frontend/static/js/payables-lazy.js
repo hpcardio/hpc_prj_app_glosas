@@ -85,10 +85,53 @@
     document.querySelectorAll('[data-payables-matrix]').forEach(load);
   }
 
+  // Summary cards and the day-before toggle swap the content in place
+  // (no full reload); any failure falls back to normal navigation.
+  async function applyFilter(link) {
+    const page = link.closest('.payables-page');
+    const target = new URL(link.href, window.location.href);
+    if (!page || target.origin !== window.location.origin) {
+      window.location.assign(target.href);
+      return;
+    }
+    if (page.classList.contains('is-filtering')) return;
+    page.classList.add('is-filtering');
+    page.setAttribute('aria-busy', 'true');
+    link.closest('article')?.classList.add('is-pending');
+    const list = page.querySelector('.payables-list-panel');
+    if (list) {
+      const notice = document.createElement('p');
+      notice.className = 'payables-filtering-status';
+      notice.setAttribute('role', 'status');
+      notice.textContent = 'Aplicando filtro...';
+      list.prepend(notice);
+    }
+    history.pushState({payablesFilter: true}, '', target);
+    const slot = document.createElement('div');
+    slot.setAttribute('data-payables-summary', '');
+    page.after(slot);
+    await load(slot);
+    if (slot.dataset.loaded === 'true') {
+      page.remove();
+    } else {
+      slot.remove();
+      window.location.assign(target.href);
+    }
+  }
+
   window.loadPayablesDetail = root => load(root.querySelector('[data-payables-detail]'));
   document.addEventListener('click', event => {
     const retry = event.target.closest('[data-lazy-retry]');
     if (retry) load(retry.closest('[data-lazy-fragment]'));
+    const filter = event.target.closest('a[data-payables-filter]');
+    if (filter && !event.defaultPrevented && event.button === 0
+        && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      applyFilter(filter);
+    }
+  });
+  window.addEventListener('popstate', () => {
+    if (document.querySelector('.payables-page')) window.location.reload();
   });
   const start = () => {
     document.querySelectorAll('[data-payables-summary]').forEach(load);
