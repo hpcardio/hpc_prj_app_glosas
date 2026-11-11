@@ -1,5 +1,5 @@
 from .spu_access import require_spu_permission
-from .payables_priority import (AGES, priority_options, extra_filters, month_start, decorate_suppliers, decorate_matrix, trend_history)
+from .payables_priority import (AGES, priority_options, extra_filters, month_start, decorate_suppliers, decorate_matrix, trend_history, summary_card_filters, summary_card_links)
 import re
 from calendar import monthrange
 from concurrent.futures import ThreadPoolExecutor
@@ -9034,6 +9034,8 @@ def _contas_pagar(request, modo):
                 filtros[key] = value
     if modo == "gestao":
         filtros["criticidade"] = "todos"
+    if modo == "operacao":
+        filtros.update(summary_card_filters(request.GET))
     # Contas Vencidas lists paid titles beside the open ones, and suppliers
     # whose titles are all paid (list, picker, detail and export); totals and
     # summary stay on open titles.
@@ -9177,6 +9179,7 @@ def _contas_pagar(request, modo):
             "faixas_atraso": AGES,
             "evolucao": trend_history(payload.get("historico", [])),
             "export_url": f"?{urlencode({**filtros, 'export': 'xlsx'})}",
+            "cards_filtro": summary_card_links(filtros) if modo == "operacao" else {},
             "fornecedores": payload.get("fornecedores", []),
             "resumo": payload.get("resumo", {}),
             "historico": payload.get("historico", []),
