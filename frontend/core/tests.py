@@ -3450,6 +3450,57 @@ class FollowUpGlosasTests(TestCase):
 
     @patch('core.views.get_cached_api_payload')
     @patch('core.views.api_get')
+    def test_processo_original_provisorio_maida_fica_editavel(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        payload = self._api_payload()
+        card = payload['cards'][0]
+        card['processo']['numero_processo'] = 'MAIDA-33210'
+        item = card['pacientes'][0]['itens'][0]
+        item['registro_glosa']['processo_controle_fatura_gab'] = 'MAIDA-33210'
+        api_get.return_value = payload
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/', {'detalhar_vinculo': '12'}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<input name="processo_controle_fatura_gab" value="" '
+            'class="form-control" placeholder="Informe o processo do '
+            'convênio" required>',
+            html=False,
+        )
+        self.assertNotContains(response, 'value="MAIDA-33210"')
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
+    def test_processo_original_real_continua_somente_leitura(
+        self,
+        api_get,
+        get_cached_api_payload,
+    ):
+        api_get.return_value = self._api_payload()
+        get_cached_api_payload.return_value = {'itens': []}
+
+        response = self.client.get(
+            '/follow-up-glosas/', {'detalhar_vinculo': '12'}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<input name="processo_controle_fatura_gab" value="CONC-12" '
+            'class="form-control form-control-readonly" readonly',
+            html=False,
+        )
+
+    @patch('core.views.get_cached_api_payload')
+    @patch('core.views.api_get')
     def test_card_cogestao_carrega_detalhes_por_processo_e_remessa(
         self,
         api_get,

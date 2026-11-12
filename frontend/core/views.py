@@ -2448,6 +2448,10 @@ def format_conta_bancaria_label(conta, conta_bancaria_id):
     )
 
 
+def _processo_provisorio_maida(valor) -> bool:
+    return str(valor or "").strip().upper().startswith("MAIDA-")
+
+
 def format_api_error(exc: ApiError, endpoint_name: str) -> str:
     if exc.status_code == 401:
         return f"{endpoint_name}: sua sessão não é mais válida. Entre novamente."
@@ -3617,6 +3621,24 @@ def prepare_follow_up_glosas_cards(cards):
                     or item.get("processo_controle_fatura_gab")
                     or ""
                 )
+                # Maida imports carry a provisional "MAIDA-<lote>" process;
+                # the user must type the real convênio process.
+                item["processo_origem_provisorio"] = _processo_provisorio_maida(
+                    item["processo_origem"]
+                )
+                if item["processo_origem_provisorio"]:
+                    item["processo_origem"] = next(
+                        (
+                            str(valor).strip()
+                            for valor in (
+                                registro_recusa.get("processo_controle_fatura_gab"),
+                                registro_acato.get("processo_controle_fatura_gab"),
+                            )
+                            if str(valor or "").strip()
+                            and not _processo_provisorio_maida(valor)
+                        ),
+                        "",
+                    )
                 item["data_glosa_input"] = format_api_date_input(
                     item.get("data_glosa")
                 )
