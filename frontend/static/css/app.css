@@ -15282,3 +15282,16 @@ button.follow-up-glosa-chevron:focus-visible {
 .petrobras-link-form .association-source-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
 }
+
+/* Associação manual: itens Maida (ISSEC) */
+.maida-atendimento-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 220px;
+}
+.maida-atendimento-form .form-control { max-width: 150px; }
+.maida-items-table td,
+.maida-selection td { vertical-align: middle; }
+.maida-selection tr.maida-candidate { background: rgba(25, 135, 84, 0.08); }
+.maida-selection .association-item-form { padding: 0 16px 16px; }

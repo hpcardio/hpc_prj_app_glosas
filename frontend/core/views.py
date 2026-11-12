@@ -101,6 +101,8 @@ ASSOCIACOES_REMESSAS_IPM_PATH = (
 ASSOCIACOES_ITENS_IPM_PATH = (
     "/app_glosas/financeiro/associacoes-itens-ipm"
 )
+ASSOCIACOES_MAIDA_PATH = "/app_glosas/financeiro/associacoes-maida"
+ORIGEM_ASSOCIACAO_MAIDA = "maida"
 ASSOCIACAO_ITEM_CRITERIOS = {
     "competencia_guia_servico_carteira": (
         "Competência, guia/senha, procedimento e carteira"
@@ -7156,6 +7158,9 @@ def conta_atendimento_recurso_pdf(request):
 def associacoes_remessas_ipm(request):
     if petrobras.associacao_aplicavel(request):
         return associacoes_petrobras(request)
+    origem = request.POST.get("origem") or request.GET.get("origem")
+    if origem == ORIGEM_ASSOCIACAO_MAIDA:
+        return associacoes_maida(request)
     if request.method == "POST":
         acao = (request.POST.get("acao") or "associar").strip()
         associacao_id = as_int_or_zero(request.POST.get("associacao_id"))
@@ -7328,6 +7333,172 @@ def associacoes_remessas_ipm(request):
             "filtros": filtros,
             "resumo": resumo,
             "pagination": pagination,
+            "consulta_indisponivel": consulta_indisponivel,
+            "petrobras_enabled": settings.PETROBRAS_ENABLED,
+        },
+    )
+
+
+def _maida_query(dados, *, page=None):
+    query = {"origem": ORIGEM_ASSOCIACAO_MAIDA}
+    for chave in ("lote", "guia", "situacao"):
+        valor = (dados.get(chave) or "").strip()
+        if valor:
+            query[chave] = valor
+    if page and page > 1:
+        query["page"] = page
+    return query
+
+
+def associacoes_maida(request):
+    """Associa itens glosados da Maida (ISSEC) a um lançamento do MV."""
+    if request.method == "POST":
+        retorno = {
+            "lote": request.POST.get("lote_filtro", ""),
+            "guia": request.POST.get("guia_filtro", ""),
+            "situacao": request.POST.get("situacao_filtro", ""),
+        }
+        page = as_positive_int(request.POST.get("page"), 1)
+        try:
+            if request.POST.get("acao") == "excluir":
+                api_delete(
+                    f"{ASSOCIACOES_MAIDA_PATH}/"
+                    f"{as_int_or_zero(request.POST.get('associacao_id'))}"
+                )
+                messages.success(
+                    request,
+                    "Associação excluída; o item voltou para o lote da Maida.",
+                )
+            else:
+                alvo = (request.POST.get("alvo") or "").split("|")
+                if len(alvo) != 3:
+                    messages.error(request, "Escolha um lançamento do MV.")
+                    return redirect(
+                        f"{request.path}?{urlencode(_maida_query(retorno, page=page))}"
+                    )
+                cd_remessa, conta, cd_lancamento = (
+                    as_int_or_zero(valor) for valor in alvo
+                )
+                api_post(ASSOCIACOES_MAIDA_PATH, {
+                    "glosa_id_registro": request.POST.get("id_registro", ""),
+                    "cd_atendimento": as_int_or_zero(
+                        request.POST.get("cd_atendimento")
+                    ),
+                    "cd_remessa": cd_remessa,
+                    "conta": conta,
+                    "cd_lancamento": cd_lancamento,
+                })
+                messages.success(
+                    request,
+                    f"Item associado à remessa {cd_remessa} do MV e "
+                    "atualizado no Follow-Up.",
+                )
+            clear_filter_caches()
+        except ApiError as exc:
+            messages.error(
+                request,
+                format_api_error(exc, "Associação de item Maida"),
+            )
+        return redirect(
+            f"{request.path}?{urlencode(_maida_query(retorno, page=page))}"
+        )
+
+    filtros = {
+        "lote": (request.GET.get("lote") or "").strip(),
+        "guia": (request.GET.get("guia") or "").strip(),
+        "situacao": (request.GET.get("situacao") or "pendentes").strip(),
+    }
+    if filtros["situacao"] not in {"pendentes", "associadas", "todas"}:
+        filtros["situacao"] = "pendentes"
+    page = as_positive_int(request.GET.get("page"), 1)
+    limit = 20
+    offset = (page - 1) * limit
+    itens, total = [], 0
+    consulta_indisponivel = False
+    try:
+        payload = api_get(
+            ASSOCIACOES_MAIDA_PATH,
+            params={
+                "lote": filtros["lote"],
+                "guia": filtros["guia"],
+                "situacao": filtros["situacao"],
+                "limit": limit,
+                "offset": offset,
+            },
+            timeout=60,
+        )
+        itens = payload.get("itens") or []
+        total = as_int_or_zero(payload.get("total"))
+    except ApiError as exc:
+        consulta_indisponivel = is_service_unavailable_error(exc)
+        if not consulta_indisponivel:
+            messages.error(
+                request, format_api_error(exc, "Itens Maida pendentes")
+            )
+    for item in itens:
+        item["data_realizacao_formatada"] = format_api_date(
+            item.get("data_realizacao")
+        )
+
+    selecao = None
+    item_escolhido = (request.GET.get("item") or "").strip()
+    cd_atendimento = as_int_or_zero(request.GET.get("cd_atendimento"))
+    if item_escolhido and cd_atendimento:
+        try:
+            selecao = api_get(
+                f"{ASSOCIACOES_MAIDA_PATH}/lancamentos",
+                params={
+                    "id_registro": item_escolhido,
+                    "cd_atendimento": cd_atendimento,
+                },
+                timeout=60,
+            )
+            selecao["item"]["data_realizacao_formatada"] = format_api_date(
+                selecao["item"].get("data_realizacao")
+            )
+            for lancamento in selecao.get("lancamentos") or []:
+                lancamento["dt_lancamento_formatada"] = format_api_date(
+                    lancamento.get("dt_lancamento")
+                )
+            selecao["selecionaveis"] = sum(
+                1 for lancamento in selecao.get("lancamentos") or []
+                if lancamento.get("selecionavel")
+            )
+        except ApiError as exc:
+            messages.error(
+                request, format_api_error(exc, "Lançamentos do atendimento")
+            )
+
+    base_query = _maida_query(filtros)
+    if filtros["situacao"] == "pendentes":
+        base_query.pop("situacao", None)
+    total_pages = max(ceil(total / limit), 1)
+    pagination = {
+        "page": page,
+        "total_pages": total_pages,
+        "page_options": [
+            {"number": number, "selected": number == page}
+            for number in range(1, total_pages + 1)
+        ],
+        "has_previous": page > 1,
+        "has_next": page < total_pages,
+        "previous_url": f"?{urlencode({**base_query, 'page': page - 1})}",
+        "next_url": f"?{urlencode({**base_query, 'page': page + 1})}",
+        "start": offset + 1 if itens else 0,
+        "end": offset + len(itens),
+        "total": total,
+        "query": base_query,
+    }
+    return render(
+        request,
+        "associacoes_maida.html",
+        {
+            "itens": itens,
+            "filtros": filtros,
+            "pagination": pagination,
+            "selecao": selecao,
+            "cd_atendimento": cd_atendimento or "",
+            "item_escolhido": item_escolhido,
             "consulta_indisponivel": consulta_indisponivel,
             "petrobras_enabled": settings.PETROBRAS_ENABLED,
         },

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block breadcrumb_label %}Receita Certa &gt; NÚCLEO GESTOR DE GLOSAS{% endblock %}
+{% block page_title %}Associação Manual{% endblock %}
+{% block content_class %}content--natural-scroll{% endblock %}
+{% block content %}
+{% include "partials/associacao_origem_tabs.html" with origem="maida" %}
+
+<section class="panel filter-panel">
+  <form class="remessa-filters" method="get">
+    <input type="hidden" name="origem" value="maida">
+    <div class="filter-row association-filter-row">
+      <div class="filter-group">
+        <label for="maida-lote">Lote Maida</label>
+        <input id="maida-lote" name="lote" value="{{ filtros.lote }}" class="form-control" inputmode="numeric" placeholder="Número do lote">
+      </div>
+      <div class="filter-group">
+        <label for="maida-guia">Guia</label>
+        <input id="maida-guia" name="guia" value="{{ filtros.guia }}" class="form-control" inputmode="numeric" placeholder="Guia na Maida">
+      </div>
+      <div class="filter-group">
+        <label for="maida-situacao">Situação</label>
+        <select id="maida-situacao" name="situacao" class="form-select">
+          <option value="pendentes" {% if filtros.situacao == 'pendentes' %}selected{% endif %}>Pendentes</option>
+          <option value="associadas" {% if filtros.situacao == 'associadas' %}selected{% endif %}>Associadas</option>
+          <option value="todas" {% if filtros.situacao == 'todas' %}selected{% endif %}>Todas</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary">Filtrar</button>
+        <a href="{{ request.path }}?origem=maida" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+{% if selecao %}
+<section class="panel results-summary-panel ipm-association-page maida-selection">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Lançamentos do atendimento {{ selecao.cd_atendimento }} no MV</span>
+        <span class="results-subtitle">Item Maida: lote {{ selecao.item.lote }} · guia {{ selecao.item.guia }} · procedimento {{ selecao.item.codigo_servico }} · realizado em {{ selecao.item.data_realizacao_formatada|default:"-" }} · glosado R$ {{ selecao.item.valor_glosa|br_currency }}</span>
+      </div>
+      <a href="?{% for key, value in pagination.query.items %}{{ key }}={{ value|urlencode }}&{% endfor %}" class="btn btn-outline-secondary btn-sm">Fechar</a>
+    </div>
+  </div>
+  {% if not selecao.lancamentos %}
+  <div class="association-no-evidence">Nenhum lançamento encontrado para o atendimento {{ selecao.cd_atendimento }}. Confira o número no MV.</div>
+  {% else %}
+  <form method="post" class="association-item-form">
+    {% csrf_token %}
+    <input type="hidden" name="origem" value="maida">
+    <input type="hidden" name="acao" value="associar">
+    <input type="hidden" name="id_registro" value="{{ selecao.item.id_registro }}">
+    <input type="hidden" name="cd_atendimento" value="{{ selecao.cd_atendimento }}">
+    <input type="hidden" name="lote_filtro" value="{{ filtros.lote }}">
+    <input type="hidden" name="guia_filtro" value="{{ filtros.guia }}">
+    <input type="hidden" name="situacao_filtro" value="{{ filtros.situacao }}">
+    <input type="hidden" name="page" value="{{ pagination.page }}">
+    <div class="table-responsive">
+      <table class="table table-sm association-oracle-table">
+        <thead>
+          <tr><th></th><th>Remessa</th><th>Conta</th><th>Lanç.</th><th>Guia MV</th><th>Procedimento</th><th>Descrição</th><th>Data lanç.</th><th>Qtd.</th><th>Valor</th><th>Situação</th></tr>
+        </thead>
+        <tbody>
+          {% for lancamento in selecao.lancamentos %}
+          <tr class="{% if lancamento.selecionavel %}maida-candidate{% else %}text-muted{% endif %}">
+            <td>{% if lancamento.selecionavel %}<input type="radio" name="alvo" value="{{ lancamento.cd_remessa }}|{{ lancamento.conta }}|{{ lancamento.cd_lancamento }}" required aria-label="Escolher lançamento {{ lancamento.cd_lancamento }}" {% if selecao.selecionaveis == 1 %}checked{% endif %}>{% endif %}</td>
+            <td>{{ lancamento.cd_remessa|default:"-" }}</td>
+            <td>{{ lancamento.conta }}</td>
+            <td>{{ lancamento.cd_lancamento }}</td>
+            <td>{{ lancamento.nr_guia|default:"-" }}</td>
+            <td>{{ lancamento.cd_pro_fat|default:"-" }}</td>
+            <td>{{ lancamento.descricao|default:"-" }}</td>
+            <td>{{ lancamento.dt_lancamento_formatada|default:"-" }}</td>
+            <td>{{ lancamento.qt_lancamento|default:"-" }}</td>
+            <td>R$ {{ lancamento.valor_item|br_currency }}</td>
+            <td>{% if lancamento.selecionavel %}Mesmo procedimento{% elif not lancamento.issec %}Outro convênio{% elif not lancamento.faturado %}Sem remessa{% else %}Outro procedimento{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="association-item-actions">
+      {% if selecao.selecionaveis %}
+      <span>A glosa passará a exibir a remessa, a conta e o atendimento do MV no Follow-Up.</span>
+      <button class="btn btn-primary btn-sm">Associar</button>
+      {% else %}
+      <span>Nenhum lançamento ISSEC com o procedimento {{ selecao.item.codigo_servico }} neste atendimento.</span>
+      {% endif %}
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="panel results-summary-panel ipm-association-page">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Itens glosados da Maida sem atendimento do MV</span>
+        {% if pagination.total %}
+        <span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} itens exibidos</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if pagination.total_pages > 1 %}
+    <div class="results-toolbar">
+      <div class="pagination-control">
+        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="maida-page">Página</label>
+          <select id="maida-page" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if consulta_indisponivel %}
+  <div class="service-unavailable">
+    <div class="service-unavailable-icon" aria-hidden="true">!</div>
+    <div><strong>Consulta temporariamente indisponível</strong><p>Não foi possível consultar os itens da Maida.</p></div>
+  </div>
+  {% elif not itens %}
+  <div class="empty-state"><strong>Nenhum item encontrado</strong><p>Não há itens da Maida para os filtros informados.</p></div>
+  {% else %}
+  <div class="table-responsive">
+    <table class="table table-sm association-oracle-table maida-items-table">
+      <thead>
+        <tr><th>Lote</th><th>Guia</th><th>Beneficiário</th><th>Procedimento</th><th>Realização</th><th>Processado</th><th>Glosado</th><th>Remessa exibida</th><th>Atendimento MV</th></tr>
+      </thead>
+      <tbody>
+        {% for item in itens %}
+        <tr>
+          <td>{{ item.lote|default:"-" }}</td>
+          <td>{{ item.guia|default:"-" }}</td>
+          <td>{{ item.beneficiario|default:"-" }}</td>
+          <td><strong>{{ item.codigo_servico|default:"-" }}</strong> {{ item.descricao_servico|default:"" }}</td>
+          <td>{{ item.data_realizacao_formatada|default:"-" }}</td>
+          <td>R$ {{ item.valor_processado|br_currency }}</td>
+          <td class="text-danger">R$ {{ item.valor_glosa|br_currency }}</td>
+          <td>{% if item.associacao_id %}{{ item.associacao_cd_remessa }}{% else %}{{ item.registro_cd_remessa }} <small class="text-muted">(lote Maida)</small>{% endif %}</td>
+          <td>
+            {% if item.associacao_id %}
+            <form method="post" class="d-inline" onsubmit="return confirm('Excluir a associação? O item volta para o lote da Maida.');">
+              {% csrf_token %}
+              <input type="hidden" name="origem" value="maida">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="associacao_id" value="{{ item.associacao_id }}">
+              <input type="hidden" name="lote_filtro" value="{{ filtros.lote }}">
+              <input type="hidden" name="guia_filtro" value="{{ filtros.guia }}">
+              <input type="hidden" name="situacao_filtro" value="{{ filtros.situacao }}">
+              <input type="hidden" name="page" value="{{ pagination.page }}">
+              <span>Atend. {{ item.registro_cd_atendimento }} · conta {{ item.associacao_conta }}</span>
+              <button class="btn btn-outline-danger btn-sm">Excluir</button>
+            </form>
+            {% else %}
+            <form method="get" class="maida-atendimento-form">
+              {% for key, value in pagination.query.items %}{% if key != 'page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+              <input type="hidden" name="page" value="{{ pagination.page }}">
+              <input type="hidden" name="item" value="{{ item.id_registro }}">
+              <input name="cd_atendimento" class="form-control form-control-sm" inputmode="numeric" pattern="[0-9]+" required placeholder="Nº do atendimento" aria-label="Atendimento do MV para a guia {{ item.guia }}" {% if item.id_registro == item_escolhido %}value="{{ cd_atendimento }}"{% endif %}>
+              <button class="btn btn-primary btn-sm">Buscar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

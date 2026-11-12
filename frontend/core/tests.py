@@ -9824,3 +9824,147 @@ class ReceitaCertaLayoutTests(TestCase):
         self.assertIn('999,99', html)
         self.assertNotIn('TOTAL A PAGAR', html)
         self.assertNotIn('payables-kpis--operational', html)
+
+
+class AssociacaoMaidaTests(TestCase):
+    ITEM = {
+        'id_registro': 'demo-1',
+        'lote': '33210',
+        'guia': '613630',
+        'beneficiario': 'BENEFICIARIO TESTE',
+        'codigo_servico': '20010176',
+        'descricao_servico': 'ECODOPPLER VERTEBRAL',
+        'data_realizacao': '2026-09-28',
+        'valor_processado': '106.40',
+        'valor_glosa': '2.00',
+        'registro_cd_remessa': 33210,
+        'registro_cd_atendimento': 0,
+        'associacao_id': None,
+    }
+
+    def setUp(self):
+        session = self.client.session
+        session['api_access_token'] = 'token-seguro'
+        session['api_user'] = {
+            'id': 1,
+            'nome': 'Núcleo de Glosas',
+            'email': 'glosas@teste.com',
+            'perfil': 'usuario',
+            'telas_permitidas': list(SCREEN_KEYS),
+        }
+        session.save()
+
+    @patch('core.views.api_get')
+    def test_lista_itens_maida_pendentes(self, api_get):
+        api_get.return_value = {'itens': [dict(self.ITEM)], 'total': 1}
+
+        response = self.client.get(
+            '/associacoes-remessas-ipm/',
+            {'origem': 'maida', 'lote': '33210'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        api_get.assert_called_once()
+        self.assertEqual(
+            api_get.call_args.args[0],
+            '/app_glosas/financeiro/associacoes-maida',
+        )
+        self.assertEqual(api_get.call_args.kwargs['params']['lote'], '33210')
+        self.assertContains(response, 'Maida (ISSEC)')
+        self.assertContains(response, 'aria-current="page">Maida (ISSEC)')
+        self.assertContains(response, '(lote Maida)')
+        self.assertContains(response, 'name="cd_atendimento"')
+        self.assertContains(response, 'value="demo-1"')
+
+    @patch('core.views.api_get')
+    def test_busca_lancamentos_do_atendimento_informado(self, api_get):
+        lancamentos = {
+            'item': dict(self.ITEM),
+            'cd_atendimento': 357834,
+            'lancamentos': [
+                {
+                    'cd_remessa': 20452, 'conta': 26313, 'cd_lancamento': 44,
+                    'nr_guia': '313630', 'cd_pro_fat': '20010176',
+                    'descricao': 'ECODOPPLER VERTEBRAL',
+                    'dt_lancamento': '2026-09-28', 'qt_lancamento': '1',
+                    'valor_item': '106.40', 'selecionavel': True,
+                    'issec': True, 'faturado': True,
+                },
+                {
+                    'cd_remessa': 20452, 'conta': 26313, 'cd_lancamento': 1,
+                    'cd_pro_fat': '10101012', 'valor_item': '66.00',
+                    'selecionavel': False, 'issec': True, 'faturado': True,
+                },
+            ],
+        }
+        api_get.side_effect = lambda path, **_: (
+            lancamentos if path.endswith('/lancamentos')
+            else {'itens': [dict(self.ITEM)], 'total': 1}
+        )
+
+        response = self.client.get('/associacoes-remessas-ipm/', {
+            'origem': 'maida', 'item': 'demo-1', 'cd_atendimento': '357834',
+        })
+
+        chamada = [
+            c for c in api_get.call_args_list
+            if c.args[0].endswith('/lancamentos')
+        ][0]
+        self.assertEqual(chamada.kwargs['params'], {
+            'id_registro': 'demo-1', 'cd_atendimento': 357834,
+        })
+        self.assertContains(
+            response,
+            'name="alvo" value="20452|26313|44" required '
+            'aria-label="Escolher lançamento 44" checked',
+        )
+        self.assertNotContains(response, 'value="20452|26313|1"')
+        self.assertContains(response, 'Outro procedimento')
+        self.assertContains(response, '>Associar</button>')
+
+    @patch('core.views.api_post')
+    def test_associa_lancamento_escolhido(self, api_post):
+        api_post.return_value = {'associacao_id': 9}
+
+        response = self.client.post('/associacoes-remessas-ipm/', {
+            'origem': 'maida',
+            'acao': 'associar',
+            'id_registro': 'demo-1',
+            'cd_atendimento': '357834',
+            'alvo': '20452|26313|44',
+            'lote_filtro': '33210',
+        })
+
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-maida',
+            {
+                'glosa_id_registro': 'demo-1',
+                'cd_atendimento': 357834,
+                'cd_remessa': 20452,
+                'conta': 26313,
+                'cd_lancamento': 44,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('origem=maida', response['Location'])
+        self.assertIn('lote=33210', response['Location'])
+
+    @patch('core.views.api_delete')
+    def test_exclui_associacao_maida(self, api_delete):
+        response = self.client.post('/associacoes-remessas-ipm/', {
+            'origem': 'maida', 'acao': 'excluir', 'associacao_id': '9',
+        })
+
+        api_delete.assert_called_once_with(
+            '/app_glosas/financeiro/associacoes-maida/9'
+        )
+        self.assertEqual(response.status_code, 302)
+
+    @patch('core.views.api_get')
+    def test_aba_ipm_continua_ativa_por_padrao(self, api_get):
+        api_get.return_value = {'processos': [], 'total': 0}
+
+        response = self.client.get('/associacoes-remessas-ipm/')
+
+        self.assertContains(response, 'aria-current="page">IPM</a>')
+        self.assertContains(response, '?origem=maida')
