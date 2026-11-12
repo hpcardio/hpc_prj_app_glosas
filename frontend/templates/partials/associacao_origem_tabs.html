@@ -1,6 +1,7 @@
-{% if petrobras_enabled %}
 <nav class="association-origin-tabs" aria-label="Origem das glosas">
-  <a href="{{ request.path }}" class="association-origin-tab {% if origem != 'petrobras' %}is-active{% endif %}" {% if origem != 'petrobras' %}aria-current="page"{% endif %}>IPM</a>
+  <a href="{{ request.path }}" class="association-origin-tab {% if origem == 'ipm' %}is-active{% endif %}" {% if origem == 'ipm' %}aria-current="page"{% endif %}>IPM</a>
+  <a href="{{ request.path }}?origem=maida" class="association-origin-tab {% if origem == 'maida' %}is-active{% endif %}" {% if origem == 'maida' %}aria-current="page"{% endif %}>Maida (ISSEC)</a>
+  {% if petrobras_enabled %}
   <a href="{{ request.path }}?origem=petrobras" class="association-origin-tab {% if origem == 'petrobras' %}is-active{% endif %}" {% if origem == 'petrobras' %}aria-current="page"{% endif %}>Petrobras</a>
+  {% endif %}
 </nav>
-{% endif %}
