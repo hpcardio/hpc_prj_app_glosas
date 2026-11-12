@@ -488,7 +488,7 @@
                                   <div class="glosa-section-grid">
                                     <div class="glosa-field glosa-field--wide">
                                       <label>Processo / N Controle / N Fatura / N GAB (Processo Original) <span class="required-marker" aria-hidden="true">*</span></label>
-                                      <input name="processo_controle_fatura_gab" value="{{ item.processo_origem }}" class="form-control form-control-readonly" readonly aria-readonly="true">
+                                      {% if item.processo_origem_provisorio %}<input name="processo_controle_fatura_gab" value="{{ item.processo_origem }}" class="form-control" placeholder="Informe o processo do convênio" required>{% else %}<input name="processo_controle_fatura_gab" value="{{ item.processo_origem }}" class="form-control form-control-readonly" readonly aria-readonly="true">{% endif %}
                                     </div>
                                     <div class="glosa-field">
                                       <label>Data da glosa</label>
