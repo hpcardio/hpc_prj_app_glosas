@@ -93,12 +93,13 @@
         <span class="panel-title">Remessas{% if filtros.etapa %} · {% for card in funil %}{% if card.ativo %}{{ card.rotulo|lower }}{% endif %}{% endfor %}{% endif %}</span>
         {% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} remessas{% if not filtros.ordenar_por or filtros.ordenar_por == 'parado' %} · as paradas há mais tempo primeiro{% endif %}</span>{% endif %}
       </div>
-      {% if itens %}
       <div class="collapse-actions">
+        {% if pagination.total %}<a class="btn btn-outline-secondary cr-exportar" href="{{ export_url }}" title="Planilha no layout da DEMO com todas as remessas deste filtro">Exportar Excel</a>{% endif %}
+        {% if itens %}
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cr-expandir'))">Expandir</button>
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cr-colapsar'))">Colapsar todos</button>
+        {% endif %}
       </div>
-      {% endif %}
     </div>
     <div class="results-toolbar">
       <div class="results-totals">
