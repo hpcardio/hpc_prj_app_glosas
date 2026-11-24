@@ -205,3 +205,48 @@ class ExportacaoTests(TestCase):
         self.assertIn("export=xlsx", response.context["export_url"])
         self.assertIn("convenio=46", response.context["export_url"])
         self.assertContains(response, "Exportar Excel")
+
+
+class ValoresDoCardTests(TestCase):
+    setUp = FluxoTests.setUp
+
+    def test_bruto_glosas_retencoes_liquido(self):
+        from decimal import Decimal
+
+        from core.contas_receber import valores_do_card
+
+        com_nf = valores_do_card({
+            "valor": "562.69",
+            "nfse": {"valor": "402.73", "valor_liquido": "367.09"},
+        })
+        self.assertEqual(com_nf["bruto"], Decimal("562.69"))
+        self.assertEqual(com_nf["glosas"], Decimal("159.96"))
+        self.assertEqual(com_nf["retencoes"], Decimal("35.64"))
+        self.assertEqual(com_nf["liquido"], Decimal("367.09"))
+        self.assertEqual(com_nf["origem_glosa"], "nf")
+
+        pelo_portal = valores_do_card({
+            "valor": "1771.52",
+            "protocolo": {"glosa_portal": Decimal("581.05")},
+        })
+        self.assertEqual(pelo_portal["glosas"], Decimal("581.05"))
+        self.assertEqual(pelo_portal["origem_glosa"], "portal")
+        self.assertIsNone(pelo_portal["retencoes"])
+        self.assertIsNone(pelo_portal["liquido"])
+
+        nf_fora_da_base = valores_do_card({"valor": "100", "nfse": {"valor": None}})
+        self.assertIsNone(nf_fora_da_base["glosas"])
+        self.assertIsNone(nf_fora_da_base["retencoes"])
+
+    @patch("core.contas_receber.api_get")
+    def test_card_mostra_os_quatro_valores(self, api_get):
+        dados = payload()
+        dados["itens"][0]["nfse"] = {"numero": "25618", "valor": "1500.00", "valor_liquido": "1400.00",
+                                     "data_emissao": "2026-02-12", "origem": "planilha"}
+        api_get.return_value = dados
+        response = self.client.get(URL)
+        for rotulo in ("VALOR BRUTO", "GLOSAS", "RETENÇÕES", "VALOR LÍQUIDO"):
+            self.assertContains(response, rotulo)
+        self.assertContains(response, "R$ 271,52")   # 1.771,52 - 1.500,00
+        self.assertContains(response, "R$ 100,00")   # retenções
+        self.assertContains(response, "R$ 1.400,00")  # líquido
