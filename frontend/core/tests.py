@@ -1361,7 +1361,7 @@ class DashboardIndicadoresTests(TestCase):
         self.assertIn('overflow-y: auto;', regra)
         self.assertIn('min-height: 0;', regra)
         base = Path(settings.BASE_DIR, 'templates', 'base.html').read_text()
-        self.assertEqual(base.count("scrollIntoView({ block: 'nearest', behavior: 'smooth' })"), 6)
+        self.assertEqual(base.count("scrollIntoView({ block: 'nearest', behavior: 'smooth' })"), 7)
 
     def test_acoes_dos_filtros_permanecem_dentro_do_painel(self):
         css = Path(finders.find('css/app.css')).read_text()

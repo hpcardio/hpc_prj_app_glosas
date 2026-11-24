@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% load core_extras static %}
+{% block breadcrumb_label %}Financeiro · Contas a Receber{% endblock %}
+{% block page_title %}Fluxo do recebimento{% endblock %}
+{% block content_class %}follow-up-compact{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=1">
+<div class="cr-page">
+
+<section class="cr-hero" aria-label="Remessas paradas em cada etapa">
+  <header class="cr-hero-head">
+    <div>
+      <span class="cr-eyebrow">Remessa · Protocolo · NFS · Recebimento</span>
+      <h2>Onde está o dinheiro dos convênios?</h2>
+      <p>Cada remessa fechada no MV percorre quatro etapas até o dinheiro aparecer no extrato. Clique numa etapa para ver as remessas paradas nela.</p>
+    </div>
+    <div class="cr-hero-total">
+      <small>Remessas no filtro</small>
+      <strong>{{ resumo.total_remessas|default:0 }}</strong>
+      <span>R$ {{ resumo.valor_total|default:0|br_currency }}</span>
+    </div>
+  </header>
+  <ol class="cr-funil">
+    {% for card in funil %}
+    <li class="cr-etapa cr-etapa--{{ card.chave }}{% if card.ativo %} is-selected{% endif %}">
+      <a class="cr-etapa-link" href="{{ card.url }}" title="{% if card.ativo %}Remover filtro{% else %}{{ card.ajuda }}{% endif %}"{% if card.ativo %} aria-current="true"{% endif %}>
+        <span class="cr-etapa-numero" aria-hidden="true">{% if card.chave == 'concluido' %}&#10003;{% else %}{{ forloop.counter }}{% endif %}</span>
+        <span class="cr-etapa-rotulo">{{ card.rotulo }}</span>
+        <strong class="cr-etapa-qtd">{{ card.quantidade }}<small> remessa{{ card.quantidade|pluralize }}</small></strong>
+        <span class="cr-etapa-valor">R$ {{ card.valor|br_currency }}</span>
+        <span class="cr-etapa-barra" aria-hidden="true"><span style="width: {{ card.percentual }}%"></span></span>
+        <span class="cr-etapa-pct">{{ card.percentual }}% das remessas{% if card.ativo %} · <b>filtro ativo</b>{% endif %}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+  {% if resumo.protocolos_a_confirmar or filtros.a_confirmar %}
+  <div class="cr-alertas">
+    {% if filtros.a_confirmar %}
+    <span class="cr-alerta is-on">Exibindo só remessas com protocolo a confirmar. <a href="{{ remover_a_confirmar_url }}">Remover filtro</a></span>
+    {% else %}
+    <a class="cr-alerta" href="{{ a_confirmar_url }}"><b>{{ resumo.protocolos_a_confirmar }}</b> remessa{{ resumo.protocolos_a_confirmar|pluralize }} com mais de um protocolo possível no portal — confira</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="panel filter-panel cr-filtros" x-data="{ loading: false }">
+  <form class="remessa-filters" method="get" @submit="loading = true">
+    {% if filtros.etapa %}<input type="hidden" name="etapa" value="{{ filtros.etapa }}">{% endif %}
+    {% if filtros.a_confirmar %}<input type="hidden" name="a_confirmar" value="1">{% endif %}
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="cr-convenio">Convênio</label>
+        <select id="cr-convenio" name="convenio" class="form-select">
+          <option value="">Todos</option>
+          {% for c in convenios %}<option value="{{ c.codigo }}" {% if filtros.convenio == c.codigo|stringformat:'s' %}selected{% endif %}>{{ c.nome }} ({{ c.remessas }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="cr-de">Competência de</label>
+        <input id="cr-de" class="form-control" type="month" name="competencia_de" value="{{ filtros.competencia_de }}">
+      </div>
+      <div class="filter-group">
+        <label for="cr-ate">Competência até</label>
+        <input id="cr-ate" class="form-control" type="month" name="competencia_ate" value="{{ filtros.competencia_ate }}">
+      </div>
+      <div class="filter-group cr-filtro-busca">
+        <label for="cr-q">Remessa, protocolo ou NFS</label>
+        <input id="cr-q" class="form-control" name="q" value="{{ filtros.q }}" placeholder="Ex.: 20323, 2600044294 ou 30400">
+      </div>
+      <div class="filter-group">
+        <label for="cr-ordem">Ordenar por</label>
+        <select id="cr-ordem" name="ordenar_por" class="form-select">
+          {% for valor, rotulo in ordenacoes %}<option value="{{ valor }}" {% if filtros.ordenar_por == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" :disabled="loading">
+          <span x-show="!loading">Filtrar</span>
+          <span x-show="loading" x-cloak>Buscando...</span>
+        </button>
+        <a href="{{ request.path }}" class="btn btn-outline-secondary" :class="{ 'disabled': loading }">Limpar</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="panel results-summary-panel follow-up-glosa-results cr-resultados">
+  <div class="panel-header">
+    <div class="results-heading">
+      <div>
+        <span class="panel-title">Remessas{% if filtros.etapa %} · {% for card in funil %}{% if card.ativo %}{{ card.rotulo|lower }}{% endif %}{% endfor %}{% endif %}</span>
+        {% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} remessas{% if not filtros.ordenar_por or filtros.ordenar_por == 'parado' %} · as paradas há mais tempo primeiro{% endif %}</span>{% endif %}
+      </div>
+      {% if itens %}
+      <div class="collapse-actions">
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cr-expandir'))">Expandir</button>
+        <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cr-colapsar'))">Colapsar todos</button>
+      </div>
+      {% endif %}
+    </div>
+    <div class="results-toolbar">
+      <div class="results-totals">
+        <span class="result-total"><span>Remessas</span><strong>{{ pagination.total }}</strong></span>
+        <span class="result-total result-total--value"><span>Valor das remessas</span><strong>R$ {{ valor_total_filtrado|br_currency }}</strong></span>
+      </div>
+      {% if pagination.total %}
+      <div class="pagination-control">
+        {% if pagination.has_previous %}<a class="page-step" href="{{ pagination.previous_url }}">Anterior</a>{% else %}<span class="page-step page-step--disabled">Anterior</span>{% endif %}
+        <form method="get" class="page-select-form">
+          {% for key, value in pagination.query.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <label for="cr-page-select">Página</label>
+          <select id="cr-page-select" name="page" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for option in pagination.page_options %}<option value="{{ option.number }}" {% if option.selected %}selected{% endif %}>{{ option.number }}</option>{% endfor %}
+          </select>
+          <span>de {{ pagination.total_pages }}</span>
+        </form>
+        {% if pagination.has_next %}<a class="page-step" href="{{ pagination.next_url }}">Próxima</a>{% else %}<span class="page-step page-step--disabled">Próxima</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if itens %}
+  <div class="results-list follow-up-glosa-list">
+    {% for item in itens %}
+    <article class="follow-up-glosa-card cr-card cr-card--{{ item.etapa_atual }}" x-data="{ open: false }" @cr-expandir.window="open = true" @cr-colapsar.window="open = false">
+      <div class="follow-up-glosa-card-header-row">
+        <div class="follow-up-glosa-card-header cr-card-header">
+          <button type="button" class="follow-up-glosa-chevron" :class="{ 'is-open': open }" @click="open = !open" :aria-expanded="open" aria-label="Expandir ou recolher a remessa {{ item.cd_remessa }}">&#9654;</button>
+          <span class="follow-up-glosa-card-field"><small>REMESSA</small><strong>{{ item.cd_remessa }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>CONVÊNIO</small><strong title="{{ item.convenio }}">{{ item.convenio }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ item.competencia_label }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>PROTOCOLO</small><strong>{% if item.protocolo %}{{ item.protocolo.numero }}{% if item.protocolo.situacao == 'automatico' %} <em class="cr-tag cr-tag--auto" title="Casado automaticamente com o portal do convênio">auto</em>{% endif %}{% elif item.protocolo_candidatos %}<em class="cr-tag cr-tag--confirmar" title="Casamento com o portal não é único: confirme o protocolo">{{ item.protocolo_candidatos|length }} sugest{{ item.protocolo_candidatos|length|pluralize:"ão,ões" }}</em>{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{% if item.nfse %}{{ item.nfse.numero }}{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>SITUAÇÃO</small><strong><span class="cr-situacao cr-situacao--{{ item.etapa_atual }}">{{ item.pendencia }}</span></strong></span>
+          <span class="follow-up-glosa-card-field"><small>PARADA HÁ</small><strong>{% if item.dias_na_etapa is not None %}<span class="cr-dias cr-dias--{{ item.faixa_dias }}">{{ item.dias_na_etapa }} dia{{ item.dias_na_etapa|pluralize }}</span>{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR</small><strong>R$ {{ item.valor|br_currency }}</strong></span>
+        </div>
+      </div>
+
+      <div class="follow-up-glosa-card-body" x-show="open" x-cloak>
+        <div class="follow-up-glosa-card-content">
+          <ol class="cr-linha-tempo" aria-label="Etapas da remessa {{ item.cd_remessa }}">
+            {% for etapa in item.etapas %}
+            <li class="cr-passo cr-passo--{{ etapa.status }}">
+              <span class="cr-passo-marca" aria-hidden="true">{% if etapa.status == 'concluida' %}&#10003;{% else %}{{ forloop.counter }}{% endif %}</span>
+              <span class="cr-passo-texto">
+                <strong>{{ etapa.rotulo }}</strong>
+                <small>{% if etapa.data %}{{ etapa.data|api_date }} · {% endif %}{{ etapa.detalhe }}</small>
+                {% if etapa.status == 'atual' %}<em>Etapa atual</em>{% endif %}
+              </span>
+            </li>
+            {% endfor %}
+          </ol>
+
+          <section class="account-group-section">
+            <header class="account-group-header"><span class="account-group-title">Remessa no MV</span></header>
+            <div class="cr-campos">
+              <span class="follow-up-glosa-card-field"><small>FECHADA EM</small><strong>{{ item.dt_fechamento|api_date|default:'—' }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>CONTAS</small><strong>{{ item.qt_contas }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ item.competencia_label }}</strong></span>
+              <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DAS CONTAS</small><strong>R$ {{ item.valor|br_currency }}</strong></span>
+            </div>
+          </section>
+
+          <section class="account-group-section">
+            <header class="account-group-header"><span class="account-group-title">Protocolo no convênio</span></header>
+            {% if item.protocolo %}
+            <div class="cr-campos">
+              <span class="follow-up-glosa-card-field"><small>PROTOCOLO</small><strong>{{ item.protocolo.numero }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>{{ item.protocolo.origem_label }}</strong></span>
+              {% if item.protocolo.valor_cobrado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR COBRADO</small><strong>R$ {{ item.protocolo.valor_cobrado|br_currency }}</strong></span>{% endif %}
+              {% if item.protocolo.valor_liberado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR LIBERADO</small><strong>R$ {{ item.protocolo.valor_liberado|br_currency }}</strong></span>{% endif %}
+              {% if item.protocolo.glosa_portal %}<span class="follow-up-glosa-card-field"><small>GLOSADO NO PORTAL</small><strong class="cr-erro">R$ {{ item.protocolo.glosa_portal|br_currency }}</strong></span>{% endif %}
+              <span class="follow-up-glosa-card-field"><small>NOTA SOLICITADA PELO CONVÊNIO</small><strong>{% if item.protocolo.solicitacao_nota_em %}{{ item.protocolo.solicitacao_nota_em|api_date }}{% else %}Não registrada{% endif %}</strong></span>
+            </div>
+            {% elif item.protocolo_candidatos %}
+            <p class="cr-mensagem cr-mensagem--atencao">O casamento com o portal não é único: há outro processo ou outra remessa com a mesma competência e o mesmo valor. Confira qual processo corresponde a esta remessa; a confirmação pela tela entra na próxima etapa do projeto.</p>
+            <div class="table-responsive detail-table-wrap account-group-table-wrap">
+              <table class="table align-middle account-table cr-tabela">
+                <thead><tr><th>PROCESSO NO PORTAL</th><th>VALOR COBRADO</th><th>VALOR LIBERADO</th></tr></thead>
+                <tbody>{% for c in item.protocolo_candidatos %}<tr class="item-row"><td>{{ c.numero }}</td><td>R$ {{ c.valor_cobrado|br_currency }}</td><td>{% if c.valor_liberado is not None %}R$ {{ c.valor_liberado|br_currency }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="cr-vazio">Sem protocolo. {% if item.convenio == 'ISSEC' %}Nenhum processo do portal tem a mesma competência e valor.{% else %}Este convênio ainda não tem coleta automática de protocolos.{% endif %}</p>
+            {% endif %}
+          </section>
+
+          <section class="account-group-section">
+            <header class="account-group-header"><span class="account-group-title">NFS e recebimento</span></header>
+            <div class="cr-campos">
+              {% if item.nfse %}
+              <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{{ item.nfse.numero }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>EMISSÃO</small><strong>{{ item.nfse.data_emissao|api_date|default:'—' }}</strong></span>
+              {% if item.nfse.valor %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DA NFS</small><strong>R$ {{ item.nfse.valor|br_currency }}</strong></span>{% endif %}
+              <span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>{{ item.nfse.origem_label }}</strong></span>
+              {% else %}
+              <span class="follow-up-glosa-card-field"><small>NFS</small><strong>Não vinculada</strong></span>
+              {% endif %}
+              {% for r in item.recebimentos %}
+              <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>RECEBIDO EM {{ r.data|api_date }}</small><strong>R$ {{ r.valor_alocado|default:r.valor|br_currency }}</strong></span>
+              {% empty %}
+              <span class="follow-up-glosa-card-field"><small>RECEBIMENTO</small><strong>Sem lançamento de extrato</strong></span>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="cr-vazio">Nenhuma remessa nesta seleção.</p>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

@@ -81,19 +81,20 @@
         </div>
       </div>
       {% endif %}
-      {% if screen_access.conciliacao_manual or screen_access.conciliacao_financeira or screen_access.consultar_conciliacoes or screen_access.follow_up_solicitacoes or screen_access.emissao_nfse or screen_access.acompanhamento_particular or screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao or screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras %}
+      {% if screen_access.conciliacao_manual or screen_access.conciliacao_financeira or screen_access.consultar_conciliacoes or screen_access.follow_up_solicitacoes or screen_access.emissao_nfse or screen_access.acompanhamento_particular or screen_access.contas_pagar_operacao or screen_access.contas_pagar_acompanhamento or screen_access.contas_pagar_gestao or screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras or screen_access.contas_receber_fluxo %}
       <div
         class="nav-group"
-        x-data="{ open: false, requestOpen: false, payableOpen: false }"
+        x-data="{ open: false, requestOpen: false, payableOpen: false, receivableOpen: false }"
         x-init="
-          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras', 'contas_pagar_conferencia', 'contas_pagar_extratos', 'openfinance'].includes('{{ request.resolver_match.url_name }}');
+          open = ['conciliacao_faturamento', 'conciliacoes_sem_recebimento', 'conciliacoes_financeiras', 'workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular', 'contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras', 'contas_pagar_conferencia', 'contas_pagar_extratos', 'contas_receber_fluxo', 'openfinance'].includes('{{ request.resolver_match.url_name }}');
           requestOpen = ['workflow_solicitacoes', 'emissao_nfse', 'acompanhamento_particular'].includes('{{ request.resolver_match.url_name }}');
           payableOpen = ['contas_pagar_operacao', 'contas_pagar_acompanhamento', 'contas_pagar_gestao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras', 'contas_pagar_conferencia', 'contas_pagar_extratos'].includes('{{ request.resolver_match.url_name }}');
+          receivableOpen = ['contas_receber_fluxo'].includes('{{ request.resolver_match.url_name }}');
         "
       >
         <button
           type="button"
-          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'contas_pagar_conferencia' or request.resolver_match.url_name == 'contas_pagar_extratos' or request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}"
+          class="nav-group-toggle {% if request.resolver_match.url_name == 'conciliacao_faturamento' or request.resolver_match.url_name == 'conciliacoes_sem_recebimento' or request.resolver_match.url_name == 'conciliacoes_financeiras' or request.resolver_match.url_name == 'workflow_solicitacoes' or request.resolver_match.url_name == 'emissao_nfse' or request.resolver_match.url_name == 'acompanhamento_particular' or request.resolver_match.url_name == 'contas_pagar_operacao' or request.resolver_match.url_name == 'contas_pagar_acompanhamento' or request.resolver_match.url_name == 'contas_pagar_gestao' or request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'contas_pagar_conferencia' or request.resolver_match.url_name == 'contas_pagar_extratos' or request.resolver_match.url_name == 'contas_receber_fluxo' or request.resolver_match.url_name == 'openfinance' %}is-active{% endif %}"
           @click="if (!sidebarOpen) { sidebarOpen = true; open = true } else { open = !open }; if (open) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))"
           :aria-expanded="sidebarOpen && open"
           title="Financeiro"
@@ -154,6 +155,17 @@
               {% if screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_nfse_regras' %}is-active{% endif %}" href="{% url 'contas_pagar_nfse_regras' %}" title="Setor de cada fornecedor e vínculos de usuários"><span class="nav-label">5. Setores dos fornecedores</span></a>{% endif %}
               {% if screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_conferencia' %}is-active{% endif %}" href="{% url 'contas_pagar_conferencia' %}" title="Notas enviadas pelos setores, boletos, prazos e importações"><span class="nav-label">6. Conferência do financeiro</span></a>{% endif %}
               {% if screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_extratos' %}is-active{% endif %}" href="{% url 'contas_pagar_extratos' %}" title="Extratos bancários e baixa dos títulos pagos"><span class="nav-label">7. Extratos e baixa</span></a>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if screen_access.contas_receber_fluxo %}
+          <div class="nav-subgroup">
+            <button type="button" class="nav-group-toggle nav-subitem nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_receber_fluxo' %}is-active{% endif %}" @click="receivableOpen = !receivableOpen; if (receivableOpen) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))" :aria-expanded="receivableOpen" title="Contas a Receber">
+              <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M12 8v8"></path><path d="m9 13 3 3 3-3"></path></svg></span>
+              <span class="nav-label">Contas a Receber</span><span class="nav-nested-chevron" aria-hidden="true">&#9654;</span>
+            </button>
+            <div class="nav-submenu nav-submenu--nested" x-show="receivableOpen">
+              <a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_receber_fluxo' %}is-active{% endif %}" href="{% url 'contas_receber_fluxo' %}" title="Remessa, protocolo, NFS e recebimento"><span class="nav-label">1. Fluxo do recebimento</span></a>
             </div>
           </div>
           {% endif %}

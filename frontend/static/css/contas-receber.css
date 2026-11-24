@@ -1,0 +1,163 @@
+/* Contas a Receber · Fluxo do recebimento.
+   Cards, campos, totais e paginação vêm da Follow-Up de Glosas; aqui ficam o
+   funil de etapas, a linha do tempo da remessa e as cores por etapa. */
+:root {
+  --cr-protocolo: #5b6b84;
+  --cr-protocolo-soft: #eef1f6;
+  --cr-nfse: #3f63b8;
+  --cr-nfse-soft: #ecf1fc;
+  --cr-recebimento: #b7791f;
+  --cr-recebimento-soft: #fff5e3;
+  --cr-concluido: #23855a;
+  --cr-concluido-soft: #e8f6ef;
+}
+
+.cr-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding-right: 4px;
+  padding-bottom: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.cr-page > * { flex: 0 0 auto; }
+.cr-page .cr-resultados { overflow: visible; }
+
+/* Funil */
+.cr-hero {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #d8e5eb;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f2f8fa 100%);
+  box-shadow: 0 10px 30px rgba(20, 73, 91, .07);
+}
+.cr-hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.cr-eyebrow { color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.cr-hero-head h2 { margin: 2px 0 4px; color: var(--ink); font-size: 20px; font-weight: 800; }
+.cr-hero-head p { max-width: 640px; margin: 0; color: var(--muted); font-size: 12px; }
+.cr-hero-total { display: grid; justify-items: end; gap: 1px; padding: 10px 14px; border-radius: 12px; background: var(--primary-soft); text-align: right; white-space: nowrap; }
+.cr-hero-total small { color: var(--primary-dark); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.cr-hero-total strong { color: var(--primary-dark); font-size: 24px; line-height: 1.1; }
+.cr-hero-total span { color: var(--primary-dark); font-size: 12px; font-weight: 700; }
+
+.cr-funil { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
+.cr-etapa { --cor: var(--cr-protocolo); --suave: var(--cr-protocolo-soft); position: relative; }
+.cr-etapa--nfse { --cor: var(--cr-nfse); --suave: var(--cr-nfse-soft); }
+.cr-etapa--recebimento { --cor: var(--cr-recebimento); --suave: var(--cr-recebimento-soft); }
+.cr-etapa--concluido { --cor: var(--cr-concluido); --suave: var(--cr-concluido-soft); }
+.cr-etapa:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #b6c6cf;
+  border-right: 2px solid #b6c6cf;
+  transform: translateY(-50%) rotate(45deg);
+}
+.cr-etapa-link {
+  display: grid;
+  gap: 3px;
+  height: 100%;
+  padding: 12px 14px 11px;
+  border: 1px solid #dde7ec;
+  border-top: 4px solid var(--cor);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  transition: box-shadow .15s, transform .15s, background .15s;
+}
+.cr-etapa-link:hover { box-shadow: 0 8px 20px rgba(20, 73, 91, .12); transform: translateY(-1px); color: var(--ink); }
+.cr-etapa-link:focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
+.cr-etapa.is-selected .cr-etapa-link { background: var(--suave); box-shadow: inset 0 0 0 2px var(--cor); }
+.cr-etapa-numero { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: var(--suave); color: var(--cor); font-size: 11px; font-weight: 800; }
+.cr-etapa.is-selected .cr-etapa-numero { background: var(--cor); color: #fff; }
+.cr-etapa-rotulo { color: var(--cor); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.cr-etapa-qtd { font-size: 26px; line-height: 1.1; }
+.cr-etapa-qtd small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.cr-etapa-valor { font-size: 14px; font-weight: 800; }
+.cr-etapa-barra { height: 6px; margin-top: 4px; overflow: hidden; border-radius: 999px; background: #edf2f5; }
+.cr-etapa-barra span { display: block; height: 100%; border-radius: inherit; background: var(--cor); }
+.cr-etapa-pct { color: var(--muted); font-size: 11px; }
+.cr-etapa-pct b { color: var(--cor); }
+
+.cr-alertas { display: flex; flex-wrap: wrap; gap: 8px; }
+.cr-alerta { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px dashed #d89a2b; border-radius: 999px; background: #fff8eb; color: #7a4b00; font-size: 12px; font-weight: 600; text-decoration: none; }
+.cr-alerta:hover { border-style: solid; color: #7a4b00; background: #ffefcf; }
+.cr-alerta b { font-size: 13px; }
+.cr-alerta.is-on { border-style: solid; }
+
+/* Filtros */
+.cr-filtros .cr-filtro-busca { flex: 2 1 240px; }
+.cr-filtros #cr-convenio { min-width: 220px; }
+
+/* Cards */
+.cr-card-header {
+  grid-template-columns: 18px minmax(80px, .6fr) minmax(130px, 1.3fr) minmax(80px, .6fr) minmax(140px, 1.1fr)
+    minmax(70px, .6fr) minmax(150px, 1.1fr) minmax(86px, .6fr) minmax(110px, .9fr);
+}
+.cr-card--protocolo .follow-up-glosa-card-header { border-left-color: var(--cr-protocolo); }
+.cr-card--nfse .follow-up-glosa-card-header { border-left-color: var(--cr-nfse); }
+.cr-card--recebimento .follow-up-glosa-card-header { border-left-color: var(--cr-recebimento); }
+.cr-card--concluido .follow-up-glosa-card-header { border-left-color: var(--cr-concluido); }
+
+.cr-situacao { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.cr-situacao--protocolo { background: var(--cr-protocolo-soft); color: var(--cr-protocolo); }
+.cr-situacao--nfse { background: var(--cr-nfse-soft); color: var(--cr-nfse); }
+.cr-situacao--recebimento { background: var(--cr-recebimento-soft); color: #8a5a12; }
+.cr-situacao--concluido { background: var(--cr-concluido-soft); color: var(--cr-concluido); }
+
+.cr-dias { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.cr-dias--ok { background: #e8f6ef; color: #23855a; }
+.cr-dias--atencao { background: #fff3dc; color: #8a520d; }
+.cr-dias--critico { background: #fbe9e4; color: #b24d32; }
+
+.cr-tag { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; vertical-align: 1px; }
+.cr-tag--auto { background: var(--primary-soft); color: var(--primary-dark); }
+.cr-tag--confirmar { margin-left: 0; background: #fff3dc; color: #8a520d; font-size: 10px; text-transform: none; }
+
+/* Linha do tempo da remessa */
+.cr-linha-tempo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 2px 0 12px; padding: 14px 6px 4px; list-style: none; }
+.cr-passo { position: relative; display: grid; justify-items: center; gap: 6px; padding: 0 8px; text-align: center; }
+.cr-passo:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  right: 50%;
+  width: 100%;
+  height: 3px;
+  background: #dfe7ec;
+}
+.cr-passo--concluida:not(:first-child)::before, .cr-passo--atual:not(:first-child)::before { background: var(--primary); }
+.cr-passo-marca { position: relative; z-index: 1; display: grid; width: 28px; height: 28px; place-items: center; border: 2px solid #cfdbe2; border-radius: 50%; background: #fff; color: #8a9ba8; font-size: 12px; font-weight: 800; }
+.cr-passo--concluida .cr-passo-marca { border-color: var(--primary); background: var(--primary); color: #fff; }
+.cr-passo--atual .cr-passo-marca { border-color: #d89a2b; background: #fff8eb; color: #8a520d; box-shadow: 0 0 0 5px rgba(216, 154, 43, .18); }
+.cr-passo-texto { display: grid; gap: 1px; }
+.cr-passo-texto strong { color: var(--ink); font-size: 12px; }
+.cr-passo--futura .cr-passo-texto strong { color: var(--muted); }
+.cr-passo-texto small { color: var(--muted); font-size: 11px; }
+.cr-passo-texto em { color: #8a520d; font-size: 10px; font-style: normal; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+
+.cr-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; padding: 12px 14px; }
+.cr-campos .follow-up-glosa-card-field strong { white-space: normal; }
+.cr-vazio { margin: 0; padding: 12px 14px; color: var(--muted); font-size: 12px; }
+.cr-mensagem { margin: 10px 14px 0; border-radius: 7px; padding: 9px 12px; font-size: 12px; }
+.cr-mensagem--atencao { border: 1px solid #efcf9b; background: #fff8ed; color: #7a4b00; }
+.cr-erro { color: #b24d32; }
+.cr-tabela td, .cr-tabela th { white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .cr-funil { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cr-etapa:nth-child(2)::after { display: none; }
+  .cr-hero-head { flex-direction: column; }
+  .cr-hero-total { justify-items: start; text-align: left; }
+}

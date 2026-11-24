@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, petrobras, openfinance
+from . import views, petrobras, openfinance, contas_receber
 
 urlpatterns = [
     path("follow-up-glosas/petrobras/<path:endpoint>", petrobras.bridge, name="petrobras_bridge"),
@@ -200,6 +200,11 @@ urlpatterns = [
         "financeiro/contas-a-pagar/setores-dos-fornecedores/",
         views.contas_pagar_nfse_regras,
         name="contas_pagar_nfse_regras",
+    ),
+    path(
+        "financeiro/contas-a-receber/fluxo/",
+        contas_receber.fluxo,
+        name="contas_receber_fluxo",
     ),
     path(
         "administrativo/fornecedores-criticos/",
