@@ -445,6 +445,9 @@ def _safe_login_redirect(request):
     return "/"
 
 
+LOGIN_REDIRECT_DROP_PARAMS = {"acesso_negado", "export", "download"}
+
+
 def _successful_login_redirect(user, next_url):
     split_url = urlsplit(next_url)
     query = urlencode(
@@ -454,7 +457,10 @@ def _successful_login_redirect(user, next_url):
                 split_url.query,
                 keep_blank_values=True,
             )
-            if key != "acesso_negado"
+            # Após o login, um link de download (ex.: "Exportar Excel" com a
+            # sessão expirada) volta para a tela, senão o navegador só baixa
+            # o arquivo e a tela de login fica parada.
+            if key not in LOGIN_REDIRECT_DROP_PARAMS
         ]
     )
     next_url = urlunsplit(split_url._replace(query=query))

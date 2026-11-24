@@ -101,3 +101,38 @@ class AcordosTests(TestCase):
         self.assertEqual(valor("225814", "Em acordo do fornecedor"), 9700)
         self.assertEqual(valor("99", "Status"), "Em atraso")
         self.assertIsNone(valor("99", "Vencimento original (acordo)"))
+
+
+class ExportacaoFiltroTests(TestCase):
+    setUp = existing_tests.ContasPagarTests.setUp
+
+    @patch("core.views.api_get")
+    def test_botao_exportar_mostra_o_filtro_do_card(self, api_get):
+        api_get.return_value = payload_com_acordo()
+        response = lazy_get(self.client, URL + "?componente=em_acordo")
+        self.assertContains(response, "Exportar Excel · Dívida vencida em acordo")
+        self.assertIn("componente=em_acordo", response.context["export_url"])
+
+    @patch("core.views.api_get")
+    def test_botao_exportar_sem_filtro_de_card(self, api_get):
+        api_get.return_value = payload_com_acordo()
+        response = lazy_get(self.client, URL)
+        self.assertContains(response, "Exportar Excel</a>")
+
+
+class LoginComExportacaoTests(TestCase):
+    @patch("core.views.api_get")
+    @patch("core.views.api_authenticate")
+    def test_login_volta_para_a_tela_e_nao_para_o_download(self, authenticate, api_get):
+        authenticate.return_value = {"access_token": "token-seguro"}
+        api_get.return_value = {
+            "id": 10, "nome": "Financeiro", "email": "fin@teste.com",
+            "perfil": "usuario", "telas_permitidas": ["contas_pagar_operacao"],
+        }
+        response = self.client.post("/login/", {
+            "email": "fin@teste.com", "password": "senha",
+            "next": URL + "?q=&componente=em_acordo&export=xlsx",
+        })
+        self.assertRedirects(
+            response, URL + "?q=&componente=em_acordo", fetch_redirect_response=False,
+        )
