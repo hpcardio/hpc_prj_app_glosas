@@ -68,6 +68,33 @@ def faixa_dias(dias):
     return "critico"
 
 
+def valores_do_card(item):
+    """Bruto -> glosas -> retenções -> líquido (mesmas regras da planilha DEMO).
+
+    Bruto: valor da remessa. Glosas: bruto - valor da NF; sem NF, a glosa do
+    portal do convênio (cobrado - liberado). Retenções: valor da NF - líquido
+    do ISS. Líquido: líquido da NF. Sem o dado, o campo fica vazio (None).
+    """
+    bruto = _decimal(item.get("valor"))
+    nfse = item.get("nfse") or {}
+    protocolo = item.get("protocolo") or {}
+    valor_nf = _decimal(nfse["valor"]) if nfse.get("valor") is not None else None
+    liquido = _decimal(nfse["valor_liquido"]) if nfse.get("valor_liquido") is not None else None
+    if valor_nf is not None:
+        glosas, origem_glosa = bruto - valor_nf, "nf"
+    elif protocolo.get("glosa_portal") is not None:
+        glosas, origem_glosa = protocolo["glosa_portal"], "portal"
+    else:
+        glosas, origem_glosa = None, ""
+    return {
+        "bruto": bruto,
+        "glosas": glosas,
+        "origem_glosa": origem_glosa,
+        "retencoes": valor_nf - liquido if valor_nf is not None and liquido is not None else None,
+        "liquido": liquido,
+    }
+
+
 def _enriquecer(item):
     item["competencia_label"] = competencia_label(item.get("competencia"))
     item["faixa_dias"] = faixa_dias(item.get("dias_na_etapa"))
@@ -83,6 +110,7 @@ def _enriquecer(item):
     nfse = item.get("nfse") or None
     if nfse:
         nfse["origem_label"] = ORIGENS.get(nfse.get("origem"), nfse.get("origem") or "")
+    item["valores"] = valores_do_card(item)
     detalhes = {
         "remessa": f"{item.get('qt_contas', 0)} conta{'s' if item.get('qt_contas') != 1 else ''}",
         "protocolo": (
