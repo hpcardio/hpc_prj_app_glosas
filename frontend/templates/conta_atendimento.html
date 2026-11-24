@@ -380,6 +380,12 @@
           this.batchModal = '';
           this.batchItems = [];
           this.currentBatchIndex = 0;
+        },
+        // Após gravar o recurso/acato em lote, os itens deixam de ficar
+        // marcados: o usuário seleciona os próximos ainda não tratados.
+        concludeBatch() {
+          this.selectedForms = [];
+          this.closeBatch();
         }
       };
     };
