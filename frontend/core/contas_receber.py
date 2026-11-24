@@ -5,14 +5,18 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.contrib import messages
-from django.shortcuts import render
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET
 
+from .contas_receber_export import build_contas_receber_workbook
 from .services import ApiError, api_get
 
 FLUXO_PATH = "/app_glosas/financeiro/contas-a-receber/fluxo"
 POR_PAGINA = 10
 TIMEOUT = 60
+EXPORT_TIMEOUT = 110
 MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
 ETAPAS_FUNIL = (
     ("protocolo", "Aguardando protocolo", "Remessas fechadas no MV que ainda não têm protocolo no convênio."),
@@ -139,6 +143,21 @@ def fluxo(request):
         params.pop("convenio")
     if filtros["a_confirmar"]:
         params["a_confirmar"] = "true"
+    if request.GET.get("export") == "xlsx":
+        # Planilha com todas as remessas do filtro da tela (layout da DEMO).
+        try:
+            dados = api_get(FLUXO_PATH, {**params, "exportar": "true"}, timeout=EXPORT_TIMEOUT)
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível exportar o fluxo do Contas a Receber: {exc}")
+            base = {k: v for k, v in filtros.items() if v}
+            return redirect(f"{request.path}?{urlencode(base)}" if base else request.path)
+        response = HttpResponse(
+            build_contas_receber_workbook(dados.get("itens") or [], timezone.localdate()),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="fluxo-contas-a-receber-{timezone.localdate():%Y%m%d}.xlsx"'
+        response["Cache-Control"] = "private, no-store"
+        return response
     payload = {}
     try:
         payload = api_get(FLUXO_PATH, {**params, "page": page, "page_size": POR_PAGINA}, timeout=TIMEOUT)
@@ -177,6 +196,7 @@ def fluxo(request):
         "a_confirmar_url": f"?{urlencode({**sem_confirmar, 'a_confirmar': '1'})}",
         "remover_a_confirmar_url": f"?{urlencode(sem_confirmar)}" if sem_confirmar else "?",
         "atualizado_em": payload.get("atualizado_em"),
+        "export_url": f"?{urlencode({**{k: v for k, v in filtros.items() if v}, 'export': 'xlsx'})}",
     })
     response["Cache-Control"] = "private, no-store"
     return response

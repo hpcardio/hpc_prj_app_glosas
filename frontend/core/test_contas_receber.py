@@ -141,3 +141,67 @@ class FluxoSemPermissaoTests(TestCase):
         session.save()
         response = self.client.get(URL)
         self.assertNotEqual(response.status_code, 200)
+
+
+class ExportacaoTests(TestCase):
+    setUp = FluxoTests.setUp
+
+    @patch("core.contas_receber.api_get")
+    def test_planilha_no_layout_da_demo_com_o_filtro_da_tela(self, api_get):
+        from datetime import date
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        from core.contas_receber_export import HEADERS
+
+        dados = payload()
+        dados["itens"][0].update({
+            "dt_entrega": "2026-01-12", "dt_prevista_pgto": "2026-02-26",
+            "nfse": {"numero": "25618", "data_emissao": "2026-02-12", "valor": "7190.00",
+                     "valor_liquido": "6888.02", "origem": "planilha"},
+            "valor": "7190.00", "etapa_atual": "recebimento",
+        })
+        api_get.return_value = dados
+
+        response = self.client.get(URL, {"convenio": "46", "etapa": "recebimento", "export": "xlsx"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("attachment;", response["Content-Disposition"])
+        params = api_get.call_args.args[1]
+        self.assertEqual(params["exportar"], "true")
+        self.assertEqual(params["convenio"], "46")
+        self.assertEqual(params["etapa"], "recebimento")
+        self.assertNotIn("page", params)
+        sheet = load_workbook(BytesIO(response.content))["BASE"]
+        self.assertEqual(
+            HEADERS[:6], ("Convênio", "Remessa", "Competência", "Data Entrega", "Valor Total", "Dias"))
+        self.assertEqual(HEADERS[-4:], ("Ano2", "mês", "ano prev.recb", "mês prev.rcbto"))
+        self.assertEqual([c.value for c in sheet[1]], list(HEADERS))
+        linha = {h: c.value for h, c in zip(HEADERS, sheet[2])}
+        self.assertEqual(linha["Convênio"], "ISSEC")
+        self.assertEqual(linha["Remessa"], 20323)
+        self.assertEqual(linha["Competência"], "OUT.26")
+        self.assertEqual(linha["Data Entrega"].date(), date(2026, 1, 12))
+        self.assertEqual(linha["Status"], "VENCIDOS")
+        self.assertEqual(linha["VLR BRUTO"], 7190)
+        self.assertAlmostEqual(linha["IMPOSTOS"], 301.98)
+        self.assertAlmostEqual(linha["VLR LIQ NF"], 6888.02)
+        self.assertEqual(linha["GLOSA"], 0)
+        self.assertEqual(linha["NF"], 25618)
+        self.assertEqual(linha["PROCESSO"], 2600044294)
+        self.assertEqual(linha["STATUS2"], "NF EMITIDA")
+        self.assertEqual(linha["ano prev.recb"], 2026)
+        self.assertEqual(linha["mês prev.rcbto"], "FEVEREIRO")
+        self.assertEqual(linha["ANO"], "FEVEREIRO-2026")
+        segunda = {h: c.value for h, c in zip(HEADERS, sheet[3])}
+        self.assertEqual(segunda["PROCESSO TRUE"], "NÃO")
+        self.assertIsNone(segunda["NF"])
+
+    @patch("core.contas_receber.api_get")
+    def test_botao_exportar_leva_os_filtros(self, api_get):
+        api_get.return_value = payload()
+        response = self.client.get(URL, {"convenio": "46", "q": "203"})
+        self.assertIn("export=xlsx", response.context["export_url"])
+        self.assertIn("convenio=46", response.context["export_url"])
+        self.assertContains(response, "Exportar Excel")
