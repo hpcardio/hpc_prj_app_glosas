@@ -1,0 +1,93 @@
+{
+  "services": {
+    "api": {
+      "image": "prontoglosa-openfinance:20261029-e7be2920603e",
+      "restart": "unless-stopped",
+      "env_file": [
+        {
+          "path": "/home/admpronto/apps/prontoglosa-openfinance-shared/service.env",
+          "format": "raw"
+        }
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:size=32M,noexec,nosuid"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "mem_limit": "512m",
+      "cpus": "1.0",
+      "networks": [
+        "existing"
+      ],
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "container_name": "prontoglosa-openfinance-api",
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5)"
+        ],
+        "interval": "30s",
+        "timeout": "10s",
+        "retries": 3,
+        "start_period": "20s"
+      }
+    },
+    "worker": {
+      "image": "prontoglosa-openfinance:20261029-e7be2920603e",
+      "restart": "unless-stopped",
+      "env_file": [
+        {
+          "path": "/home/admpronto/apps/prontoglosa-openfinance-shared/service.env",
+          "format": "raw"
+        }
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:size=32M,noexec,nosuid"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "mem_limit": "512m",
+      "cpus": "1.0",
+      "networks": [
+        "existing"
+      ],
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "container_name": "prontoglosa-openfinance-worker",
+      "command": [
+        "python",
+        "-m",
+        "openfinance.worker"
+      ]
+    }
+  },
+  "networks": {
+    "existing": {
+      "external": true,
+      "name": "api-rede_default"
+    }
+  }
+}
