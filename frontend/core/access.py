@@ -95,6 +95,11 @@ SCREEN_GROUPS = (
                 "label": "Contas a Pagar · Setores dos fornecedores",
                 "route_name": "contas_pagar_nfse_regras",
             },
+            {
+                "key": "contas_receber_fluxo",
+                "label": "Contas a Receber · Fluxo do recebimento",
+                "route_name": "contas_receber_fluxo",
+            },
         ),
     },
     {
@@ -139,7 +144,7 @@ SCREEN_GROUPS = (
     },
 )
 
-RESTRICTED_KEYS = {'spu_automacao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'}
+RESTRICTED_KEYS = {'spu_automacao', 'contas_pagar_nfse_setor', 'contas_pagar_nfse_regras', 'contas_receber_fluxo'}
 SCREEN_GROUPS = SCREEN_GROUPS + ({'label': 'Automação', 'screens': (
     {'key': 'spu_automacao', 'label': 'Desktop SPU', 'route_name': 'spu_recaptcha_viewer'},
 )},)
@@ -190,6 +195,7 @@ ROUTE_PERMISSIONS = {
     "contas_pagar_nfse_regras": "contas_pagar_nfse_regras",
     "contas_pagar_conferencia": "contas_pagar_nfse_regras",
     "contas_pagar_extratos": "contas_pagar_nfse_regras",
+    "contas_receber_fluxo": "contas_receber_fluxo",
     "contas_pagar_extrato_arquivo": "contas_pagar_nfse_regras",
     "contas_pagar_boleto_pdf": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
     "contas_pagar_nfse_ver": ("contas_pagar_nfse_setor", "contas_pagar_nfse_regras"),
