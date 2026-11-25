@@ -218,7 +218,7 @@ class NfseSetorViewTests(TestCase):
                     'boletos': {'quantidade': 1, 'soma': '10.00', 'primeiro_vencimento': '2026-12-10',
                                 'com_divergencia': False, 'ids': [40], 'enviado_por': [99]}}
         lancada = {**NOTA, 'chave': '33333333000133-5', 'prestador_cnpj': '33333333000133', 'numero_nfse': '5',
-                   'situacao': 'lancada', 'mv': {'cd_ent_serv': 1, 'lancado_por_nome': 'X'},
+                   'situacao': 'lancada', 'lancada_pelo_receita_certa': True, 'mv': {'cd_ent_serv': 1, 'lancado_por_nome': 'X'},
                    'boletos': {'quantidade': 1, 'soma': '10.00', 'primeiro_vencimento': '2026-12-10',
                                'com_divergencia': False, 'ids': [50], 'enviado_por': [7]}}
         api_get.return_value = {'desde': '2026-10-01', 'situacao': 'todas', 'oficinas': [],
@@ -249,6 +249,26 @@ class NfseSetorViewTests(TestCase):
         }, follow=True)
 
         self.assertContains(response, 'já importou esta nota')
+
+    @patch('core.views.api_get')
+    def test_lancada_direto_no_mv_nao_mostra_pdf_nem_boleto(self, api_get):
+        bol = {'quantidade': 1, 'soma': '10.00', 'primeiro_vencimento': '2026-12-10', 'com_divergencia': False,
+               'ids': [70], 'enviado_por': [7]}
+        direto = {**NOTA, 'chave': '44444444000144-1', 'prestador_cnpj': '44444444000144', 'numero_nfse': '1',
+                  'situacao': 'lancada', 'lancada_pelo_receita_certa': False, 'boletos': bol,
+                  'mv': {'cd_ent_serv': 9, 'lancado_por_nome': 'WIARA'}}
+        pelo_rc = {**NOTA, 'chave': '55555555000155-2', 'prestador_cnpj': '55555555000155', 'numero_nfse': '2',
+                   'situacao': 'lancada', 'lancada_pelo_receita_certa': True, 'boletos': {**bol, 'ids': [71]},
+                   'mv': {'cd_ent_serv': 10, 'lancado_por_nome': 'FINANCEIRO'}}
+        api_get.return_value = {'desde': '2026-10-01', 'situacao': 'lancada', 'oficinas': [], 'itens': [direto, pelo_rc]}
+
+        html = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=lancada').content.decode()
+
+        self.assertIn('Lançada direto no MV', html)
+        self.assertNotIn('/nfse/44444444000144/1/pdf', html)
+        self.assertNotIn('/boletos/70/', html)
+        self.assertIn('/nfse/55555555000155/2/pdf', html)
+        self.assertIn('/boletos/71/', html)
 
 class NfseRegrasViewTests(TestCase):
     def setUp(self):

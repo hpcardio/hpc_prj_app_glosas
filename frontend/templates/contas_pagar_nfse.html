@@ -145,6 +145,9 @@
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>LÍQUIDO</small><strong>{% if item.valor_liquido is not None %}R$ {{ item.valor_liquido|br_currency }}{% else %}—{% endif %}</strong></span>
         </div>
         <span class="follow-up-glosa-pdf-slot ns-slot">
+          {% if item.situacao == 'lancada' and not item.lancada_pelo_receita_certa %}
+          <span class="follow-up-glosa-pdf-action ns-pdf-mv" title="Lançada direto no MV (fora do Receita Certa): PDF e boleto ficam no MV">MV</span>
+          {% else %}
           {% if item.boletos.ids %}
           <a class="follow-up-glosa-pdf-action ns-boleto-action" href="{% url 'contas_pagar_boleto_pdf' item.boletos.ids.0 %}" target="_blank" rel="noopener" title="Abrir o boleto em outra aba{% if item.boletos.ids|length > 1 %} (1 de {{ item.boletos.ids|length }}; os demais ao expandir a nota){% endif %}" aria-label="Ver boleto da NFS-e {{ item.numero_nfse }}">BOLETO</a>
           {% endif %}
@@ -152,6 +155,7 @@
           <span class="follow-up-glosa-pdf-action ns-pdf-mv" title="Lançada no MV antes da captura das NFS-e recebidas: sem PDF da prefeitura no Receita Certa">MV</span>
           {% else %}
           <a class="follow-up-glosa-pdf-action" href="{% url 'contas_pagar_nfse_pdf' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener" title="Abrir o PDF oficial da prefeitura em outra aba" aria-label="Ver NFS-e {{ item.numero_nfse }}">PDF</a>
+          {% endif %}
           {% endif %}
         </span>
       </div>
@@ -211,7 +215,7 @@
               {% endif %}
             </div>
           </div>
-          {% elif item.situacao == 'lancada' and item.boletos %}
+          {% elif item.situacao == 'lancada' and item.boletos and item.lancada_pelo_receita_certa %}
           <div class="follow-up-batch-toolbar cf-acoes">
             <span>{{ item.boletos.quantidade }} boleto{{ item.boletos.quantidade|pluralize }} enviado{{ item.boletos.quantidade|pluralize }} · o financeiro já deu baixa (nota lançada no MV): o envio não pode mais ser desfeito.</span>
             <div class="ns-acoes-envio">
