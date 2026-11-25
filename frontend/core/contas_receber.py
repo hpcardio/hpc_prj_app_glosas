@@ -86,12 +86,26 @@ def valores_do_card(item):
         glosas, origem_glosa = protocolo["glosa_portal"], "portal"
     else:
         glosas, origem_glosa = None, ""
+    retencoes = valor_nf - liquido if valor_nf is not None and liquido is not None else None
+    estimativa = item.get("estimativa") or None
+    estimado = retencoes is None and estimativa is not None
+    if estimado:
+        # Sem NF no ISS: a API estima pela alíquota retida nas NFs do convênio.
+        retencoes = _decimal(estimativa.get("retencoes"))
+        liquido = _decimal(estimativa.get("liquido"))
     return {
         "bruto": bruto,
         "glosas": glosas,
         "origem_glosa": origem_glosa,
-        "retencoes": valor_nf - liquido if valor_nf is not None and liquido is not None else None,
+        "retencoes": retencoes,
         "liquido": liquido,
+        "estimado": estimado,
+        "explicacao_estimativa": (
+            f"Estimado: {str(estimativa.get('aliquota')).replace('.', ',')}% retido nas NFs do convênio, "
+            f"sobre o valor {'liberado no portal' if estimativa.get('origem_base') == 'liberado' else 'bruto da remessa'}. "
+            "Muda para o valor real quando a NF for vinculada."
+            if estimado else ""
+        ),
     }
 
 
@@ -224,6 +238,7 @@ def fluxo(request):
         "a_confirmar_url": f"?{urlencode({**sem_confirmar, 'a_confirmar': '1'})}",
         "remover_a_confirmar_url": f"?{urlencode(sem_confirmar)}" if sem_confirmar else "?",
         "atualizado_em": payload.get("atualizado_em"),
+        "tem_estimativa": any((i.get("valores") or {}).get("estimado") for i in itens),
         "export_url": f"?{urlencode({**{k: v for k, v in filtros.items() if v}, 'export': 'xlsx'})}",
     })
     response["Cache-Control"] = "private, no-store"
