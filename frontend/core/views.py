@@ -496,7 +496,7 @@ def login_view(request):
         email = (request.POST.get("email") or "").strip().lower()
         password = request.POST.get("password") or ""
         if not email or not password:
-            error = "Informe seu e-mail e sua senha."
+            error = "Informe seu login (e-mail, CPF ou login MV) e sua senha."
         else:
             try:
                 auth_payload = api_authenticate(email, password)
@@ -516,7 +516,7 @@ def login_view(request):
                 )
             except ApiError as exc:
                 if exc.status_code == 401:
-                    error = "E-mail ou senha incorretos."
+                    error = "Login ou senha incorretos."
                 elif exc.status_code == 403 and "TROCA_SENHA_OBRIGATORIA" in str(exc):
                     # Senha temporária (definida pelo administrador): o usuário
                     # precisa criar a própria senha antes de entrar.
