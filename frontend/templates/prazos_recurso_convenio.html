@@ -84,5 +84,93 @@
       </table>
     </div>
   </form>
+
+  <form method="post" class="admin-panel retencoes-panel" id="retencoes">
+    {% csrf_token %}
+    <input type="hidden" name="form_action" value="retencoes">
+    <div class="admin-panel-head retencoes-head">
+      <div>
+        <strong>Retenções por convênio</strong>
+        <span>Percentuais usados no Contas a Receber para calcular as retenções de cada protocolo (NF de grupo e remessas ainda sem NF). {{ resumo.retencoes_configuradas }} de {{ retencoes|length }} convênios configurados.</span>
+      </div>
+      <button type="submit" class="btn btn-primary">Salvar retenções</button>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table retencoes-table">
+        <colgroup>
+          <col style="width: 72px"><col>
+          {% for chave, rotulo in impostos_retencao %}<col style="width: 88px">{% endfor %}
+          <col style="width: 84px"><col style="width: 230px"><col style="width: 128px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Convênio</th>
+            {% for chave, rotulo in impostos_retencao %}<th class="retencoes-col">{{ rotulo }} %</th>{% endfor %}
+            <th class="retencoes-col">Total</th>
+            <th>Observação</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in retencoes %}
+          <tr data-retencao-linha>
+            <td>
+              {{ item.cd_convenio }}
+              <input type="hidden" name="ret_cd_convenio" value="{{ item.cd_convenio }}">
+              <input type="hidden" name="ret_convenio_{{ item.cd_convenio }}" value="{{ item.convenio }}">
+            </td>
+            <td><strong>{{ item.convenio }}</strong></td>
+            {% for chave, rotulo in impostos_retencao %}
+            <td class="retencoes-col">
+              <input class="retencoes-input" type="text" inputmode="decimal" maxlength="6"
+                     name="{{ chave }}_{{ item.cd_convenio }}" data-retencao-imposto
+                     value="{% for k, v in item.items %}{% if k == chave %}{{ v|floatformat:2 }}{% endif %}{% endfor %}"
+                     aria-label="{{ rotulo }} de {{ item.convenio }} (%)">
+            </td>
+            {% endfor %}
+            <td class="retencoes-col"><strong class="retencoes-total" data-retencao-total>{{ item.total|floatformat:2 }}%</strong></td>
+            <td><input class="retencoes-obs" type="text" maxlength="300" name="ret_obs_{{ item.cd_convenio }}" value="{{ item.observacao|default:'' }}" placeholder="Ex.: retém acima de R$ …"></td>
+            <td>
+              {% if item.configurado %}<span class="status status--success" title="{% if item.atualizado_por_nome %}Atualizado por {{ item.atualizado_por_nome }}{% endif %}">Configurado</span>{% else %}<span class="status">Pendente</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10">Não foi possível carregar os convênios para as retenções.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
 </section>
+<script>
+  // Total da linha recalculado enquanto o usuário digita (aceita vírgula).
+  document.querySelectorAll('[data-retencao-linha]').forEach((linha) => {
+    const total = linha.querySelector('[data-retencao-total]');
+    const campos = linha.querySelectorAll('[data-retencao-imposto]');
+    const atualizar = () => {
+      let soma = 0;
+      campos.forEach((campo) => {
+        const texto = (campo.value || '').trim().replace('%', '');
+        const numero = Number(texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto);
+        if (!Number.isNaN(numero)) soma += numero;
+      });
+      total.textContent = soma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+    };
+    campos.forEach((campo) => campo.addEventListener('input', atualizar));
+  });
+</script>
+<style>
+  .retencoes-panel { margin-top: 18px; }
+  .retencoes-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .retencoes-head > div { display: grid; gap: 3px; }
+  .retencoes-head span { color: var(--muted); font-size: 12px; max-width: 760px; }
+  .retencoes-col { text-align: center; }
+  .retencoes-input { width: 70px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; text-align: right; font-variant-numeric: tabular-nums; }
+  .retencoes-input:focus, .retencoes-obs:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .retencoes-total { color: var(--primary-dark); font-variant-numeric: tabular-nums; }
+  .retencoes-obs { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+  .retencoes-table td:last-child { white-space: nowrap; padding-left: 10px; }
+  .retencoes-table td:nth-child(2) { min-width: 150px; }
+</style>
 {% endblock %}
