@@ -9960,7 +9960,8 @@ def contas_pagar_nfse_setor(request):
             "oficinas": payload.get("oficinas", []),
             "itens": itens_pagina,
             "pagination": pagination,
-            "valor_total": sum((_cp_nfse_decimal(i.get("valor_liquido")) for i in itens), Decimal("0")),
+            # Histórico só do MV não tem líquido da NFS-e: usa o valor da entrada.
+            "valor_total": sum((_cp_nfse_decimal(i.get("valor_liquido") if i.get("valor_liquido") is not None else i.get("valor_servicos")) for i in itens), Decimal("0")),
             "totais": {
                 "prontas": sum(1 for i in itens if i.get("pronta")),
                 "falta_boleto": sum(1 for i in itens if i.get("situacao") == "pendente" and not i.get("boletos")),

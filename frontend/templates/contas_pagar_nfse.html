@@ -128,8 +128,12 @@
           <span class="follow-up-glosa-card-field"><small>EMISSÃO</small><strong>{{ item.data_emissao|api_date }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>NFS-E</small><strong>{{ item.numero_nfse }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ item.prestador }}">{{ item.prestador }}</strong></span>
-          <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{% if item.ds_oficina %}Oficina: {{ item.ds_oficina }}{% endif %}">{% if item.nm_setor or item.ds_oficina %}{{ item.nm_setor|default:item.ds_oficina }}{% else %}<span class="ns-sem-setor">Sem setor</span>{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{{ item.nm_setor|default:item.ds_oficina|default:'' }}">{% if item.nm_setor or item.ds_oficina %}{{ item.nm_setor|default:item.ds_oficina }}{% else %}<span class="ns-sem-setor">Sem setor</span>{% endif %}</strong></span>
+          {% if item.situacao == 'lancada' %}
+          <span class="follow-up-glosa-card-field"><small>LANÇADO POR</small><strong title="{{ item.mv.lancado_por_nome|default:item.mv.lancado_por|join_or_dash }}{% if item.mv.lancado_em %} · lançado no MV em {{ item.mv.lancado_em|api_date }}{% endif %}">{{ item.mv.lancado_por_nome|default:item.mv.lancado_por|join_or_dash }}</strong></span>
+          {% else %}
           <span class="follow-up-glosa-card-field"><small>{% if item.origem_nfse == 'pdf' %}ORIGEM{% else %}STATUS ISS{% endif %}</small><strong class="{% if item.origem_nfse == 'pdf' %}ns-neutro{% elif item.status_nfse and item.status_nfse != 'NORMAL' %}cf-erro{% elif item.status_nfse %}cf-ok{% else %}ns-neutro{% endif %}">{% if item.origem_nfse == 'pdf' %}Cadastrada por PDF{% elif not item.status_nfse %}Não consultado{% else %}{{ item.status_nfse|lower|capfirst }}{% endif %}</strong></span>
+          {% endif %}
           <span class="follow-up-glosa-card-field"><small>SITUAÇÃO</small><strong class="ns-situacao">
             {% if item.situacao == 'lancada' %}Lançada no MV
             {% elif item.situacao == 'cancelada' %}Cancelada no ISS
@@ -138,10 +142,14 @@
             {% elif item.boletos.com_divergencia %}Boleto com divergência
             {% else %}A lançar · falta boleto{% endif %}{% if item.boletos.fora_do_prazo %} <em class="cf-dias cf-dias--proximo" title="Boleto fora do prazo de 3 dias úteis, com justificativa">atraso</em>{% endif %}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR</small><strong>R$ {{ item.valor_servicos|br_currency }}</strong></span>
-          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>LÍQUIDO</small><strong>R$ {{ item.valor_liquido|br_currency }}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>LÍQUIDO</small><strong>{% if item.valor_liquido is not None %}R$ {{ item.valor_liquido|br_currency }}{% else %}—{% endif %}</strong></span>
         </div>
         <span class="follow-up-glosa-pdf-slot">
+          {% if item.origem_nfse == 'mv' %}
+          <span class="follow-up-glosa-pdf-action ns-pdf-mv" title="Lançada no MV antes da captura das NFS-e recebidas: sem PDF da prefeitura no Receita Certa">MV</span>
+          {% else %}
           <a class="follow-up-glosa-pdf-action" href="{% url 'contas_pagar_nfse_pdf' item.prestador_cnpj item.numero_nfse %}" target="_blank" rel="noopener" title="Abrir o PDF oficial da prefeitura em outra aba" aria-label="Ver NFS-e {{ item.numero_nfse }}">PDF</a>
+          {% endif %}
         </span>
       </div>
 
@@ -154,8 +162,11 @@
               <span class="follow-up-glosa-card-field"><small>CÓD. VERIFICAÇÃO</small><strong>{{ item.codigo_verificacao|default:'—' }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>TOMADOR</small><strong>{{ item.empresa|default:item.tomador }}</strong></span>
               {% if item.origem_nfse == 'pdf' %}<span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>PDF enviado no Receita Certa</strong></span>
+              {% elif item.origem_nfse == 'mv' %}<span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>Histórico de lançamentos do MV</strong></span>
               {% else %}<span class="follow-up-glosa-card-field"><small>ISS CONSULTADO EM</small><strong>{% if item.status_nfse_consultado_em %}{{ item.status_nfse_consultado_em|api_datetime }}{% else %}—{% endif %}</strong></span>{% endif %}
-              {% if item.situacao == 'lancada' %}<span class="follow-up-glosa-card-field"><small>NO MV</small><strong>{% if item.mv.cd_ent_serv %}Entrada {{ item.mv.cd_ent_serv }}{% endif %}{% if item.mv.cd_con_pag %}{% if item.mv.cd_ent_serv %} · {% endif %}Título {{ item.mv.cd_con_pag }}{% endif %}</strong></span>{% endif %}
+              {% if item.situacao == 'lancada' %}<span class="follow-up-glosa-card-field"><small>NO MV</small><strong>{% if item.mv.cd_ent_serv %}Entrada {{ item.mv.cd_ent_serv }}{% endif %}{% if item.mv.cd_con_pag %}{% if item.mv.cd_ent_serv %} · {% endif %}Título {{ item.mv.cd_con_pag }}{% endif %}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>LANÇADO POR</small><strong>{{ item.mv.lancado_por_nome|default:item.mv.lancado_por|join_or_dash }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>LANÇADO EM</small><strong>{% if item.mv.lancado_em %}{{ item.mv.lancado_em|api_date }}{% else %}—{% endif %}</strong></span>{% endif %}
             </div>
             {% if item.discriminacao %}<p class="ns-discriminacao">{{ item.discriminacao }}</p>{% endif %}
           </section>
