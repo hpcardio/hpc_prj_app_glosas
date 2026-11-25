@@ -56,8 +56,10 @@ def _recebimento(item):
 def _contexto(item, hoje):
     nf = item.get("nfse") or {}
     protocolo = item.get("protocolo") or {}
-    bruto = _dinheiro(nf.get("valor"))
-    liquido = _dinheiro(nf.get("valor_liquido"))
+    # NF de grupo: só a parte que cabe à remessa (rateio feito pela API).
+    rateio = item.get("nf_rateio") or {}
+    bruto = _dinheiro(rateio.get("valor") if rateio else nf.get("valor"))
+    liquido = _dinheiro(rateio.get("liquido") if rateio else nf.get("valor_liquido"))
     total = _dinheiro(item.get("valor")) or Decimal("0")
     entrega = _data(item.get("dt_entrega")) or _data(item.get("dt_fechamento"))
     previsao = _data(item.get("dt_prevista_pgto"))

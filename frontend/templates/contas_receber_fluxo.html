@@ -202,7 +202,8 @@
               {% if item.nfse %}
               <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{{ item.nfse.numero }}</strong></span>
               <span class="follow-up-glosa-card-field"><small>EMISSÃO</small><strong>{{ item.nfse.data_emissao|api_date|default:'—' }}</strong></span>
-              {% if item.nfse.valor %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR DA NFS</small><strong>R$ {{ item.nfse.valor|br_currency }}</strong></span>{% endif %}
+              {% if item.nfse.valor %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>{% if item.nf_compartilhada %}VALOR TOTAL DA NFS{% else %}VALOR DA NFS{% endif %}</small><strong>R$ {{ item.nfse.valor|br_currency }}</strong></span>{% endif %}
+              {% if item.nf_compartilhada %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>PARTE DESTA REMESSA</small><strong title="NF de grupo: cobre {{ item.nf_rateio.remessas_na_nf }} remessas; a parte desta remessa segue o valor liberado do processo">R$ {{ item.nf_rateio.valor|br_currency }}</strong></span>{% endif %}
               <span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>{{ item.nfse.origem_label }}</strong></span>
               {% else %}
               <span class="follow-up-glosa-card-field"><small>NFS</small><strong>Não vinculada</strong></span>

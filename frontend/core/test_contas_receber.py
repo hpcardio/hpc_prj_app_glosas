@@ -290,3 +290,51 @@ class RetencaoEstimadaTests(TestCase):
         self.assertContains(response, "R$ 50,00")
         self.assertContains(response, "são estimados pela alíquota")
         self.assertContains(response, "is-estimado")
+
+
+class NfDeGrupoTests(TestCase):
+    setUp = FluxoTests.setUp
+
+    def test_card_usa_a_parte_da_nf_de_grupo(self):
+        from decimal import Decimal
+
+        from core.contas_receber import valores_do_card
+
+        item = {
+            "valor": "2118.58",
+            "nfse": {"numero": "30083", "valor": "572156.82", "valor_liquido": "548126.24"},
+            "nf_rateio": {"compartilhada": True, "remessas_na_nf": 20, "valor": "2118.58",
+                          "retencoes": "88.98", "liquido": "2029.60", "aliquota": "4.20"},
+        }
+        v = valores_do_card(item)
+        self.assertEqual(v["glosas"], Decimal("0.00"))
+        self.assertEqual(v["retencoes"], Decimal("88.98"))
+        self.assertEqual(v["liquido"], Decimal("2029.60"))
+        self.assertFalse(v["estimado"])
+
+    def test_glosa_sem_nf_usa_a_parte_do_liberado(self):
+        from decimal import Decimal
+
+        from core.contas_receber import valores_do_card
+
+        v = valores_do_card({
+            "valor": "1200.00",
+            "protocolo": {"glosa_portal": Decimal("0.00")},
+            "estimativa": {"base": "1080.00", "origem_base": "liberado_proporcional",
+                           "aliquota": "4.20", "retencoes": "45.36", "liquido": "1034.64"},
+        })
+        self.assertEqual(v["glosas"], Decimal("120.00"))
+
+    def test_planilha_usa_a_parte_da_nf(self):
+        from datetime import date
+
+        from core.contas_receber_export import _contexto
+
+        c = _contexto({
+            "valor": "2118.58", "etapa_atual": "recebimento",
+            "nfse": {"numero": "30083", "valor": "572156.82", "valor_liquido": "548126.24"},
+            "nf_rateio": {"compartilhada": True, "valor": "2118.58", "liquido": "2029.60"},
+        }, date(2026, 11, 25))
+        self.assertEqual(str(c["bruto"]), "2118.58")
+        self.assertEqual(str(c["impostos"]), "88.98")
+        self.assertEqual(str(c["glosa"]), "0.00")
