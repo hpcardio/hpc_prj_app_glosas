@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -184,6 +185,30 @@ class NfseSetorViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'fora do ar')
 
+
+    @patch('core.views.api_get')
+    def test_lancadas_mostram_quem_lancou_e_historico_do_mv_sem_pdf(self, api_get):
+        lancada = {**NOTA, 'situacao': 'lancada', 'nm_setor': 'TECNOLOGIA DA INFORMACAO',
+                   'mv': {'cd_ent_serv': 900, 'cd_con_pag': None, 'lancado_por': ['RH000111'],
+                          'lancado_por_nome': 'MARIA LANCADORA', 'lancado_em': '2026-11-12'}}
+        historico = {**NOTA, 'chave': '22222222000122-42', 'prestador_cnpj': '22222222000122',
+                     'numero_nfse': '42', 'situacao': 'lancada', 'origem_nfse': 'mv',
+                     'valor_servicos': '300.00', 'valor_liquido': None, 'nm_setor': 'TECNOLOGIA DA INFORMACAO',
+                     'mv': {'cd_ent_serv': 77, 'cd_con_pag': 88, 'lancado_por': ['RH000222'],
+                            'lancado_por_nome': 'JOAO ANTIGO', 'lancado_em': '2025-06-10'}}
+        api_get.return_value = {'desde': '2026-10-01', 'situacao': 'lancada', 'oficinas': [],
+                                'itens': [lancada, historico]}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=lancada')
+
+        self.assertContains(response, 'LANÇADO POR')
+        self.assertContains(response, 'MARIA LANCADORA')
+        self.assertContains(response, 'JOAO ANTIGO')
+        self.assertContains(response, 'Histórico de lançamentos do MV')
+        self.assertContains(response, 'ns-pdf-mv', html=False)
+        # Só a nota da base tem PDF da prefeitura.
+        # Total usa o valor da entrada quando a nota do MV não tem líquido.
+        self.assertEqual(response.context['valor_total'], Decimal('1700.00'))
 
 class NfseRegrasViewTests(TestCase):
     def setUp(self):

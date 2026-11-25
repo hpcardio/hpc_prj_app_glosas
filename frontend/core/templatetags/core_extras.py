@@ -90,3 +90,11 @@ def motivo_com_descricao(value, description):
                             if str(row.get("codigo_termo", "")).strip() == code), "")
     description = str(description or "").strip()
     return f"{code} - {description}" if description else code
+
+
+@register.filter
+def join_or_dash(value):
+    """Texto ou lista (ex.: logins MV de quem lançou) separada por vírgula; vazio vira '—'."""
+    if isinstance(value, (list, tuple)):
+        value = ", ".join(str(item) for item in value if item)
+    return value or "—"
