@@ -78,16 +78,24 @@ def valores_do_card(item):
     bruto = _decimal(item.get("valor"))
     nfse = item.get("nfse") or {}
     protocolo = item.get("protocolo") or {}
-    valor_nf = _decimal(nfse["valor"]) if nfse.get("valor") is not None else None
-    liquido = _decimal(nfse["valor_liquido"]) if nfse.get("valor_liquido") is not None else None
+    # Parte da NF que cabe à remessa (a API rateia as NFs de grupo, que
+    # cobrem vários processos/remessas); sem rateio, a própria NF.
+    rateio = item.get("nf_rateio") or {}
+    fonte = rateio if rateio else nfse
+    campo_liquido = "liquido" if rateio else "valor_liquido"
+    valor_nf = _decimal(fonte["valor"]) if fonte.get("valor") is not None else None
+    liquido = _decimal(fonte[campo_liquido]) if fonte.get(campo_liquido) is not None else None
+    estimativa = item.get("estimativa") or None
     if valor_nf is not None:
         glosas, origem_glosa = bruto - valor_nf, "nf"
+    elif estimativa and estimativa.get("origem_base") != "bruto":
+        # Parte do liberado do processo que cabe à remessa.
+        glosas, origem_glosa = bruto - _decimal(estimativa.get("base")), "portal"
     elif protocolo.get("glosa_portal") is not None:
         glosas, origem_glosa = protocolo["glosa_portal"], "portal"
     else:
         glosas, origem_glosa = None, ""
     retencoes = valor_nf - liquido if valor_nf is not None and liquido is not None else None
-    estimativa = item.get("estimativa") or None
     estimado = retencoes is None and estimativa is not None
     if estimado:
         # Sem NF no ISS: a API estima pela alíquota retida nas NFs do convênio.
@@ -125,6 +133,7 @@ def _enriquecer(item):
     if nfse:
         nfse["origem_label"] = ORIGENS.get(nfse.get("origem"), nfse.get("origem") or "")
     item["valores"] = valores_do_card(item)
+    item["nf_compartilhada"] = bool((item.get("nf_rateio") or {}).get("compartilhada"))
     detalhes = {
         "remessa": f"{item.get('qt_contas', 0)} conta{'s' if item.get('qt_contas') != 1 else ''}",
         "protocolo": (
