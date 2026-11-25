@@ -1,15 +1,5 @@
 {% load core_extras %}
-<article id="cadastro" class="follow-up-glosa-card cf-card is-aberta ns-card--cadastro" x-data x-init="$nextTick(() => $el.scrollIntoView({ block: 'start' }))">
-  <div class="follow-up-glosa-card-header-row">
-    <div class="follow-up-glosa-card-header ns-card-header--avulsa">
-      <span class="follow-up-glosa-card-field"><small>AÇÃO</small><strong>Cadastrar NFS-e de outro município</strong></span>
-      <span class="follow-up-glosa-card-field"><small>ETAPA</small><strong>{% if cadastro_pdf.etapa == 'envio' %}1 de 2 · Enviar o PDF{% else %}2 de 2 · Conferir os dados{% endif %}</strong></span>
-      <span class="follow-up-glosa-card-field"><small>{% if cadastro_pdf.etapa == 'envio' %}FORMATO{% else %}ARQUIVO{% endif %}</small><strong>{% if cadastro_pdf.etapa == 'envio' %}PDF da NFS-e (DANFSe do padrão nacional){% else %}{{ cadastro_pdf.nome_arquivo }}{% if cadastro_pdf.municipio_emissor %} · {{ cadastro_pdf.municipio_emissor }}{% endif %}{% endif %}</strong></span>
-    </div>
-    <span class="follow-up-glosa-pdf-slot"><a class="follow-up-glosa-pdf-action" href="{% url 'contas_pagar_nfse_setor' %}" aria-label="Fechar">Fechar</a></span>
-  </div>
-  <div class="follow-up-glosa-card-body">
-    <div class="follow-up-glosa-card-content">
+<div class="ns-outro-municipio__conteudo">
       {% if cadastro_pdf.etapa == 'envio' %}
       <section class="account-group-section">
         <header class="account-group-header"><span class="account-group-title">PDF da NFS-e</span>
@@ -75,6 +65,4 @@
         <input type="hidden" name="acao" value="descartar_nfse_pdf"><input type="hidden" name="manual_id" value="{{ cadastro_pdf.id }}">
       </form>
       {% endif %}
-    </div>
-  </div>
-</article>
+</div>

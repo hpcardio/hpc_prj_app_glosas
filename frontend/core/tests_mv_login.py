@@ -91,7 +91,11 @@ class MvLoginTests(TestCase):
 
         response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/')
 
-        self.assertContains(response, 'Login MV: RH000969 ✓')
+        self.assertContains(response, '<small>Login MV</small><strong>RH000969</strong>', html=False)
+        self.assertContains(response, 'img/mv.png', html=False)
+        html = response.content.decode()
+        # Fica no topo da página, fora do painel da lista de notas.
+        self.assertLess(html.index('mv-login-status--topo'), html.index('cf-resultados'))
 
     @patch('core.views.api_get')
     def test_tela_sem_vinculo_oferece_o_login(self, api_get):

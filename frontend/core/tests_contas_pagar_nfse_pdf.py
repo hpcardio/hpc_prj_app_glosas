@@ -36,10 +36,14 @@ class CadastroPdfTests(TestCase):
     def test_botao_e_card_de_envio(self, api_get):
         api_get.side_effect = self._api_get
         response = self.client.get(URL)
-        self.assertContains(response, 'Cadastrar NFS-e de outro município')
+        self.assertContains(response, 'Cadastro de NFS-e de outro município')
+        self.assertContains(response, '?cadastrar=1#cadastro', html=False)
         response = self.client.get(URL + '?cadastrar=1')
         self.assertContains(response, '1 de 2 · Enviar o PDF')
         self.assertContains(response, 'name="arquivo_nfse"', html=False)
+        html = response.content.decode()
+        # Seção própria, antes e fora do painel da lista de notas.
+        self.assertLess(html.index('name="arquivo_nfse"'), html.index('cf-resultados'))
 
     @patch('core.views.api_post_files', return_value={'id': 41, 'reconhecido': True})
     @patch('core.views.api_get')
