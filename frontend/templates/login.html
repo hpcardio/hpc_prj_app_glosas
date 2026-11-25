@@ -50,12 +50,12 @@
             </div>
           {% endif %}
           <label>
-            <span>E-mail</span>
+            <span>Login</span>
             <div class="login-input">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path></svg>
-              <input type="email" name="email" value="{{ email }}" placeholder="nome@prontocardio.com.br" autocomplete="username" required autofocus>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20a7 7 0 0 1 14 0"></path></svg>
+              <input type="text" name="email" value="{{ email }}" placeholder="E-mail, CPF ou login MV" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
             </div>
-            <small class="login-field-help">Utilize o e-mail corporativo.</small>
+            <small class="login-field-help">Use o e-mail corporativo, o CPF ou o seu login do MV (ex.: RH000938).</small>
           </label>
           <label>
             <span>Senha</span>
