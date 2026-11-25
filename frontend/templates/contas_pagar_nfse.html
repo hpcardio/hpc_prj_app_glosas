@@ -130,7 +130,7 @@
           <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ item.prestador }}">{{ item.prestador }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>SETOR</small><strong title="{{ item.nm_setor|default:item.ds_oficina|default:'' }}">{% if item.nm_setor or item.ds_oficina %}{{ item.nm_setor|default:item.ds_oficina }}{% else %}<span class="ns-sem-setor">Sem setor</span>{% endif %}</strong></span>
           {% if item.situacao == 'lancada' %}
-          <span class="follow-up-glosa-card-field"><small>LANÇADO POR</small><strong title="{{ item.mv.lancado_por_nome|default:item.mv.lancado_por|join_or_dash }}{% if item.mv.lancado_em %} · lançado no MV em {{ item.mv.lancado_em|api_date }}{% endif %}">{{ item.mv.lancado_por_nome|default:item.mv.lancado_por|join_or_dash }}</strong></span>
+          <span class="follow-up-glosa-card-field"><small>LANÇADO POR</small><strong title="{% if item.mv.lancado_por_nome %}{{ item.mv.lancado_por_nome }}{% else %}{{ item.mv.lancado_por|join_or_dash }}{% endif %}{% if item.mv.lancado_em %} · lançado no MV em {{ item.mv.lancado_em|api_date }}{% endif %}">{% if item.mv.lancado_por_nome %}{{ item.mv.lancado_por_nome }}{% else %}{{ item.mv.lancado_por|join_or_dash }}{% endif %}</strong></span>
           {% else %}
           <span class="follow-up-glosa-card-field"><small>{% if item.origem_nfse == 'pdf' %}ORIGEM{% else %}STATUS ISS{% endif %}</small><strong class="{% if item.origem_nfse == 'pdf' %}ns-neutro{% elif item.status_nfse and item.status_nfse != 'NORMAL' %}cf-erro{% elif item.status_nfse %}cf-ok{% else %}ns-neutro{% endif %}">{% if item.origem_nfse == 'pdf' %}Cadastrada por PDF{% elif not item.status_nfse %}Não consultado{% else %}{{ item.status_nfse|lower|capfirst }}{% endif %}</strong></span>
           {% endif %}
@@ -144,7 +144,10 @@
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR</small><strong>R$ {{ item.valor_servicos|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>LÍQUIDO</small><strong>{% if item.valor_liquido is not None %}R$ {{ item.valor_liquido|br_currency }}{% else %}—{% endif %}</strong></span>
         </div>
-        <span class="follow-up-glosa-pdf-slot">
+        <span class="follow-up-glosa-pdf-slot ns-slot">
+          {% if item.boletos.ids %}
+          <a class="follow-up-glosa-pdf-action ns-boleto-action" href="{% url 'contas_pagar_boleto_pdf' item.boletos.ids.0 %}" target="_blank" rel="noopener" title="Abrir o boleto em outra aba{% if item.boletos.ids|length > 1 %} (1 de {{ item.boletos.ids|length }}; os demais ao expandir a nota){% endif %}" aria-label="Ver boleto da NFS-e {{ item.numero_nfse }}">BOLETO</a>
+          {% endif %}
           {% if item.origem_nfse == 'mv' %}
           <span class="follow-up-glosa-pdf-action ns-pdf-mv" title="Lançada no MV antes da captura das NFS-e recebidas: sem PDF da prefeitura no Receita Certa">MV</span>
           {% else %}
@@ -165,7 +168,7 @@
               {% elif item.origem_nfse == 'mv' %}<span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>Histórico de lançamentos do MV</strong></span>
               {% else %}<span class="follow-up-glosa-card-field"><small>ISS CONSULTADO EM</small><strong>{% if item.status_nfse_consultado_em %}{{ item.status_nfse_consultado_em|api_datetime }}{% else %}—{% endif %}</strong></span>{% endif %}
               {% if item.situacao == 'lancada' %}<span class="follow-up-glosa-card-field"><small>NO MV</small><strong>{% if item.mv.cd_ent_serv %}Entrada {{ item.mv.cd_ent_serv }}{% endif %}{% if item.mv.cd_con_pag %}{% if item.mv.cd_ent_serv %} · {% endif %}Título {{ item.mv.cd_con_pag }}{% endif %}</strong></span>
-              <span class="follow-up-glosa-card-field"><small>LANÇADO POR</small><strong>{{ item.mv.lancado_por_nome|default:item.mv.lancado_por|join_or_dash }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>LANÇADO POR</small><strong>{% if item.mv.lancado_por_nome %}{{ item.mv.lancado_por_nome }}{% else %}{{ item.mv.lancado_por|join_or_dash }}{% endif %}</strong></span>
               <span class="follow-up-glosa-card-field"><small>LANÇADO EM</small><strong>{% if item.mv.lancado_em %}{{ item.mv.lancado_em|api_date }}{% else %}—{% endif %}</strong></span>{% endif %}
             </div>
             {% if item.discriminacao %}<p class="ns-discriminacao">{{ item.discriminacao }}</p>{% endif %}
@@ -191,8 +194,29 @@
           {% include "partials/contas_pagar_nfse_boletos.html" %}
           {% elif item.situacao == 'pendente' %}
           <div class="follow-up-batch-toolbar cf-acoes">
-            <span>{% if item.boletos %}{{ item.boletos.quantidade }} boleto{{ item.boletos.quantidade|pluralize }} · R$ {{ item.boletos.soma|br_currency }} · 1º vencimento {{ item.boletos.primeiro_vencimento|api_date }}{% else %}Nenhum boleto anexado. Anexe o PDF do boleto para enviar a nota ao financeiro.{% endif %}</span>
-            <div><a class="{% if item.boletos %}collapse-action{% else %}btn-acatar cf-botao{% endif %}" href="?{% querystring nota=item.chave %}#nota-{{ item.chave }}">{% if item.boletos %}Ver boletos{% else %}Anexar boleto{% endif %}</a></div>
+            <span>{% if item.boletos %}{{ item.boletos.quantidade }} boleto{{ item.boletos.quantidade|pluralize }} · R$ {{ item.boletos.soma|br_currency }} · 1º vencimento {{ item.boletos.primeiro_vencimento|api_date }}{% if item.pronta %} · enviada ao financeiro{% endif %}{% else %}Nenhum boleto anexado. Anexe o PDF do boleto para enviar a nota ao financeiro.{% endif %}</span>
+            <div class="ns-acoes-envio">
+              {% for boleto_id in item.boletos.ids %}<a class="collapse-action" href="{% url 'contas_pagar_boleto_pdf' boleto_id %}" target="_blank" rel="noopener">{% if item.boletos.ids|length > 1 %}Boleto {{ forloop.counter }}{% else %}Ver boleto{% endif %}</a>{% endfor %}
+              <a class="{% if item.boletos %}collapse-action{% else %}btn-acatar cf-botao{% endif %}" href="?{% querystring nota=item.chave %}#nota-{{ item.chave }}">{% if item.boletos %}Gerenciar boletos{% else %}Anexar boleto{% endif %}</a>
+              {% if item.pode_desfazer_envio %}
+              <form method="post" class="d-inline" onsubmit="return confirm('Desfazer o envio ao financeiro?\n\nOs boletos desta NFS-e serão excluídos e ela volta para \'A lançar\'.')">{% csrf_token %}
+                <input type="hidden" name="acao" value="desfazer_envio">
+                <input type="hidden" name="cnpj" value="{{ item.prestador_cnpj }}"><input type="hidden" name="numero" value="{{ item.numero_nfse }}">
+                <input type="hidden" name="situacao" value="{{ filtros.situacao }}">
+                {% if filtros.cd_setor %}<input type="hidden" name="cd_setor" value="{{ filtros.cd_setor }}">{% endif %}
+                {% if filtros.desde %}<input type="hidden" name="desde" value="{{ filtros.desde }}">{% endif %}
+                <input type="hidden" name="page" value="{{ pagination.page }}">
+                <button class="btn-glosar cf-botao" type="submit" title="Só enquanto o financeiro não deu baixa (não lançou a nota no MV)">Desfazer envio ao financeiro</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% elif item.situacao == 'lancada' and item.boletos %}
+          <div class="follow-up-batch-toolbar cf-acoes">
+            <span>{{ item.boletos.quantidade }} boleto{{ item.boletos.quantidade|pluralize }} enviado{{ item.boletos.quantidade|pluralize }} · o financeiro já deu baixa (nota lançada no MV): o envio não pode mais ser desfeito.</span>
+            <div class="ns-acoes-envio">
+              {% for boleto_id in item.boletos.ids %}<a class="collapse-action" href="{% url 'contas_pagar_boleto_pdf' boleto_id %}" target="_blank" rel="noopener">{% if item.boletos.ids|length > 1 %}Boleto {{ forloop.counter }}{% else %}Ver boleto{% endif %}</a>{% endfor %}
+            </div>
           </div>
           {% endif %}
         </div>
