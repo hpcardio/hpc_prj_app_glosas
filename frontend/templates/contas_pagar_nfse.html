@@ -3,6 +3,7 @@
 {% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
 {% block page_title %}NFS-e do setor{% endblock %}
 {% block content_class %}follow-up-compact{% endblock %}
+{% block topbar_acoes %}{% with mv_login_topo=True %}{% include "partials/mv_login_status.html" %}{% endwith %}{% endblock %}
 {% block content %}
 
 <section class="panel filter-panel cf-filtros" x-data="{ loading: false }">
@@ -38,6 +39,28 @@
 
 {% if aviso %}<div class="cf-mensagem cf-mensagem--atencao ns-aviso">{{ aviso }}</div>{% endif %}
 
+<section id="cadastro" class="panel ns-outro-municipio{% if cadastro_pdf %} is-aberta{% endif %}" aria-labelledby="ns-outro-municipio-titulo">
+  <div class="ns-outro-municipio__faixa">
+    <span class="ns-outro-municipio__icone" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M12 12v6"></path><path d="M9 15h6"></path></svg>
+    </span>
+    <div class="ns-outro-municipio__texto">
+      <h2 id="ns-outro-municipio-titulo">Cadastro de NFS-e de outro município</h2>
+      <p>As notas do ISS Fortaleza chegam sozinhas. As de outros municípios entram pelo PDF da nota: o Receita Certa lê os dados e você confere antes de a nota entrar na fila.</p>
+    </div>
+    {% if cadastro_pdf %}
+    <div class="ns-outro-municipio__etapa">
+      <span><small>Etapa</small><strong>{% if cadastro_pdf.etapa == 'envio' %}1 de 2 · Enviar o PDF{% else %}2 de 2 · Conferir os dados{% endif %}</strong></span>
+      <span><small>{% if cadastro_pdf.etapa == 'envio' %}Formato{% else %}Arquivo{% endif %}</small><strong>{% if cadastro_pdf.etapa == 'envio' %}PDF da NFS-e (DANFSe do padrão nacional){% else %}{{ cadastro_pdf.nome_arquivo }}{% if cadastro_pdf.municipio_emissor %} · {{ cadastro_pdf.municipio_emissor }}{% endif %}{% endif %}</strong></span>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm ns-outro-municipio__acao" href="{% url 'contas_pagar_nfse_setor' %}">Fechar</a>
+    {% else %}
+    <a class="btn btn-primary ns-outro-municipio__acao" href="{% url 'contas_pagar_nfse_setor' %}?cadastrar=1#cadastro">Cadastrar NFS-e</a>
+    {% endif %}
+  </div>
+  {% if cadastro_pdf %}<div class="ns-outro-municipio__corpo">{% include "partials/contas_pagar_nfse_cadastro_pdf.html" %}</div>{% endif %}
+</section>
+
 <section class="panel results-summary-panel follow-up-glosa-results cf-resultados">
   <div class="panel-header">
     <div class="results-heading">
@@ -46,8 +69,6 @@
         <span class="results-subtitle">{% if pagination.total %}{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} nota{{ pagination.total|pluralize }} · {% endif %}emitidas desde {% if desde %}{{ desde|api_date }}{% endif %} (ISS Fortaleza automático; outros municípios por PDF) · cada nota aparece para o setor do fornecedor</span>
       </div>
       <div class="collapse-actions cf-cabecalho-acoes">
-        {% include "partials/mv_login_status.html" %}
-        <a class="btn-acatar cf-botao" href="{% url 'contas_pagar_nfse_setor' %}?cadastrar=1#cadastro" title="Notas que não vêm do ISS Fortaleza: envie o PDF da NFS-e">Cadastrar NFS-e de outro município</a>
         {% if itens %}
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-expandir'))">Expandir</button>
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-colapsar'))">Colapsar todos</button>
@@ -79,9 +100,8 @@
     </div>
   </div>
 
-  {% if itens or nota_aberta or cadastro_pdf %}
+  {% if itens or nota_aberta %}
   <div class="results-list follow-up-glosa-list">
-    {% if cadastro_pdf %}{% include "partials/contas_pagar_nfse_cadastro_pdf.html" %}{% endif %}
     {% if nota_aberta and not nota_aberta_na_pagina %}
     <article id="nota-{{ nota_aberta.chave }}" class="follow-up-glosa-card cf-card is-aberta ns-card--avulsa" x-data x-init="$nextTick(() => $el.scrollIntoView({ block: 'start' }))">
       <div class="follow-up-glosa-card-header-row">

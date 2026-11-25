@@ -1,10 +1,16 @@
-<div class="mv-login-status d-flex flex-wrap align-items-center gap-2 mb-3">
+{% load static %}
+<div class="mv-login-status d-flex flex-wrap align-items-center gap-2 mb-3{% if mv_login_topo %} mv-login-status--topo{% endif %}">
   {% if mv_vinculo and mv_vinculo.cd_usuario_mv and mv_vinculo.origem == 'cas' %}
-    <span class="badge {% if mv_vinculo.pode_gravar_no_mv %}text-bg-success{% else %}text-bg-secondary{% endif %}">Login MV: {{ mv_vinculo.cd_usuario_mv }}{% if mv_vinculo.pode_gravar_no_mv %} ✓{% endif %}</span>
-    <button type="button" class="btn btn-link btn-sm p-0" data-mv-login>Trocar</button>
+    <span class="mv-login-chip{% if mv_vinculo.pode_gravar_no_mv %} mv-login-chip--ok{% endif %}" title="{% if mv_vinculo.pode_gravar_no_mv %}Os lançamentos no MV feitos por esta tela usam este login{% else %}Login MV sem permissão de gravação{% endif %}">
+      <img class="mv-login-logo" src="{% static 'img/mv.png' %}" alt="MV" width="18" height="18">
+      <span class="mv-login-texto"><small>Login MV</small><strong>{{ mv_vinculo.cd_usuario_mv }}</strong></span>
+      {% if mv_vinculo.pode_gravar_no_mv %}<span class="mv-login-ok" aria-label="pode gravar no MV">✓</span>{% endif %}
+    </span>
+    <button type="button" class="btn btn-link btn-sm p-0 mv-login-trocar" data-mv-login>Trocar</button>
   {% else %}
-    <span class="text-muted small">Para lançar no MV pelo Receita Certa, entre com o seu login MV.</span>
-    <button type="button" class="btn btn-outline-primary btn-sm" data-mv-login>Entrar com login MV</button>
+    <img class="mv-login-logo" src="{% static 'img/mv.png' %}" alt="MV" width="18" height="18">
+    {% if not mv_login_topo %}<span class="text-muted small">Para lançar no MV pelo Receita Certa, entre com o seu login MV.</span>{% endif %}
+    <button type="button" class="btn btn-outline-primary btn-sm" data-mv-login title="Para lançar no MV pelo Receita Certa, entre com o seu login MV.">Entrar com login MV</button>
   {% endif %}
 </div>
 <script>
