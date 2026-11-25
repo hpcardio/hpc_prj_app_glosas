@@ -110,12 +110,46 @@ def valores_do_card(item):
         "liquido": liquido,
         "estimado": estimado,
         "explicacao_estimativa": (
-            f"Estimado: {str(estimativa.get('aliquota')).replace('.', ',')}% retido nas NFs do convênio, "
-            f"sobre o valor {'liberado no portal' if estimativa.get('origem_base') == 'liberado' else 'bruto da remessa'}. "
+            f"Estimado: {_pct(estimativa.get('aliquota'))} "
+            f"{'da Configuração por Convênio' if estimativa.get('fonte_aliquota') == 'configuracao' else 'retido nas NFs do convênio'}, "
+            f"sobre o valor {'bruto da remessa' if estimativa.get('origem_base') == 'bruto' else 'liberado no portal'}"
+            f"{_detalhe_impostos(estimativa.get('retencoes_detalhe'))}. "
             "Muda para o valor real quando a NF for vinculada."
             if estimado else ""
         ),
+        "explicacao_retencao": _explicacao_rateio(rateio),
     }
+
+
+IMPOSTOS_ROTULO = (("iss", "ISS"), ("ir", "IR"), ("pis", "PIS"), ("cofins", "COFINS"), ("csll", "CSLL"))
+
+
+def _pct(valor):
+    return f"{_decimal(valor):.2f}".replace(".", ",") + "%"
+
+
+def _moeda(valor):
+    texto = f"{_decimal(valor):,.2f}"
+    return "R$ " + texto.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _detalhe_impostos(detalhe):
+    partes = [f"{rotulo} {_moeda(detalhe[chave])}" for chave, rotulo in IMPOSTOS_ROTULO if (detalhe or {}).get(chave)]
+    return f" ({' · '.join(partes)})" if partes else ""
+
+
+def _explicacao_rateio(rateio):
+    if not rateio or not rateio.get("compartilhada"):
+        return "Valor da NF menos o líquido no ISS"
+    fonte = (
+        "percentuais da Configuração por Convênio"
+        if rateio.get("fonte_aliquota") == "configuracao"
+        else "alíquota da própria NF"
+    )
+    return (
+        f"NF de grupo ({rateio.get('remessas_na_nf')} remessas): parte desta remessa × "
+        f"{_pct(rateio.get('aliquota'))} ({fonte}){_detalhe_impostos(rateio.get('retencoes_detalhe'))}"
+    )
 
 
 def _enriquecer(item):

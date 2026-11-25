@@ -58,6 +58,9 @@ from .spu_recaptcha import (
 PATIENTS_PER_PAGE = 10
 TIPOS_ATENDIMENTO = ('Ambulatório', 'Externo', 'Urgência', 'Internação')
 PRAZOS_RECURSO_CONVENIO_PATH = "/app_glosas/prazos-recurso-convenio"
+# Percentuais de retenção por convênio (cálculo das retenções do Contas a Receber).
+RETENCOES_CONVENIO_PATH = "/app_glosas/financeiro/contas-a-receber/retencoes-convenio"
+IMPOSTOS_RETENCAO = ("iss", "ir", "pis", "cofins", "csll")
 logger = logging.getLogger(__name__)
 CONVENIOS_PATH = "/app_glosas/convenios"
 DASHBOARD_GLOSAS_CACHE_KEY = "dashboard:registros-glosa"
@@ -6434,8 +6437,51 @@ def dashboard(request):
     )
 
 
+def _percentual(valor):
+    texto = (valor or "").strip().replace("%", "").replace(" ", "")
+    if not texto:
+        return Decimal("0")
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    numero = Decimal(texto)
+    if numero < 0 or numero > 100:
+        raise InvalidOperation
+    return numero
+
+
+def _salvar_retencoes_convenio(request):
+    payload, erros = [], []
+    for cd_convenio in request.POST.getlist("ret_cd_convenio"):
+        convenio = request.POST.get(f"ret_convenio_{cd_convenio}", "").strip()
+        item = {"cd_convenio": int(cd_convenio), "convenio": convenio or cd_convenio}
+        try:
+            for imposto in IMPOSTOS_RETENCAO:
+                item[imposto] = str(_percentual(request.POST.get(f"{imposto}_{cd_convenio}")))
+        except (InvalidOperation, ValueError):
+            erros.append(convenio or cd_convenio)
+            continue
+        observacao = (request.POST.get(f"ret_obs_{cd_convenio}") or "").strip()[:300]
+        item["observacao"] = observacao or None
+        payload.append(item)
+    if erros:
+        messages.error(request, "Percentual inválido (use de 0 a 100) para: " + ", ".join(erros))
+        return
+    try:
+        resposta = api_put(RETENCOES_CONVENIO_PATH, payload)
+        alterados = (resposta or {}).get("alterados", 0)
+        messages.success(
+            request,
+            f"Percentuais de retenção salvos ({alterados} convênio{'s' if alterados != 1 else ''} alterado{'s' if alterados != 1 else ''}).",
+        )
+    except ApiError as exc:
+        messages.error(request, format_api_error(exc, "Retenções por convênio"))
+
+
 @require_http_methods(["GET", "POST"])
 def prazos_recurso_convenio(request):
+    if request.method == "POST" and request.POST.get("form_action") == "retencoes":
+        _salvar_retencoes_convenio(request)
+        return redirect(f"{reverse('prazos_recurso_convenio')}#retencoes")
     if request.method == "POST":
         payload = []
         errors = []
@@ -6497,12 +6543,20 @@ def prazos_recurso_convenio(request):
             1 for convenio in convenios if convenio.get("dias_para_recurso") not in (None, "")
         ),
     }
+    try:
+        retencoes = api_get(RETENCOES_CONVENIO_PATH).get("convenios", [])
+    except ApiError as exc:
+        retencoes = []
+        messages.warning(request, format_api_error(exc, "Retenções por convênio"))
+    resumo["retencoes_configuradas"] = sum(1 for item in retencoes if item.get("configurado"))
     return render(
         request,
         "prazos_recurso_convenio.html",
         {
             "convenios": convenios,
             "resumo": resumo,
+            "retencoes": retencoes,
+            "impostos_retencao": (("iss", "ISS"), ("ir", "IR"), ("pis", "PIS"), ("cofins", "COFINS"), ("csll", "CSLL")),
         },
     )
 

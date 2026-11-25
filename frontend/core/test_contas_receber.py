@@ -345,3 +345,29 @@ class OrigemNupGrupoTests(TestCase):
         from core.contas_receber import ORIGENS
 
         self.assertIn("NUP do processo agrupador", ORIGENS["nup_grupo"])
+
+
+class ExplicacaoRetencaoTests(TestCase):
+    def test_title_mostra_os_impostos_da_configuracao(self):
+        from core.contas_receber import valores_do_card
+
+        grupo = valores_do_card({
+            "valor": "1000.00",
+            "nfse": {"numero": "9", "valor": "5000.00", "valor_liquido": "4900.00"},
+            "nf_rateio": {"compartilhada": True, "remessas_na_nf": 2, "valor": "1000.00",
+                          "retencoes": "88.50", "liquido": "911.50", "aliquota": "8.85",
+                          "fonte_aliquota": "configuracao",
+                          "retencoes_detalhe": {"iss": "30.00", "ir": "12.00", "pis": "6.50",
+                                                "cofins": "30.00", "csll": "10.00"}},
+        })
+        self.assertIn("8,85% (percentuais da Configuração por Convênio)", grupo["explicacao_retencao"])
+        self.assertIn("ISS R$ 30,00 · IR R$ 12,00 · PIS R$ 6,50", grupo["explicacao_retencao"])
+
+        estimado = valores_do_card({
+            "valor": "1000.00",
+            "estimativa": {"aliquota": "4.20", "fonte_aliquota": "configuracao", "origem_base": "bruto",
+                           "retencoes": "42.00", "liquido": "958.00",
+                           "retencoes_detalhe": {"iss": "30.00", "ir": "12.00"}},
+        })
+        self.assertIn("4,20% da Configuração por Convênio", estimado["explicacao_estimativa"])
+        self.assertIn("(ISS R$ 30,00 · IR R$ 12,00)", estimado["explicacao_estimativa"])
