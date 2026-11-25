@@ -4,7 +4,7 @@
 {% block page_title %}Fluxo do recebimento{% endblock %}
 {% block content_class %}follow-up-compact{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=3">
 <div class="cr-page">
 
 <section class="cr-hero" aria-label="Remessas paradas em cada etapa">
@@ -92,6 +92,7 @@
       <div>
         <span class="panel-title">Remessas{% if filtros.etapa %} · {% for card in funil %}{% if card.ativo %}{{ card.rotulo|lower }}{% endif %}{% endfor %}{% endif %}</span>
         {% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} remessas{% if not filtros.ordenar_por or filtros.ordenar_por == 'parado' %} · as paradas há mais tempo primeiro{% endif %}</span>{% endif %}
+        {% if tem_estimativa %}<span class="cr-legenda-estimado">Retenções e líquido <i>pontilhados</i> são estimados pela alíquota das NFs do convênio, até a NF ser vinculada.</span>{% endif %}
       </div>
       <div class="collapse-actions">
         {% if pagination.total %}<a class="collapse-action cr-exportar" href="{{ export_url }}" title="Planilha no layout da DEMO com todas as remessas deste filtro">Exportar Excel</a>{% endif %}
@@ -140,8 +141,8 @@
           {% with v=item.valores %}
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR BRUTO</small><strong>R$ {{ v.bruto|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value cr-valor-glosa"><small>GLOSAS</small><strong class="{% if v.glosas and v.glosas > 0 %}is-positiva{% endif %}" title="{% if v.origem_glosa == 'nf' %}Valor bruto da remessa menos o valor da NF{% elif v.origem_glosa == 'portal' %}Glosa informada no portal do convênio (cobrado − liberado){% else %}Sem NF ou glosa informada{% endif %}">{% if v.glosas is not None %}R$ {{ v.glosas|br_currency }}{% else %}—{% endif %}</strong></span>
-          <span class="follow-up-glosa-card-field follow-up-glosa-card-value cr-valor-retencao"><small>RETENÇÕES</small><strong title="Valor da NF menos o líquido no ISS">{% if v.retencoes is not None %}R$ {{ v.retencoes|br_currency }}{% else %}—{% endif %}</strong></span>
-          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR LÍQUIDO</small><strong>{% if v.liquido is not None %}R$ {{ v.liquido|br_currency }}{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value cr-valor-retencao{% if v.estimado %} is-estimado{% endif %}"><small>RETENÇÕES</small><strong title="{% if v.estimado %}{{ v.explicacao_estimativa }}{% else %}Valor da NF menos o líquido no ISS{% endif %}">{% if v.retencoes is not None %}R$ {{ v.retencoes|br_currency }}{% else %}—{% endif %}</strong></span>
+          <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated{% if v.estimado %} is-estimado{% endif %}"><small>VALOR LÍQUIDO</small><strong title="{% if v.estimado %}{{ v.explicacao_estimativa }}{% else %}Líquido da NF no ISS{% endif %}">{% if v.liquido is not None %}R$ {{ v.liquido|br_currency }}{% else %}—{% endif %}</strong></span>
           {% endwith %}
         </div>
       </div>

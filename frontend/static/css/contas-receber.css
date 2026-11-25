@@ -165,3 +165,8 @@
   .cr-hero-head { flex-direction: column; }
   .cr-hero-total { justify-items: start; text-align: left; }
 }
+
+/* Retenções e líquido estimados (sem NF): "≈" e itálico; explicação no title. */
+.cr-card-header .is-estimado strong { font-style: italic; text-decoration: underline dotted 1.5px; text-underline-offset: 3px; cursor: help; }
+.cr-legenda-estimado { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.cr-legenda-estimado i { text-decoration: underline dotted 1.5px; text-underline-offset: 3px; }

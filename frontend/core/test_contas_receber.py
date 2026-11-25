@@ -250,3 +250,43 @@ class ValoresDoCardTests(TestCase):
         self.assertContains(response, "R$ 271,52")   # 1.771,52 - 1.500,00
         self.assertContains(response, "R$ 100,00")   # retenções
         self.assertContains(response, "R$ 1.400,00")  # líquido
+
+
+class RetencaoEstimadaTests(TestCase):
+    setUp = FluxoTests.setUp
+
+    def test_usa_estimativa_so_sem_nf_e_explica(self):
+        from decimal import Decimal
+
+        from core.contas_receber import valores_do_card
+
+        estimado = valores_do_card({
+            "valor": "1968.18",
+            "protocolo": {"glosa_portal": Decimal("639.88")},
+            "estimativa": {"aliquota": "4.20", "origem_base": "liberado",
+                           "retencoes": "55.79", "liquido": "1272.51"},
+        })
+        self.assertTrue(estimado["estimado"])
+        self.assertEqual(estimado["retencoes"], Decimal("55.79"))
+        self.assertEqual(estimado["liquido"], Decimal("1272.51"))
+        self.assertIn("4,20% retido nas NFs do convênio", estimado["explicacao_estimativa"])
+        self.assertIn("liberado no portal", estimado["explicacao_estimativa"])
+
+        real = valores_do_card({
+            "valor": "7190.00",
+            "nfse": {"valor": "7190.00", "valor_liquido": "6888.02"},
+            "estimativa": None,
+        })
+        self.assertFalse(real["estimado"])
+        self.assertEqual(real["retencoes"], Decimal("301.98"))
+
+    @patch("core.contas_receber.api_get")
+    def test_card_marca_valores_estimados(self, api_get):
+        dados = payload()
+        dados["itens"][0]["estimativa"] = {"aliquota": "4.20", "origem_base": "liberado",
+                                           "retencoes": "50.00", "liquido": "1140.47"}
+        api_get.return_value = dados
+        response = self.client.get(URL)
+        self.assertContains(response, "R$ 50,00")
+        self.assertContains(response, "são estimados pela alíquota")
+        self.assertContains(response, "is-estimado")
