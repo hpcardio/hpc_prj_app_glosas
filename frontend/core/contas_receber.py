@@ -34,6 +34,7 @@ ORIGENS = {
     "manual": "Vinculado no Receita Certa",
     "planilha": "Histórico da planilha",
     "legado": "Conciliação Manual (legado)",
+    "nup_grupo": "NF do grupo (NUP do processo agrupador no portal)",
 }
 
 

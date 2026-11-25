@@ -338,3 +338,10 @@ class NfDeGrupoTests(TestCase):
         self.assertEqual(str(c["bruto"]), "2118.58")
         self.assertEqual(str(c["impostos"]), "88.98")
         self.assertEqual(str(c["glosa"]), "0.00")
+
+
+class OrigemNupGrupoTests(TestCase):
+    def test_rotulo_da_nf_do_grupo(self):
+        from core.contas_receber import ORIGENS
+
+        self.assertIn("NUP do processo agrupador", ORIGENS["nup_grupo"])
