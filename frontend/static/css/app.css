@@ -15863,3 +15863,10 @@ a.collapse-action { text-decoration: none; }
 .ns-outro-municipio__conteudo { display: grid; gap: 10px; }
 .ns-outro-municipio.is-aberta ~ .cf-resultados { flex: 1 0 190px; min-height: 190px; }
 .ns-pdf-mv { cursor: default; color: var(--muted); border-style: dashed; }
+/* NFS-e do setor: PDF + BOLETO no cabeçalho do card (largura fixa para alinhar os cards). */
+.follow-up-glosa-card-header-row:has(> .ns-slot) { grid-template-columns: minmax(0, 1fr) 128px; }
+.follow-up-glosa-pdf-slot.ns-slot { width: 128px; min-width: 128px; gap: 4px; }
+.follow-up-glosa-pdf-slot.ns-slot .follow-up-glosa-pdf-action { min-width: 54px; margin-right: 6px; }
+.ns-boleto-action { border-color: #2f8a5f; color: #24734f; }
+.ns-boleto-action:hover { background: #2f8a5f; color: #fff; }
+.ns-acoes-envio { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }

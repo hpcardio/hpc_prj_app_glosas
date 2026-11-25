@@ -9621,6 +9621,10 @@ def _cp_nfse_decimal(valor):
         return Decimal("0")
 
 
+# Mesmos perfis de gestão da API (contas_pagar_nfse.PERFIS_GESTAO).
+CP_NFSE_PERFIS_GESTAO = {"ti", "administrador"}
+
+
 CP_NFSE_SITUACOES = (
     ("pendente", "A lançar"),
     ("pronta", "Prontas para o financeiro"),
@@ -9856,6 +9860,17 @@ def _contas_pagar_nfse_setor_post(request):
             f"NFS-e {numero} importada no MV por {resultado.get('cd_usuario_mv')}: "
             f"entrada de serviço {resultado.get('cd_ent_serv')} e título {resultado.get('cd_con_pag')} no Contas a Pagar.",
         )
+    elif acao == "desfazer_envio":
+        if len(cnpj) != 14 or not numero:
+            messages.error(request, "Nota inválida.")
+            return
+        resultado = api_post(f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/boletos/desfazer-envio", {})
+        quantidade = resultado.get("boletos_removidos") or 0
+        messages.success(
+            request,
+            f"Envio ao financeiro desfeito: {quantidade} boleto{'s' if quantidade != 1 else ''} "
+            f"excluído{'s' if quantidade != 1 else ''}. A NFS-e {numero} voltou para \"A lançar\".",
+        )
     elif acao == "excluir_boleto":
         boleto_id = as_int_or_none(request.POST.get("boleto_id"))
         if not boleto_id:
@@ -9878,7 +9893,8 @@ def contas_pagar_nfse_setor(request):
             destino_especifico = _contas_pagar_nfse_setor_post(request)
         except ApiError as exc:
             destino_especifico = None
-            alvo = "o boleto" if request.POST.get("acao") in ("anexar_boleto", "excluir_boleto") else "a alteração"
+            alvo = {"anexar_boleto": "o boleto", "excluir_boleto": "o boleto",
+                    "desfazer_envio": "o desfazer do envio ao financeiro"}.get(request.POST.get("acao"), "a alteração")
             messages.error(request, f"Não foi possível salvar {alvo}: {extract_api_error_message(exc)}")
         if destino_especifico:
             return redirect(destino_especifico)
@@ -9907,8 +9923,16 @@ def contas_pagar_nfse_setor(request):
     except ApiError as exc:
         messages.error(request, f"Não foi possível carregar as NFS-e recebidas: {exc}")
     itens = payload.get("itens", [])
+    gestor = user.get("perfil") in CP_NFSE_PERFIS_GESTAO or pode_classificar
     for item in itens:
         item["status_nfse_consultado_em"] = _cp_nfse_hora_local(item.get("status_nfse_consultado_em"))
+        boletos = item.get("boletos") or {}
+        # Desfazer o envio: só antes de o financeiro dar baixa (nota ainda a lançar)
+        # e por quem enviou os boletos ou pelo financeiro. A API confere de novo.
+        item["pode_desfazer_envio"] = bool(
+            boletos.get("ids") and item.get("situacao") == "pendente"
+            and (gestor or set(boletos.get("enviado_por") or []) == {user.get("id")})
+        )
     base_query = {k: v for k, v in filtros.items() if v}
     total = len(itens)
     total_pages = max(ceil(total / CP_NFSE_POR_PAGINA), 1)

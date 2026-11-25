@@ -69,7 +69,7 @@ class NfseSetorViewTests(TestCase):
         self.assertContains(response, '1.500,50')
         # Filtro e campo SETOR usam o setor do MV; a oficina fica no título.
         self.assertContains(response, '<option value="12"  title="TECNOLOGIA DA INFORMACAO">TI · HOSPITAL PRONTOCARDIO (1 · R$ 1.500,50)</option>', html=False)
-        self.assertContains(response, '<small>SETOR</small><strong title="Oficina: TECNOLOGIA DA INFORMACAO">TI</strong>')
+        self.assertContains(response, '<small>SETOR</small><strong title="TI">TI</strong>')
         api_get.assert_called_once_with(
             '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas',
             {'situacao': 'pendente', 'cd_setor': '', 'cd_oficina': '', 'desde': ''},
@@ -104,7 +104,7 @@ class NfseSetorViewTests(TestCase):
 
         response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/')
 
-        self.assertContains(response, '<small>SETOR</small><strong title="Oficina: TECNOLOGIA DA INFORMACAO">TECNOLOGIA DA INFORMACAO</strong>')
+        self.assertContains(response, '<small>SETOR</small><strong title="TECNOLOGIA DA INFORMACAO">TECNOLOGIA DA INFORMACAO</strong>')
 
     @patch('core.views.api_get')
     def test_pagina_dez_notas_por_vez_mantendo_filtros(self, api_get):
@@ -209,6 +209,46 @@ class NfseSetorViewTests(TestCase):
         # Só a nota da base tem PDF da prefeitura.
         # Total usa o valor da entrada quando a nota do MV não tem líquido.
         self.assertEqual(response.context['valor_total'], Decimal('1700.00'))
+
+    @patch('core.views.api_get')
+    def test_nota_enviada_mostra_boleto_e_desfazer_para_quem_enviou(self, api_get):
+        enviada = {**NOTA, 'pronta': True, 'boletos': {'quantidade': 2, 'soma': '1400.00', 'primeiro_vencimento': '2026-12-10',
+                                                      'com_divergencia': False, 'ids': [31, 32], 'enviado_por': [7]}}
+        de_outro = {**NOTA, 'chave': '22222222000122-9', 'prestador_cnpj': '22222222000122', 'numero_nfse': '9',
+                    'boletos': {'quantidade': 1, 'soma': '10.00', 'primeiro_vencimento': '2026-12-10',
+                                'com_divergencia': False, 'ids': [40], 'enviado_por': [99]}}
+        lancada = {**NOTA, 'chave': '33333333000133-5', 'prestador_cnpj': '33333333000133', 'numero_nfse': '5',
+                   'situacao': 'lancada', 'mv': {'cd_ent_serv': 1, 'lancado_por_nome': 'X'},
+                   'boletos': {'quantidade': 1, 'soma': '10.00', 'primeiro_vencimento': '2026-12-10',
+                               'com_divergencia': False, 'ids': [50], 'enviado_por': [7]}}
+        api_get.return_value = {'desde': '2026-10-01', 'situacao': 'todas', 'oficinas': [],
+                                'itens': [enviada, de_outro, lancada]}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=todas')
+
+        self.assertContains(response, 'BOLETO</a>', count=3, html=False)
+        self.assertContains(response, 'Boleto 2')
+        # Só a nota enviada por este usuário e ainda não lançada pode ser desfeita.
+        self.assertContains(response, 'Desfazer envio ao financeiro</button>', count=1, html=False)
+        self.assertContains(response, 'o financeiro já deu baixa')
+
+    @patch('core.views.api_post', return_value={'desfeito': True, 'boletos_removidos': 2})
+    def test_desfazer_envio_chama_a_api(self, api_post):
+        response = self.client.post('/financeiro/contas-a-pagar/nfse-do-setor/', {
+            'acao': 'desfazer_envio', 'cnpj': '11111111000111', 'numero': '123', 'situacao': 'pendente',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        api_post.assert_called_once_with(
+            '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/11111111000111/123/boletos/desfazer-envio', {})
+
+    @patch('core.views.api_post', side_effect=ApiError('{"detail":"O financeiro já importou esta nota para o MV."}', 409))
+    def test_desfazer_envio_bloqueado_mostra_o_motivo(self, _):
+        response = self.client.post('/financeiro/contas-a-pagar/nfse-do-setor/', {
+            'acao': 'desfazer_envio', 'cnpj': '11111111000111', 'numero': '123', 'situacao': 'pendente',
+        }, follow=True)
+
+        self.assertContains(response, 'já importou esta nota')
 
 class NfseRegrasViewTests(TestCase):
     def setUp(self):
