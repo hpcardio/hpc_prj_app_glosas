@@ -403,7 +403,10 @@ class NfseBoletoViewTests(TestCase):
         self.assertEqual(path, '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/11111111000111/123/boletos')
         self.assertEqual(files['arquivo'][0], 'boleto.pdf')
         self.assertEqual(dados, {})
-        self.assertContains(response, 'pronta para o financeiro')
+        self.assertContains(response, 'Prontas para o financeiro')
+        self.assertContains(response, 'saiu de')
+        # Volta para a lista sem o card da nota aberto (ela saiu de "A lançar").
+        self.assertEqual(response.redirect_chain[-1][0], '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pendente')
 
     @patch('core.views.api_post_files')
     def test_linha_digitada_e_vencimento_vao_junto(self, api_post_files):
