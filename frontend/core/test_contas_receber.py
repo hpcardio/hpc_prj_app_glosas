@@ -22,8 +22,9 @@ def payload():
         "resumo": {
             "etapas": [
                 {"chave": "protocolo", "quantidade": 3, "valor": "300.00"},
+                {"chave": "nfs_autorizada", "quantidade": 1, "valor": "1771.52"},
                 {"chave": "nao_autorizada", "quantidade": 0, "valor": "0.00"},
-                {"chave": "aguardando_recebimento", "quantidade": 1, "valor": "1771.52"},
+                {"chave": "aguardando_recebimento", "quantidade": 0, "valor": "0.00"},
                 {"chave": "recebido", "quantidade": 0, "valor": "0.00"},
                 {"chave": "recebido_sem_conciliacao", "quantidade": 0, "valor": "0.00"},
             ],
@@ -40,7 +41,7 @@ def payload():
                               "valor_cobrado": "1771.52", "valor_liberado": "1190.47",
                               "data_protocolo": None, "solicitacao_nota_em": None},
                 "protocolo_candidatos": [], "nfse": None, "recebimentos": [], "valor_recebido": "0.00",
-                "etapa_atual": "nfse", "situacao_fluxo": "aguardando_recebimento", "pendencia": "Aguardando recebimento",
+                "etapa_atual": "nfse", "situacao_fluxo": "nfs_autorizada", "pendencia": "NFS autorizadas",
                 "nota_portal": {"situacao": "pendente", "nf_a_enviar": True, "valor": "1190.47", "nup": "G-77",
                                 "pago_desde": None},
                 "etapas": etapas,
@@ -86,14 +87,14 @@ class FluxoTests(TestCase):
         self.assertEqual(params["page_size"], 10)
         self.assertContains(response, "Onde está o dinheiro dos convênios?")
         self.assertContains(response, "Aguardando protocolo")
-        self.assertContains(response, "etapa=aguardando_recebimento")
+        self.assertContains(response, "etapa=nfs_autorizada")
         self.assertEqual([c["chave"] for c in response.context["funil"]], [
-            "protocolo", "nao_autorizada", "aguardando_recebimento",
+            "protocolo", "nfs_autorizada", "nao_autorizada", "aguardando_recebimento",
             "recebido", "recebido_sem_conciliacao"])
         self.assertContains(response, "Recebidas s/ conciliação bancária")
         self.assertContains(response, "NFS não autorizadas")
-        self.assertNotContains(response, "NFS autorizadas")
-        self.assertContains(response, "cr-card--aguardando_recebimento")
+        self.assertContains(response, "NFS autorizadas")
+        self.assertContains(response, "cr-card--nfs_autorizada")
         self.assertContains(response, "portal: pede a NF (ENVIAR)")
         self.assertContains(response, "Pendente · ENVIAR a NF")
         self.assertContains(response, "75% das remessas")
