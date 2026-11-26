@@ -15758,7 +15758,9 @@ a.collapse-action { text-decoration: none; }
 }
 .ns-card-header--avulsa { grid-template-columns: minmax(150px, 0.8fr) minmax(200px, 1.6fr) minmax(200px, 1.6fr); cursor: default; }
 .ns-card--cadastro .ns-card-header--avulsa { grid-template-columns: minmax(260px, 1.2fr) minmax(170px, 0.8fr) minmax(220px, 1.6fr); }
-.ns-card--pendente .follow-up-glosa-card-header { border-left-color: #2d7790; }
+/* A lançar · falta boleto: o que o setor ainda precisa fazer (vem primeiro na lista). */
+.ns-card--pendente { border-color: #efcf9b; box-shadow: 0 1px 4px rgba(168, 101, 15, 0.12); }
+.ns-card--pendente .follow-up-glosa-card-header { border-left: 5px solid #d98c2b; background: #fff8ec; }
 .ns-card--pronta .follow-up-glosa-card-header { border-left-color: #2f8a5f; }
 .ns-card--divergencia .follow-up-glosa-card-header { border-left-color: #b24d32; }
 .ns-card--a_classificar .follow-up-glosa-card-header { border-left-color: #d98c2b; }
@@ -15768,7 +15770,9 @@ a.collapse-action { text-decoration: none; }
 .cf-card.is-aberta { border-color: #9fc3d0; box-shadow: 0 2px 10px rgba(16, 42, 58, 0.09); }
 .ns-card--pronta .ns-situacao { color: #24734f; }
 .ns-card--divergencia .ns-situacao, .ns-card--cancelada .ns-situacao { color: #b24d32; }
-.ns-card--pendente .ns-situacao { color: #17647d; }
+.ns-card--pendente .ns-situacao { color: #a8650f; }
+.ns-falta-boleto { display: inline-flex; align-items: center; gap: 5px; font-weight: 800; }
+.ns-falta-boleto::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #d98c2b; box-shadow: 0 0 0 3px rgba(217, 140, 43, 0.2); }
 .ns-card--a_classificar .ns-situacao { color: #a8650f; }
 .ns-card--lancada .ns-situacao { color: var(--muted); }
 .ns-sem-setor { color: #a8650f; }

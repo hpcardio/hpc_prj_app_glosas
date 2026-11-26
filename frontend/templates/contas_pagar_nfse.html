@@ -140,7 +140,7 @@
             {% elif item.situacao == 'a_classificar' %}Sem setor
             {% elif item.pronta %}Pronta para o financeiro
             {% elif item.boletos.com_divergencia %}Boleto com divergência
-            {% else %}A lançar · falta boleto{% endif %}{% if item.boletos.fora_do_prazo %} <em class="cf-dias cf-dias--proximo" title="Boleto fora do prazo de 3 dias úteis, com justificativa">atraso</em>{% endif %}</strong></span>
+            {% else %}<span class="ns-falta-boleto">A lançar · falta boleto</span>{% endif %}{% if item.boletos.fora_do_prazo %} <em class="cf-dias cf-dias--proximo" title="Boleto fora do prazo de 3 dias úteis, com justificativa">atraso</em>{% endif %}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR</small><strong>R$ {{ item.valor_servicos|br_currency }}</strong></span>
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>LÍQUIDO</small><strong>{% if item.valor_liquido is not None %}R$ {{ item.valor_liquido|br_currency }}{% else %}—{% endif %}</strong></span>
         </div>
