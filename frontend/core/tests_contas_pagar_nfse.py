@@ -539,9 +539,11 @@ class NfseMenuTests(TestCase):
 
         self.assertIn('1. NFS-e do setor', html)
         self.assertNotIn('2. Setores dos fornecedores', html)
-        # O setor vê só o menu Lançamento de Serviços, sem o grupo Contas a Pagar vazio.
+        # Lançamento de Serviços fica dentro de Contas a Pagar; o setor vê só ele lá dentro.
+        self.assertIn('title="Contas a Pagar"', html)
         self.assertIn('Lançamento de Serviços', html)
-        self.assertNotIn('title="Contas a Pagar"', html)
+        self.assertNotIn('1. Operação', html)
+        self.assertLess(html.index('title="Contas a Pagar"'), html.index('title="Lançamento de Serviços"'))
 
     @patch('core.views._mv_vinculo', return_value=None)
     @patch('core.views.api_get', return_value={'oficinas': [], 'itens': []})

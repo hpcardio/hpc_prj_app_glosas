@@ -479,6 +479,10 @@ body.is-login-entry .app-light-reveal span {
   font-size: 12px;
 }
 
+/* 3º nível (ex.: Contas a Pagar › Lançamento de Serviços). */
+.sidebar .nav-subgroup--deep .nav-subgroup-toggle { width: calc(100% - 10px); font-weight: 600; }
+.sidebar .nav-subgroup--deep .nav-submenu--nested { margin-left: 14px; }
+
 .sidebar-footer {
   margin: auto -14px 0;
   padding: 14px 14px calc(24px + env(safe-area-inset-bottom));
