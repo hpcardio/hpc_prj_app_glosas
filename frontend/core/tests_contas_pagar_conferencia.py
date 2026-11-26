@@ -97,6 +97,8 @@ class ConferenciaTests(TestCase):
         api_get.side_effect = self._api_get
         response = self.client.get(URL + '?desfazer=63554067000198-93125822')
         self.assertContains(response, 'cf-card--desfazer')
+        # Abre como janela pop-up (modal) sobre a tela.
+        self.assertContains(response, 'class="cf-modal-layer" role="dialog" aria-modal="true"', html=False)
         self.assertContains(response, '<small>NFS-E</small><strong>93125822</strong>', html=False)
         self.assertContains(response, '108679')
         self.assertContains(response, '12463')
