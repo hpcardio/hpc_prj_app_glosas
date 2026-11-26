@@ -67,7 +67,10 @@ class ConferenciaTests(TestCase):
         self.assertContains(response, '?situacao=pronta&nota=41644220000135-5744268&simular=1#simulacao', html=False)
         self.assertContains(response, 'Desfazer importação')
         self.assertContains(response, 'boletos enviados hoje vencem a partir de 24/11/2026')
-        self.assertContains(response, 'nfse-do-setor/?cadastrar=1#cadastro', html=False)
+        self.assertNotContains(response, 'nfse-do-setor/?cadastrar=1#cadastro', html=False)
+        # Login MV no topo da página (mesmo layout da NFS-e do setor), fora do painel da lista.
+        html = response.content.decode()
+        self.assertLess(html.index('mv-login-status--topo'), html.index('cf-resultados'))
         self.assertContains(response, '6. Conferência do financeiro')
         conteudo = response.content.decode()
         self.assertLess(conteudo.index('5744268'), conteudo.index('93125822'))  # mantém a ordem por vencimento
