@@ -152,6 +152,7 @@
               {% if screen_access.contas_pagar_operacao %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_operacao' %}is-active{% endif %}" href="{% url 'contas_pagar_operacao' %}" title="Operacionalizar e editar registros"><span class="nav-label">1. Operação</span></a>{% endif %}
               {% if screen_access.contas_pagar_acompanhamento %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_acompanhamento' %}is-active{% endif %}" href="{% url 'contas_pagar_acompanhamento' %}" title="Acompanhar ações e negociações"><span class="nav-label">2. Acompanhamento</span></a>{% endif %}
               {% if screen_access.contas_pagar_gestao %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_gestao' %}is-active{% endif %}" href="{% url 'contas_pagar_gestao' %}" title="Gerenciar exposição e prioridade"><span class="nav-label">3. Gestão</span></a>{% endif %}
+              {% if screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_extratos' %}is-active{% endif %}" href="{% url 'contas_pagar_extratos' %}" title="Extratos bancários e baixa dos títulos pagos"><span class="nav-label">4. Extratos e baixa</span></a>{% endif %}
               {% if screen_access.contas_pagar_nfse_setor or screen_access.contas_pagar_nfse_regras %}
               <div class="nav-subgroup nav-subgroup--deep">
                 <button type="button" class="nav-group-toggle nav-subitem nav-subitem--nested nav-subgroup-toggle {% if request.resolver_match.url_name == 'contas_pagar_nfse_setor' or request.resolver_match.url_name == 'contas_pagar_nfse_regras' or request.resolver_match.url_name == 'contas_pagar_conferencia' %}is-active{% endif %}" @click="servicesOpen = !servicesOpen; if (servicesOpen) $nextTick(() => $el.parentElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))" :aria-expanded="servicesOpen" title="Lançamento de Serviços">
@@ -164,7 +165,6 @@
                 </div>
               </div>
               {% endif %}
-              {% if screen_access.contas_pagar_nfse_regras %}<a class="nav-subitem nav-subitem--nested {% if request.resolver_match.url_name == 'contas_pagar_extratos' %}is-active{% endif %}" href="{% url 'contas_pagar_extratos' %}" title="Extratos bancários e baixa dos títulos pagos"><span class="nav-label">4. Extratos e baixa</span></a>{% endif %}
             </div>
           </div>
           {% endif %}
