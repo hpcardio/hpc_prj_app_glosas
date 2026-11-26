@@ -21,14 +21,12 @@ EXPORT_TIMEOUT = 110
 MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
 ETAPAS_FUNIL = (
     ("protocolo", "Aguardando protocolo", "Remessas fechadas no MV que ainda não têm protocolo no convênio."),
-    ("nfs_autorizada", "NFS autorizadas",
-     "O convênio pediu a NF (ENVIAR em Notas Fiscais – Pendentes no portal) e ela ainda não foi anexada."),
-    ("nao_autorizada", "Não autorizadas", "Protocoladas, mas o convênio ainda não listou em Notas Fiscais."),
+    ("nao_autorizada", "NFS não autorizadas", "Protocoladas, mas o convênio ainda não listou em Notas Fiscais."),
     ("aguardando_recebimento", "Aguardando recebimento",
-     "NF entregue (Notas Fiscais – Pendentes sem ENVIAR) ou NFS vinculada, ainda sem pagamento."),
-    ("recebido", "Recebidos", "Pago no portal do convênio e com o crédito do extrato vinculado."),
-    ("recebido_sem_conciliacao", "Recebidos s/ conciliação bancária",
-     "Pago no portal do convênio, sem crédito do extrato vinculado."),
+     "Em Notas Fiscais – Pendentes no portal (com ou sem ENVIAR), com NFS vinculada ou nota solicitada, ainda sem pagamento."),
+    ("recebido", "Recebidas", "Pagas no portal do convênio e com o crédito do extrato vinculado."),
+    ("recebido_sem_conciliacao", "Recebidas s/ conciliação bancária",
+     "Pagas no portal do convênio, sem crédito do extrato vinculado."),
 )
 SITUACOES_RECEBIDAS = {"recebido", "recebido_sem_conciliacao"}
 ORDENACOES = (
