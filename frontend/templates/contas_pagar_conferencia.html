@@ -7,10 +7,15 @@
 {% block content %}
 
 {% if desfazer %}
-<article class="follow-up-glosa-card cf-card cf-card--desfazer" id="desfazer">
+{# Desfazer importação em janela pop-up sobre a tela; fechar = sair do ?desfazer= #}
+<div class="cf-modal-layer" role="dialog" aria-modal="true" aria-labelledby="cf-desfazer-titulo"
+     x-data x-init="$nextTick(() => ($el.querySelector('textarea') || $el.querySelector('.cf-fechar')).focus())"
+     @keydown.escape.window="window.location.href = $el.dataset.fechar" data-fechar="?{% querystring desfazer='' %}">
+<a class="cf-modal-fundo" href="?{% querystring desfazer='' %}" aria-label="Fechar" tabindex="-1"></a>
+<article class="follow-up-glosa-card cf-card cf-card--desfazer cf-modal" id="desfazer">
   <div class="follow-up-glosa-card-header-row">
     <div class="follow-up-glosa-card-header cf-desfazer-header">
-      <span class="follow-up-glosa-card-field"><small>AÇÃO</small><strong>Desfazer importação</strong></span>
+      <span class="follow-up-glosa-card-field"><small>AÇÃO</small><strong id="cf-desfazer-titulo">Desfazer importação</strong></span>
       <span class="follow-up-glosa-card-field"><small>NFS-E</small><strong>{{ desfazer.nota.numero_nfse }}</strong></span>
       <span class="follow-up-glosa-card-field"><small>FORNECEDOR</small><strong title="{{ desfazer.nota.prestador_razao_social }}">{{ desfazer.nota.prestador_razao_social }}</strong></span>
       <span class="follow-up-glosa-card-field"><small>IMPORTADA POR</small><strong>{{ desfazer.importacao.cd_usuario_mv|default:'—' }}</strong></span>
@@ -73,6 +78,7 @@
     </div>
   </div>
 </article>
+</div>
 {% endif %}
 
 <section class="panel filter-panel cf-filtros" x-data="{ loading: false }">
