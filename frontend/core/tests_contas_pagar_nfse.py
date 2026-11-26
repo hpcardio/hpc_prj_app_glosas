@@ -397,12 +397,13 @@ class NfseBoletoViewTests(TestCase):
         response = self.client.post(self.URL, {
             'acao': 'anexar_boleto', 'cnpj': '11.111.111/0001-11', 'numero': '123',
             'arquivo': self.pdf(), 'situacao': 'pendente', 'nota': '11111111000111-123',
+            'observacao': '  Licença   anual do sistema de ponto, contrato 7/2026 ',
         }, follow=True)
 
         path, files, dados = api_post_files.call_args.args
         self.assertEqual(path, '/app_glosas/financeiro/contas-a-pagar/nfse/recebidas/11111111000111/123/boletos')
         self.assertEqual(files['arquivo'][0], 'boleto.pdf')
-        self.assertEqual(dados, {})
+        self.assertEqual(dados, {'observacao': 'Licença anual do sistema de ponto, contrato 7/2026'})
         self.assertContains(response, 'Prontas para o financeiro')
         self.assertContains(response, 'saiu de')
         # Volta para a lista sem o card da nota aberto (ela saiu de "A lançar").
@@ -415,16 +416,29 @@ class NfseBoletoViewTests(TestCase):
         response = self.client.post(self.URL, {
             'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123', 'arquivo': self.pdf(),
             'linha_digitavel': ' 34191.09008 ', 'vencimento': '2026-12-10',
+            'observacao': 'Manutenção preventiva dos elevadores - novembro',
         }, follow=True)
 
         self.assertEqual(api_post_files.call_args.args[2],
-                         {'linha_digitavel': '34191.09008', 'vencimento': '2026-12-10'})
+                         {'linha_digitavel': '34191.09008', 'vencimento': '2026-12-10',
+                          'observacao': 'Manutenção preventiva dos elevadores - novembro'})
         self.assertContains(response, 'divergências: Boleto vencido.')
+
+    @patch('core.views.api_post_files')
+    def test_envio_sem_observacao_nao_chama_a_api(self, api_post_files):
+        response = self.client.post(self.URL, {
+            'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123', 'arquivo': self.pdf(),
+            'observacao': 'curta',
+        }, follow=True)
+
+        api_post_files.assert_not_called()
+        self.assertContains(response, 'do que se trata a NFS-e')
 
     @patch('core.views.api_post_files', side_effect=ApiError('{"detail":"Envie o boleto em PDF."}', 422))
     def test_erro_da_api_ao_anexar(self, _):
         response = self.client.post(self.URL, {
             'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123', 'arquivo': self.pdf(),
+            'observacao': 'Serviço de limpeza de caixas d’água de novembro',
         }, follow=True)
 
         self.assertContains(response, 'Não foi possível salvar o boleto')
@@ -840,7 +854,8 @@ class PrazoBoletoTests(TestCase):
 
         arquivo = SimpleUploadedFile('b.pdf', b'%PDF-1.4 x', content_type='application/pdf')
         response = self.client.post(self.URL, {'acao': 'anexar_boleto', 'cnpj': '11111111000111', 'numero': '123',
-                                               'arquivo': arquivo, 'justificativa_atraso': ' Fornecedor só enviou hoje. '},
+                                               'arquivo': arquivo, 'justificativa_atraso': ' Fornecedor só enviou hoje. ',
+                                               'observacao': 'Consultoria contábil de novembro, contrato 3/2026'},
                                     follow=True)
         _, _, dados = api_post_files.call_args.args
         self.assertEqual(dados['justificativa_atraso'], 'Fornecedor só enviou hoje.')

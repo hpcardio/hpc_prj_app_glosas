@@ -21,6 +21,7 @@
           <td class="col-desc"><span class="cf-mono">{{ boleto.linha_digitavel }}</span>{% if boleto.origem_leitura == 'manual' %}<span class="cf-sub">digitada</span>{% endif %}</td>
           <td class="col-desc">
             {% for d in boleto.divergencias %}<span class="cf-sub cf-erro">{{ d }}</span>{% empty %}<span class="cf-ok">Confere com a NFS-e</span>{% endfor %}
+            {% if boleto.observacao %}<span class="cf-sub ns-observacao-texto"><strong>Observação{% if boleto.enviado_por_nome %} de {{ boleto.enviado_por_nome }}{% endif %}:</strong> {{ boleto.observacao }}</span>{% endif %}
             {% if boleto.fora_do_prazo %}<span class="cf-sub cf-prazo--fora">Fora do prazo de 3 dias úteis · prazo era {{ boleto.prazo_minimo|api_date }}{% if boleto.enviado_por_nome %} · enviado por {{ boleto.enviado_por_nome }}{% endif %}</span><span class="cf-sub">Justificativa: {{ boleto.justificativa_atraso }}</span>{% endif %}
           </td>
           <td class="ns-acoes-boleto">
@@ -59,6 +60,12 @@
       <div class="filter-group filter-group--sm ns-venc"><label for="ns-venc" title="Para contas de consumo sem vencimento na linha digitável">Vencimento</label><input id="ns-venc" class="form-control" type="date" name="vencimento"></div>
       <div class="filter-group ns-just"><label for="ns-just" title="Obrigatória se o boleto vencer antes do prazo de 3 dias úteis">Justificativa do atraso</label><input id="ns-just" class="form-control" name="justificativa_atraso" maxlength="400" placeholder="Ex.: o fornecedor só enviou o boleto hoje"></div>
       <div class="filter-actions"><button class="btn btn-primary" type="submit">Anexar boleto</button></div>
+    </div>
+    <div class="filter-group ns-observacao">
+      <label for="ns-observacao">Observação para o financeiro <span class="ns-obrigatorio">obrigatória</span></label>
+      <textarea id="ns-observacao" class="form-control" name="observacao" rows="3" minlength="20" maxlength="2000" required
+        placeholder="Explique do que se trata a NFS-e: serviço prestado, período de referência, contrato ou pedido, quem solicitou, se é parcela ou cobrança única..."></textarea>
+      <small class="ns-regra">O financeiro lê esta observação antes de lançar no MV. Mínimo de 20 caracteres.</small>
     </div>
     <p class="ns-regra">Regra do financeiro: o boleto deve vencer pelo menos 3 dias úteis depois do envio.</p>
   </form>

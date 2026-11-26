@@ -9833,6 +9833,11 @@ def _contas_pagar_nfse_setor_post(request):
             dados["vencimento"] = request.POST["vencimento"].strip()
         if (request.POST.get("justificativa_atraso") or "").strip():
             dados["justificativa_atraso"] = request.POST["justificativa_atraso"].strip()[:400]
+        observacao = " ".join((request.POST.get("observacao") or "").split())
+        if len(observacao) < 20:
+            messages.error(request, "Explique na observação do que se trata a NFS-e (mínimo de 20 caracteres) para enviar ao financeiro.")
+            return
+        dados["observacao"] = observacao[:2000]
         resultado = api_post_files(
             f"{CP_NFSE_PATH}/recebidas/{cnpj}/{numero}/boletos",
             {"arquivo": (arquivo.name, arquivo.read(), "application/pdf")},

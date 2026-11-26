@@ -15875,3 +15875,9 @@ a.collapse-action { text-decoration: none; }
 .ns-boleto-action { border-color: #2f8a5f; color: #24734f; }
 .ns-boleto-action:hover { background: #2f8a5f; color: #fff; }
 .ns-acoes-envio { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+
+/* NFS-e do setor: observação obrigatória ao enviar ao financeiro. */
+.ns-anexar .ns-observacao { margin-top: 10px; max-width: none; }
+.ns-anexar .ns-observacao textarea { resize: vertical; min-height: 72px; font-size: 13px; }
+.ns-obrigatorio { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #fff3dc; color: #8a520d; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.ns-observacao-texto { color: var(--ink); white-space: normal; }
