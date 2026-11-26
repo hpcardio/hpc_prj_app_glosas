@@ -21,10 +21,16 @@ EXPORT_TIMEOUT = 110
 MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
 ETAPAS_FUNIL = (
     ("protocolo", "Aguardando protocolo", "Remessas fechadas no MV que ainda não têm protocolo no convênio."),
-    ("nfse", "Aguardando NFS", "Protocoladas no convênio, sem NFS vinculada."),
-    ("recebimento", "Aguardando recebimento", "NFS emitida, sem lançamento de extrato vinculado."),
-    ("concluido", "Recebidas", "Fluxo completo: o recebimento está no extrato."),
+    ("nfs_autorizada", "NFS autorizadas",
+     "O convênio pediu a NF (ENVIAR em Notas Fiscais – Pendentes no portal) e ela ainda não foi anexada."),
+    ("nao_autorizada", "Não autorizadas", "Protocoladas, mas o convênio ainda não listou em Notas Fiscais."),
+    ("aguardando_recebimento", "Aguardando recebimento",
+     "NF entregue (Notas Fiscais – Pendentes sem ENVIAR) ou NFS vinculada, ainda sem pagamento."),
+    ("recebido", "Recebidos", "Pago no portal do convênio e com o crédito do extrato vinculado."),
+    ("recebido_sem_conciliacao", "Recebidos s/ conciliação bancária",
+     "Pago no portal do convênio, sem crédito do extrato vinculado."),
 )
+SITUACOES_RECEBIDAS = {"recebido", "recebido_sem_conciliacao"}
 ORDENACOES = (
     ("parado", "Mais tempo parado"),
     ("competencia", "Competência mais recente"),
@@ -180,6 +186,10 @@ def _enriquecer(item):
     nfse = item.get("nfse") or None
     if nfse:
         nfse["origem_label"] = ORIGENS.get(nfse.get("origem"), nfse.get("origem") or "")
+    item["situacao_fluxo"] = item.get("situacao_fluxo") or "nao_autorizada"
+    portal = item.get("nota_portal") or None
+    if portal:
+        portal["paga"] = portal.get("situacao") == "paga"
     item["valores"] = valores_do_card(item)
     item["nf_compartilhada"] = bool((item.get("nf_rateio") or {}).get("compartilhada"))
     detalhes = {

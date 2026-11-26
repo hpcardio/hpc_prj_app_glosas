@@ -4,7 +4,7 @@
 {% block page_title %}Fluxo do recebimento{% endblock %}
 {% block content_class %}follow-up-compact{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=5">
+<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=6">
 <div class="cr-page">
 
 <section class="cr-hero" aria-label="Remessas paradas em cada etapa">
@@ -12,7 +12,7 @@
     <div>
       <span class="cr-eyebrow">Remessa · Protocolo · NFS · Recebimento</span>
       <h2>Onde está o dinheiro dos convênios?</h2>
-      <p>Cada remessa fechada no MV percorre quatro etapas até o dinheiro aparecer no extrato. Clique numa etapa para ver as remessas paradas nela.</p>
+      <p>Cada remessa fechada no MV passa por estas situações até o dinheiro aparecer no extrato; no ISSEC, a situação vem de Notas Fiscais (pendentes e pagas) do portal. Clique numa situação para ver as remessas paradas nela.</p>
     </div>
     <div class="cr-hero-total">
       <small>Remessas no filtro</small>
@@ -24,7 +24,7 @@
     {% for card in funil %}
     <li class="cr-etapa cr-etapa--{{ card.chave }}{% if card.ativo %} is-selected{% endif %}">
       <a class="cr-etapa-link" href="{{ card.url }}" title="{% if card.ativo %}Remover filtro{% else %}{{ card.ajuda }}{% endif %}"{% if card.ativo %} aria-current="true"{% endif %}>
-        <span class="cr-etapa-numero" aria-hidden="true">{% if card.chave == 'concluido' %}&#10003;{% else %}{{ forloop.counter }}{% endif %}</span>
+        <span class="cr-etapa-numero" aria-hidden="true">{{ forloop.counter }}</span>
         <span class="cr-etapa-rotulo">{{ card.rotulo }}</span>
         <strong class="cr-etapa-qtd">{{ card.quantidade }}<small> remessa{{ card.quantidade|pluralize }}</small></strong>
         <span class="cr-etapa-valor">R$ {{ card.valor|br_currency }}</span>
@@ -128,7 +128,7 @@
   <div class="results-list follow-up-glosa-list">
     {% for item in itens %}
     {% with cd=item.cd_remessa|stringformat:'s' %}
-    <article id="remessa-{{ item.cd_remessa }}" class="follow-up-glosa-card cr-card cr-card--{{ item.etapa_atual }}{% if aberta == cd %} is-aberta{% endif %}" x-data="{ open: {% if aberta == cd %}true{% else %}false{% endif %} }" @cr-expandir.window="open = true" @cr-colapsar.window="open = false">
+    <article id="remessa-{{ item.cd_remessa }}" class="follow-up-glosa-card cr-card cr-card--{{ item.situacao_fluxo }}{% if aberta == cd %} is-aberta{% endif %}" x-data="{ open: {% if aberta == cd %}true{% else %}false{% endif %} }" @cr-expandir.window="open = true" @cr-colapsar.window="open = false">
       <div class="follow-up-glosa-card-header-row">
         <div class="follow-up-glosa-card-header cr-card-header">
           <button type="button" class="follow-up-glosa-chevron" :class="{ 'is-open': open }" @click="open = !open" :aria-expanded="open" aria-label="Expandir ou recolher a remessa {{ item.cd_remessa }}">&#9654;</button>
@@ -137,7 +137,7 @@
           <span class="follow-up-glosa-card-field"><small>COMPETÊNCIA</small><strong>{{ item.competencia_label }}</strong></span>
           <span class="follow-up-glosa-card-field"><small>PROTOCOLO</small><strong>{% if item.protocolo %}{{ item.protocolo.numero }}{% if item.protocolo.situacao == 'automatico' %} <em class="cr-tag cr-tag--auto" title="Casado automaticamente com o portal do convênio">auto</em>{% endif %}{% elif item.protocolo_candidatos %}<em class="cr-tag cr-tag--confirmar" title="Casamento com o portal não é único: confirme o protocolo">{{ item.protocolo_candidatos|length }} sugest{{ item.protocolo_candidatos|length|pluralize:"ão,ões" }}</em>{% else %}—{% endif %}</strong></span>
           <span class="follow-up-glosa-card-field"><small>NFS</small><strong>{% if item.nfse %}{{ item.nfse.numero }}{% else %}—{% endif %}</strong></span>
-          <span class="follow-up-glosa-card-field"><small>SITUAÇÃO</small><strong><span class="cr-situacao cr-situacao--{{ item.etapa_atual }}">{{ item.pendencia }}</span></strong></span>
+          <span class="follow-up-glosa-card-field"><small>SITUAÇÃO</small><strong><span class="cr-situacao cr-situacao--{{ item.situacao_fluxo }}" title="{{ item.pendencia }}{% if item.nota_portal %} · portal: {% if item.nota_portal.paga %}paga{% if item.nota_portal.valor %} (R$ {{ item.nota_portal.valor|br_currency }}){% endif %}{% elif item.nota_portal.nf_a_enviar %}pede a NF (ENVIAR){% else %}NF entregue, aguardando pagamento{% endif %}{% endif %}">{{ item.pendencia }}</span></strong></span>
           <span class="follow-up-glosa-card-field"><small>PARADA HÁ</small><strong>{% if item.dias_na_etapa is not None %}<span class="cr-dias cr-dias--{{ item.faixa_dias }}">{{ item.dias_na_etapa }} dia{{ item.dias_na_etapa|pluralize }}</span>{% else %}—{% endif %}</strong></span>
           {% with v=item.valores %}
           <span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR TOTAL</small><strong title="Valor da remessa no MV (soma das contas)">R$ {{ v.total|br_currency }}</strong></span>
@@ -186,6 +186,8 @@
               {% if p.valor_cobrado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR COBRADO</small><strong>R$ {{ p.valor_cobrado|br_currency }}</strong></span>{% endif %}
               {% if p.valor_liberado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR LIBERADO</small><strong>R$ {{ p.valor_liberado|br_currency }}</strong></span>{% endif %}
               {% if p.glosa_portal %}<span class="follow-up-glosa-card-field"><small>GLOSADO NO PORTAL</small><strong class="cr-erro">R$ {{ p.glosa_portal|br_currency }}</strong></span>{% endif %}
+              {% with np=item.nota_portal %}{% if np %}<span class="follow-up-glosa-card-field"><small>NOTAS FISCAIS NO PORTAL</small><strong>{% if np.paga %}Paga{% if np.pago_desde %} · vista em {{ np.pago_desde|api_date }}{% endif %}{% elif np.nf_a_enviar %}Pendente · ENVIAR a NF{% else %}Pendente · NF entregue{% endif %}</strong></span>
+              {% if np.paga and np.valor %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR PAGO NO PORTAL</small><strong title="Valor pago informado pelo convênio{% if np.nup %} (NUP {{ np.nup }}){% endif %}">R$ {{ np.valor|br_currency }}</strong></span>{% endif %}{% endif %}{% endwith %}
             </div>
             <div class="cr-acoes">
               {% if p.situacao == 'automatico' %}
