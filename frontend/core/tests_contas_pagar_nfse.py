@@ -559,10 +559,10 @@ BOLETOS = {'nota': {'prestador_cnpj': '63554067000198', 'numero_nfse': '93125822
 class SimulacaoImportacaoTests(TestCase):
     URL = '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta&nota=63554067000198-93125822'
 
-    def _entrar(self, telas):
+    def _entrar(self, telas, perfil='ti'):
         session = self.client.session
         session['api_access_token'] = 'token'
-        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'usuario', 'telas_permitidas': telas}
+        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': perfil, 'telas_permitidas': telas}
         session.save()
 
     def _api_get(self, path, params=None, **kwargs):
@@ -590,6 +590,20 @@ class SimulacaoImportacaoTests(TestCase):
         self.assertContains(response, '<td>0 %</td>', html=False)
 
     @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
+    @patch('core.views.api_post', return_value=SIMULACAO)
+    @patch('core.views.api_get')
+    def test_financeiro_sem_perfil_ti_nao_ve_o_passo_a_passo_tecnico(self, api_get, api_post, _):
+        self._entrar(['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras'], perfil='usuario')
+        api_get.side_effect = self._api_get
+
+        response = self.client.get(self.URL + '&simular=1')
+
+        self.assertContains(response, 'Apta para importar.')
+        self.assertNotContains(response, 'INSERT ENT_SERV')
+        self.assertNotContains(response, 'DBAMV.FNC_IMPORTA_MGES_FNFI_SERV')
+        self.assertNotContains(response, 'cp-imp__gravacoes')
+
+    @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
     @patch('core.views.api_post')
     @patch('core.views.api_get')
     def test_pendencias_aparecem_com_o_codigo_do_mv(self, api_get, api_post, _):
@@ -607,7 +621,7 @@ class SimulacaoImportacaoTests(TestCase):
     @patch('core.views.api_post')
     @patch('core.views.api_get')
     def test_setor_nao_ve_nem_dispara_a_simulacao(self, api_get, api_post, _):
-        self._entrar(['contas_pagar_nfse_setor'])
+        self._entrar(['contas_pagar_nfse_setor'], perfil='usuario')
         api_get.side_effect = self._api_get
 
         response = self.client.get(self.URL + '&simular=1')
@@ -874,7 +888,7 @@ class SimulacaoComImpostosTests(TestCase):
     def setUp(self):
         session = self.client.session
         session['api_access_token'] = 'token'
-        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'usuario',
+        session['api_user'] = {'id': 4, 'nome': 'Amoras', 'perfil': 'ti',
                                'telas_permitidas': ['contas_pagar_nfse_setor', 'contas_pagar_nfse_regras']}
         session.save()
         vinculo = patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})

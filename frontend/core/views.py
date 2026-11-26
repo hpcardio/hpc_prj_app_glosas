@@ -9997,6 +9997,8 @@ def contas_pagar_nfse_setor(request):
             "cadastro_pdf": _cp_nfse_manual_contexto(request),
             "nota_aberta_na_pagina": bool(nota_aberta) and any(i.get("chave") == nota_aberta.get("chave") for i in itens_pagina),
             "simulacao": simulacao,
+            # Passo a passo técnico da importação (INSERT/UPDATE e função do MV): só TI.
+            "usuario_ti": user.get("perfil") == "ti",
             "mv_vinculo": _mv_vinculo(),
         },
     )
