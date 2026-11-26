@@ -519,8 +519,11 @@ class NfseMenuTests(TestCase):
         self.entrar(['contas_pagar_nfse_setor'])
         html = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/').content.decode()
 
-        self.assertIn('4. NFS-e do setor', html)
-        self.assertNotIn('5. Setores dos fornecedores', html)
+        self.assertIn('1. NFS-e do setor', html)
+        self.assertNotIn('2. Setores dos fornecedores', html)
+        # O setor vê só o menu Lançamento de Serviços, sem o grupo Contas a Pagar vazio.
+        self.assertIn('Lançamento de Serviços', html)
+        self.assertNotIn('title="Contas a Pagar"', html)
 
     @patch('core.views._mv_vinculo', return_value=None)
     @patch('core.views.api_get', return_value={'oficinas': [], 'itens': []})
@@ -528,8 +531,8 @@ class NfseMenuTests(TestCase):
         self.entrar(['contas_pagar_nfse_regras'])
         html = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/').content.decode()
 
-        self.assertIn('4. NFS-e do setor', html)
-        self.assertIn('5. Setores dos fornecedores', html)
+        self.assertIn('1. NFS-e do setor', html)
+        self.assertIn('2. Setores dos fornecedores', html)
         self.assertIn('/financeiro/contas-a-pagar/setores-dos-fornecedores/', html)
 
     @patch('core.views.get_cached_api_payload', return_value={'fornecedores': [], 'resumo': {}, 'historico': [], 'opcoes_classificacao': []})
@@ -540,8 +543,9 @@ class NfseMenuTests(TestCase):
         html = response.content.decode()
         self.assertIn('1. Operação', html)
 
-        self.assertNotIn('4. NFS-e do setor', html)
-        self.assertNotIn('5. Setores dos fornecedores', html)
+        self.assertNotIn('Lançamento de Serviços', html)
+        self.assertNotIn('1. NFS-e do setor', html)
+        self.assertNotIn('2. Setores dos fornecedores', html)
 
 
 SIMULACAO = {

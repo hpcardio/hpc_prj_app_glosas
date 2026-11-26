@@ -71,7 +71,7 @@ class ConferenciaTests(TestCase):
         # Login MV no topo da página (mesmo layout da NFS-e do setor), fora do painel da lista.
         html = response.content.decode()
         self.assertLess(html.index('mv-login-status--topo'), html.index('cf-resultados'))
-        self.assertContains(response, '6. Conferência do financeiro')
+        self.assertContains(response, '3. Conferência do financeiro')
         conteudo = response.content.decode()
         self.assertLess(conteudo.index('5744268'), conteudo.index('93125822'))  # mantém a ordem por vencimento
 

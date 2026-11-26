@@ -66,7 +66,7 @@ class ExtratosTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         api_get.assert_any_call(f'{PATH}/baixas/sugestoes', {'cd_con_cor': 1, 'desde': '2026-11-16', 'ate': '2026-11-23'})
-        self.assertContains(response, '7. Extratos e baixa')
+        self.assertContains(response, '4. Extratos e baixa')
         self.assertContains(response, '08 BB.pdf')
         self.assertContains(response, 'FORNECEDOR TESTE')
         self.assertContains(response, '7d depois')
