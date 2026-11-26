@@ -156,6 +156,18 @@ SCREEN_KEYS = tuple(
 )
 
 ROUTE_PERMISSIONS = {
+    'supplier_bulk_create': ('contas_pagar_gestao','contas_pagar_nfse_regras'),
+    'supplier_bulk_history': ('contas_pagar_gestao','contas_pagar_nfse_regras'),
+    'supplier_bulk_detail': ('contas_pagar_gestao','contas_pagar_nfse_regras'),
+    'supplier_payments': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_payment_confirm': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_payment_notice': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_payment_document': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_updates': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_update_catalog': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_update_message': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_update_detail': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
+    'supplier_update_attachment': ('contas_pagar_gestao', 'contas_pagar_nfse_regras'),
     "petrobras_bridge": "follow_up_glosas",
     "openfinance": "contas_pagar_gestao",
     "openfinance_connect": "contas_pagar_gestao",

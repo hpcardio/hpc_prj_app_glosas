@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% load static %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar · Comunicações{% endblock %}
+{% block page_title %}Preparar solicitação ao fornecedor{% endblock %}
+{% block content_class %}supplier-workspace{% endblock %}
+{% block content %}<link rel="stylesheet" href="{% static 'css/supplier-updates.css' %}?v=2"><a class="su-text-link" href="{% url 'supplier_updates' %}">← Voltar à listagem de comunicações</a>
+{% if error %}<div class="su-alert su-alert--error">{{ error }}</div>{% endif %}{% if case %}<div class="su-section-head"><div><h2>{{ case.name }}</h2><p class="su-help">Empresa {{ case.company }} · {{ case.document }}</p></div><a class="su-text-link" href="{% url 'supplier_update_detail' case.id %}">Consultar resposta recebida</a></div>
+<details class="panel su-panel" {% if not case.contact.email and not case.contact.whatsapp %}open{% endif %}><summary class="su-text-link">Destinatário e contatos</summary>{% include 'partials/supplier_contact.html' %}</details>
+{% include 'partials/supplier_compose.html' %}{% endif %}<script defer src="{% static 'js/supplier-updates.js' %}?v=2"></script>{% endblock %}

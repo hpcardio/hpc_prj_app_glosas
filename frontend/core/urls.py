@@ -1,8 +1,25 @@
 from django.urls import path
 
 from . import views, petrobras, openfinance, contas_receber
+from . import supplier_updates
+from . import supplier_payments
+from . import supplier_bulk
 
 urlpatterns = [
+    path('financeiro/contas-a-pagar/envios-em-massa/preparar/',supplier_bulk.create,name='supplier_bulk_create'),
+    path('financeiro/contas-a-pagar/envios-em-massa/historico/',supplier_bulk.history,name='supplier_bulk_history'),
+    path('financeiro/contas-a-pagar/envios-em-massa/<str:id>/',supplier_bulk.detail,name='supplier_bulk_detail'),
+    path('financeiro/contas-a-pagar/confirmacao-pagamentos/',supplier_payments.listing,name='supplier_payments'),
+    path('financeiro/contas-a-pagar/confirmacao-pagamentos/confirmar/',supplier_payments.confirm,name='supplier_payment_confirm'),
+    path('financeiro/contas-a-pagar/confirmacao-pagamentos/avisos/<str:id>/',supplier_payments.notice,name='supplier_payment_notice'),
+    path('financeiro/contas-a-pagar/confirmacao-pagamentos/avisos/<str:id>/arquivos/<str:file>/',supplier_payments.document,name='supplier_payment_document'),
+    path('fornecedor/pagamento/',supplier_payments.portal,name='supplier_payment_portal'),
+    path('financeiro/contas-a-pagar/fornecedores/', supplier_updates.listing, name='supplier_updates'),
+    path('financeiro/contas-a-pagar/fornecedores/selecionar/', supplier_updates.catalog, name='supplier_update_catalog'),
+    path('financeiro/contas-a-pagar/fornecedores/<int:case_id>/mensagem/', supplier_updates.compose, name='supplier_update_message'),
+    path('financeiro/contas-a-pagar/fornecedores/<int:case_id>/', supplier_updates.detail, name='supplier_update_detail'),
+    path('financeiro/contas-a-pagar/fornecedores/<int:case_id>/anexos/<uuid:attachment_id>/', supplier_updates.attachment, name='supplier_update_attachment'),
+    path('fornecedor/atualizacao/', supplier_updates.portal, name='supplier_portal'),
     path("follow-up-glosas/petrobras/<path:endpoint>", petrobras.bridge, name="petrobras_bridge"),
     path('financeiro/saldos-extratos/', openfinance.screen, name='openfinance'),
     path('financeiro/saldos-extratos/titulares/<uuid:owner_id>/conectar/', openfinance.connect_token, name='openfinance_connect'),

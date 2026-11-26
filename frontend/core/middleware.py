@@ -56,7 +56,22 @@ class ApiSessionMiddleware:
         return redirect(f"/login/?{urlencode({'next': destino, 'sessao': 'expirada'})}")
 
     def __call__(self, request):
+        try:
+            resolved_route=resolve(request.path_info).url_name
+            public_route = resolved_route in {'supplier_portal','supplier_payment_portal'}
+        except Resolver404:
+            resolved_route=None
+            public_route = False
+        if (public_route or resolved_route=='supplier_payment_confirm') and request.method == 'POST':
+            try:
+                size = int(request.META.get('CONTENT_LENGTH') or 0)
+            except ValueError:
+                return HttpResponse('Tamanho da requisição inválido.', status=400)
+            if size > 26 * 1024 * 1024:
+                return HttpResponse('Envie no máximo 25 MB de anexos por resposta.', status=413)
         is_public = (
+            public_route
+            or
             request.path in self.public_paths
             or request.path.startswith(f"/{settings.STATIC_URL.lstrip('/')}")
             or request.path == "/favicon.ico"
