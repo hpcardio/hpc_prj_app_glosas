@@ -199,7 +199,7 @@
                     <td class="col-desc"><span class="cf-mono">{{ b.linha_digitavel }}</span></td>
                     <td class="cf-quebra">{{ b.enviado_por_nome|default:'—' }}{% if b.enviado_em_local %}<span class="cf-sub">{{ b.enviado_em_local|date:'d/m/Y H:i' }}</span>{% endif %}</td>
                     <td class="cf-quebra">{% if b.fora_do_prazo %}<span class="cf-prazo--fora">Fora do prazo</span>{% if b.prazo_minimo %}<span class="cf-sub">mínimo {{ b.prazo_minimo|api_date }}</span>{% endif %}{% else %}No prazo{% endif %}</td>
-                    <td class="col-desc">{% if b.justificativa_atraso %}“{{ b.justificativa_atraso }}”{% elif b.fora_do_prazo %}<span class="cf-erro">Sem justificativa</span>{% endif %}{% for d in b.divergencias %}<span class="cf-sub cf-erro">{{ d }}</span>{% empty %}{% if not b.fora_do_prazo %}<span class="cf-ok">Confere com a NFS-e</span>{% endif %}{% endfor %}</td>
+                    <td class="col-desc">{% if b.observacao %}<span class="cf-sub ns-observacao-texto"><strong>Observação{% if b.enviado_por_nome %} de {{ b.enviado_por_nome }}{% endif %}:</strong> {{ b.observacao }}</span>{% endif %}{% if b.justificativa_atraso %}“{{ b.justificativa_atraso }}”{% elif b.fora_do_prazo %}<span class="cf-erro">Sem justificativa</span>{% endif %}{% for d in b.divergencias %}<span class="cf-sub cf-erro">{{ d }}</span>{% empty %}{% if not b.fora_do_prazo %}<span class="cf-ok">Confere com a NFS-e</span>{% endif %}{% endfor %}</td>
                     <td><a class="cf-link" href="{% url 'contas_pagar_boleto_pdf' b.id %}" target="_blank" rel="noopener">PDF</a></td>
                   </tr>
                   {% endfor %}
