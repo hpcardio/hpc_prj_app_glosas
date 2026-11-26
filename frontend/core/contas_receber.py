@@ -26,9 +26,9 @@ ETAPAS_FUNIL = (
     ("nao_autorizada", "NFS não autorizadas", "Protocoladas, mas o convênio ainda não listou em Notas Fiscais."),
     ("aguardando_recebimento", "Aguardando recebimento",
      "NF entregue (Notas Fiscais – Pendentes sem ENVIAR) ou NFS vinculada, ainda sem pagamento."),
-    ("recebido", "Recebidas", "Pagas no portal do convênio e com o crédito do extrato vinculado."),
     ("recebido_sem_conciliacao", "Recebidas s/ conciliação bancária",
      "Pagas no portal do convênio, sem crédito do extrato vinculado."),
+    ("recebido", "Recebidas", "Pagas no portal do convênio e com o crédito do extrato vinculado."),
 )
 SITUACOES_RECEBIDAS = {"recebido", "recebido_sem_conciliacao"}
 ORDENACOES = (
