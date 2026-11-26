@@ -71,13 +71,16 @@ def faixa_dias(dias):
 
 
 def valores_do_card(item):
-    """Bruto -> glosas -> retenções -> líquido (mesmas regras da planilha DEMO).
+    """Total -> glosas -> bruto -> impostos -> líquido (mesmas regras da planilha DEMO).
 
-    Bruto: valor da remessa. Glosas: bruto - valor da NF; sem NF, a glosa do
-    portal do convênio (cobrado - liberado). Retenções: valor da NF - líquido
-    do ISS. Líquido: líquido da NF. Sem o dado, o campo fica vazio (None).
+    Total: valor da remessa no MV ("Valor Total" da DEMO). Glosas: total -
+    valor da NF; sem NF, a glosa do portal do convênio (cobrado - liberado).
+    Bruto: total - glosas ("VLR BRUTO" da DEMO, a base da NF). Impostos:
+    valor da NF - líquido do ISS (retenções). Líquido: bruto - impostos (o
+    líquido da NF). Sem o dado, o campo fica vazio (None).
     """
-    bruto = _decimal(item.get("valor"))
+    total = _decimal(item.get("valor"))
+    bruto = total
     nfse = item.get("nfse") or {}
     protocolo = item.get("protocolo") or {}
     # Parte da NF que cabe à remessa (a API rateia as NFs de grupo, que
@@ -103,7 +106,16 @@ def valores_do_card(item):
         # Sem NF no ISS: a API estima pela alíquota retida nas NFs do convênio.
         retencoes = _decimal(estimativa.get("retencoes"))
         liquido = _decimal(estimativa.get("liquido"))
+    if glosas is not None:
+        valor_bruto = total - glosas
+    elif estimado:
+        # Estimativa sobre o valor total (sem glosa conhecida): bruto = total.
+        valor_bruto = _decimal(estimativa.get("base")) if estimativa.get("base") is not None else total
+    else:
+        valor_bruto = None
     return {
+        "total": total,
+        "valor_bruto": valor_bruto,
         "bruto": bruto,
         "glosas": glosas,
         "origem_glosa": origem_glosa,
