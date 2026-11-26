@@ -479,9 +479,12 @@ body.is-login-entry .app-light-reveal span {
   font-size: 12px;
 }
 
-/* 3º nível (ex.: Contas a Pagar › Lançamento de Serviços). */
-.sidebar .nav-subgroup--deep .nav-subgroup-toggle { width: calc(100% - 10px); font-weight: 600; }
+/* 3º nível (Contas a Pagar › Lançamento de Serviços): título fixo com as telas sempre visíveis. */
+.sidebar .nav-subgroup--deep { gap: 2px; margin-top: 2px; }
+.sidebar .nav-subheading { display: block; margin: 4px 0 0 10px; padding: 4px 10px 2px; color: #4f6472; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.sidebar .nav-subheading.is-active { color: #17647d; }
 .sidebar .nav-subgroup--deep .nav-submenu--nested { margin-left: 14px; }
+.sidebar-collapsed .nav-subheading { display: none; }
 
 .sidebar-footer {
   margin: auto -14px 0;
