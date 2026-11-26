@@ -9839,12 +9839,17 @@ def _contas_pagar_nfse_setor_post(request):
             dados,
         )
         divergencias = resultado.get("divergencias") or []
-        if resultado.get("fora_do_prazo") and not divergencias:
-            messages.success(request, "Boleto anexado fora do prazo de 3 dias úteis, com justificativa. A nota está pronta para o financeiro.")
-        elif divergencias:
+        if divergencias:
             messages.warning(request, "Boleto anexado com divergências: " + " ".join(divergencias))
+            return None
+        if resultado.get("fora_do_prazo"):
+            messages.success(request, f"Boleto anexado fora do prazo de 3 dias úteis, com justificativa. A NFS-e {numero} foi para o financeiro e saiu de \"A lançar\" (veja em \"Prontas para o financeiro\").")
         else:
-            messages.success(request, "Boleto anexado e conferido. A nota está pronta para o financeiro.")
+            messages.success(request, f"Boleto anexado e conferido. A NFS-e {numero} foi para o financeiro e saiu de \"A lançar\" (veja em \"Prontas para o financeiro\").")
+        # A nota sai do filtro "A lançar": volta para a lista sem o card dela aberto.
+        retorno = {k: v for k, v in request.POST.items() if k in {"situacao", "cd_setor", "cd_oficina", "desde"} and v}
+        destino = reverse("contas_pagar_nfse_setor")
+        return f"{destino}?{urlencode(retorno)}" if retorno else destino
     elif acao == "importar_mv":
         assinatura = re.sub(r"[^0-9a-f]", "", request.POST.get("assinatura") or "")
         if len(cnpj) != 14 or not numero or len(assinatura) < 8 or request.POST.get("conferido") != "1":
