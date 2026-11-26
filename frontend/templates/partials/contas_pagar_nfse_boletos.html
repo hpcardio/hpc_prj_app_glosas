@@ -126,7 +126,7 @@
     {% endif %}
     {% endif %}
 
-    {% if simulacao.gravacoes %}
+    {% if simulacao.gravacoes and usuario_ti %}{# detalhe técnico (tabelas e campos do MV): só perfil TI #}
     <div class="cp-imp__gravacoes">
       {% for g in simulacao.gravacoes %}
       <details class="cp-imp__tabela">
