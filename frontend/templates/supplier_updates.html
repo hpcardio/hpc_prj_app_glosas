@@ -1,0 +1,34 @@
+{% extends 'base.html' %}{% load static core_extras %}
+{% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
+{% block page_title %}Selecionar fornecedores{% endblock %}
+{% block content_class %}supplier-workspace{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/supplier-updates.css' %}?v=1">
+<a class="su-text-link" href="{% url 'supplier_updates' %}">← Voltar às comunicações</a><p class="su-help">Selecione o fornecedor para preparar uma solicitação de atualização cadastral e financeira.</p>
+{% if error %}<div class="su-alert su-alert--error" role="alert">{{ error }}</div>{% endif %}
+<section class="panel su-panel"><form method="get" class="su-grid su-filters">
+<label>Empresa<select name="company"><option value="">Todas as empresas</option>{% for id,name in data.companies.items %}<option value="{{ id }}" {% if filters.company == id|stringformat:'s' %}selected{% endif %}>{{ id }} · {{ name }}</option>{% endfor %}</select></label>
+<label class="su-span2">Fornecedor ou CPF/CNPJ<input name="q" value="{{ filters.q }}" placeholder="Buscar fornecedor"></label>
+<label>Situação<select name="stage"><option value="">Todas</option>{% for value,label in stages %}<option value="{{ value }}" {% if filters.stage == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Pagamentos<select name="payment"><option value="">Todos</option><option value="pagos" {% if filters.payment == 'pagos' %}selected{% endif %}>Com pagamento no período</option><option value="saldo" {% if filters.payment == 'saldo' %}selected{% endif %}>Com saldo no MV</option></select></label>
+<label>Pagamentos de<input type="date" name="start" value="{{ filters.start|default:data.start }}"></label><label>Até<input type="date" name="end" value="{{ filters.end|default:data.end }}"></label>
+<label>Responsável<input name="responsible" value="{{ filters.responsible }}"></label>
+<div class="su-actions"><button class="su-btn" type="submit">Filtrar</button><a class="su-btn su-btn--light" href="{% url 'supplier_updates' %}">Limpar</a></div>
+</form></section>
+<section class="panel su-panel">
+<form method="post">{% csrf_token %}
+<div class="su-section-head"><div><h2>Selecionar fornecedores</h2><p>{{ data.total|default:0 }} fornecedores disponíveis para solicitação</p></div><button class="su-btn" type="submit">Preparar solicitação</button></div>
+<p class="su-help">A seleção cria o acompanhamento. Convites e mensagens são enviados em ações separadas. Até 50 fornecedores por seleção.</p>
+<div class="su-table-scroll"><table class="su-table"><thead><tr><th><input type="checkbox" data-select-all aria-label="Selecionar fornecedores desta página"></th><th>Fornecedor / empresa</th><th>Pago no período · MV</th><th>Saldo atual · MV</th><th>Contato e responsável</th><th>Situação</th><th></th></tr></thead><tbody>
+{% for row in data.items %}<tr><td><input type="checkbox" name="selected" value="{{ row.company }}|{{ row.supplier }}" aria-label="Selecionar {{ row.name }}"></td><td><strong>{{ row.name }}</strong><small>{{ row.document|default:'CPF/CNPJ não informado' }}</small><small>{{ row.company }} · {{ row.company_name }}</small></td>
+<td>{% if row.paid_period != None %}<strong>R$ {{ row.paid_period|br_currency }}</strong>{% else %}Não disponível{% endif %}<small>Último: {{ row.last_payment|default:'—' }}</small></td>
+<td>{% if row.system_balance != None %}R$ {{ row.system_balance|br_currency }}{% else %}Requer conferência{% endif %}</td>
+<td>{{ row.case.contact.contact|default:'A cadastrar' }}<small>{{ row.case.contact.email }}</small><small>{{ row.case.responsible|default:'Sem responsável' }}</small>{% if row.case.last_communication %}<small>{{ row.case.last_communication.kind }} · {{ row.case.last_communication.created_at }}</small>{% else %}<small>Sem comunicação confirmada</small>{% endif %}{% if row.case.next_date %}<small>Próxima ação: {{ row.case.next_date }}</small>{% endif %}</td>
+<td><span class="su-status su-status--{{ row.stage }}">{% for value,label in stages %}{% if row.stage == value %}{{ label }}{% endif %}{% endfor %}</span></td>
+<td>{% if row.case %}<a href="{% url 'supplier_update_detail' row.case.id %}" class="su-text-link">Ver resposta →</a>{% else %}<span class="su-help">Selecione para iniciar</span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="7" class="su-empty">{% if error %}Não foi possível consultar os fornecedores. Os valores não foram estimados.{% else %}Nenhum fornecedor encontrado para estes filtros.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></form>
+<nav class="su-pagination" aria-label="Paginação">{% if data.page > 1 %}<a class="su-btn su-btn--light" href="?{{ previous_query }}">Anterior</a>{% endif %}<span>Página {{ data.page|default:1 }} de {{ data.pages|default:1 }}</span>{% if data.page < data.pages %}<a class="su-btn su-btn--light" href="?{{ next_query }}">Próxima</a>{% endif %}</nav>
+</section>
+<script defer src="{% static 'js/supplier-updates.js' %}?v=1"></script>
+{% endblock %}
