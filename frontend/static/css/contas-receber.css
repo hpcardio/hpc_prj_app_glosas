@@ -10,6 +10,12 @@
   --cr-recebimento-soft: #fff5e3;
   --cr-concluido: #23855a;
   --cr-concluido-soft: #e8f6ef;
+  --cr-nfs-autorizada: #3f63b8;
+  --cr-nfs-autorizada-soft: #ecf1fc;
+  --cr-nao-autorizada: #8a4f9e;
+  --cr-nao-autorizada-soft: #f5edf8;
+  --cr-sem-conciliacao: #1f7a86;
+  --cr-sem-conciliacao-soft: #e6f4f6;
 }
 
 .cr-page {
@@ -46,11 +52,16 @@
 .cr-hero-total strong { color: var(--primary-dark); font-size: 24px; line-height: 1.1; }
 .cr-hero-total span { color: var(--primary-dark); font-size: 12px; font-weight: 700; }
 
-.cr-funil { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
+.cr-funil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .cr-etapa { --cor: var(--cr-protocolo); --suave: var(--cr-protocolo-soft); position: relative; }
 .cr-etapa--nfse { --cor: var(--cr-nfse); --suave: var(--cr-nfse-soft); }
 .cr-etapa--recebimento { --cor: var(--cr-recebimento); --suave: var(--cr-recebimento-soft); }
 .cr-etapa--concluido { --cor: var(--cr-concluido); --suave: var(--cr-concluido-soft); }
+.cr-etapa--nfs_autorizada { --cor: var(--cr-nfs-autorizada); --suave: var(--cr-nfs-autorizada-soft); }
+.cr-etapa--nao_autorizada { --cor: var(--cr-nao-autorizada); --suave: var(--cr-nao-autorizada-soft); }
+.cr-etapa--aguardando_recebimento { --cor: var(--cr-recebimento); --suave: var(--cr-recebimento-soft); }
+.cr-etapa--recebido { --cor: var(--cr-concluido); --suave: var(--cr-concluido-soft); }
+.cr-etapa--recebido_sem_conciliacao { --cor: var(--cr-sem-conciliacao); --suave: var(--cr-sem-conciliacao-soft); }
 .cr-etapa:not(:last-child)::after {
   content: "";
   position: absolute;
@@ -113,12 +124,22 @@
 .cr-card--nfse .follow-up-glosa-card-header { border-left-color: var(--cr-nfse); }
 .cr-card--recebimento .follow-up-glosa-card-header { border-left-color: var(--cr-recebimento); }
 .cr-card--concluido .follow-up-glosa-card-header { border-left-color: var(--cr-concluido); }
+.cr-card--nfs_autorizada .follow-up-glosa-card-header { border-left-color: var(--cr-nfs-autorizada); }
+.cr-card--nao_autorizada .follow-up-glosa-card-header { border-left-color: var(--cr-nao-autorizada); }
+.cr-card--aguardando_recebimento .follow-up-glosa-card-header { border-left-color: var(--cr-recebimento); }
+.cr-card--recebido .follow-up-glosa-card-header { border-left-color: var(--cr-concluido); }
+.cr-card--recebido_sem_conciliacao .follow-up-glosa-card-header { border-left-color: var(--cr-sem-conciliacao); }
 
 .cr-situacao { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .cr-situacao--protocolo { background: var(--cr-protocolo-soft); color: var(--cr-protocolo); }
 .cr-situacao--nfse { background: var(--cr-nfse-soft); color: var(--cr-nfse); }
 .cr-situacao--recebimento { background: var(--cr-recebimento-soft); color: #8a5a12; }
 .cr-situacao--concluido { background: var(--cr-concluido-soft); color: var(--cr-concluido); }
+.cr-situacao--nfs_autorizada { background: var(--cr-nfs-autorizada-soft); color: var(--cr-nfs-autorizada); }
+.cr-situacao--nao_autorizada { background: var(--cr-nao-autorizada-soft); color: var(--cr-nao-autorizada); }
+.cr-situacao--aguardando_recebimento { background: var(--cr-recebimento-soft); color: #8a5a12; }
+.cr-situacao--recebido { background: var(--cr-concluido-soft); color: var(--cr-concluido); }
+.cr-situacao--recebido_sem_conciliacao { background: var(--cr-sem-conciliacao-soft); color: var(--cr-sem-conciliacao); }
 
 .cr-dias { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .cr-dias--ok { background: #e8f6ef; color: #23855a; }
@@ -159,9 +180,14 @@
 .cr-erro { color: #b24d32; }
 .cr-tabela td, .cr-tabela th { white-space: nowrap; }
 
+@media (max-width: 1400px) {
+  .cr-funil { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cr-etapa:nth-child(3n)::after { display: none; }
+}
 @media (max-width: 1100px) {
   .cr-funil { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cr-etapa:nth-child(2)::after { display: none; }
+  .cr-etapa:nth-child(3n)::after { display: block; }
+  .cr-etapa:nth-child(2n)::after { display: none; }
   .cr-hero-head { flex-direction: column; }
   .cr-hero-total { justify-items: start; text-align: left; }
 }

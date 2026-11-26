@@ -7,7 +7,7 @@ Regras de preenchimento (iguais às fórmulas da DEMO):
 - IMPOSTOS = valor bruto - valor líquido da NF;
 - Status: 1-REALIZADO (recebida), VENCIDOS (previsão de recebimento
   vencida) ou A RECEBER;
-- STATUS2: PAGO (recebida), NF EMITIDA (NF sem recebimento) ou A RECEBER.
+- STATUS2: PAGO (paga no portal ou recebida no extrato), NF EMITIDA (NF sem recebimento) ou A RECEBER.
 """
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -64,7 +64,7 @@ def _contexto(item, hoje):
     entrega = _data(item.get("dt_entrega")) or _data(item.get("dt_fechamento"))
     previsao = _data(item.get("dt_prevista_pgto"))
     recebido_em = _recebimento(item)
-    concluido = item.get("etapa_atual") == "concluido"
+    concluido = item.get("situacao_fluxo") in {"recebido", "recebido_sem_conciliacao"}
     if concluido:
         status, status2 = "1-REALIZADO", "PAGO"
     else:
