@@ -197,7 +197,9 @@ def _enriquecer(item):
         "protocolo": (
             f"Nº {protocolo['numero']}" if protocolo
             else f"{len(item['protocolo_candidatos'])} sugest{'ão' if len(item['protocolo_candidatos']) == 1 else 'ões'} a confirmar"
-            if item.get("protocolo_candidatos") else "Sem protocolo"
+            if item.get("protocolo_candidatos")
+            else f"Planilha: Nº {item['protocolo_planilha']['numero']} a conferir"
+            if item.get("protocolo_planilha") else "Sem protocolo"
         ),
         "nfse": f"NF {nfse['numero']}" if nfse else "Sem NFS",
         "recebimento": (

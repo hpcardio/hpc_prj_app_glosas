@@ -372,6 +372,40 @@ class NfDeGrupoTests(TestCase):
         self.assertEqual(pendente["status2"], "NF EMITIDA")
 
 
+class SugestaoPlanilhaTests(TestCase):
+    def setUp(self):
+        FluxoTests.setUp(self)
+
+    @patch("core.contas_receber.api_get")
+    def test_protocolo_da_planilha_nao_confirmado_vira_sugestao(self, api_get):
+        dados = payload()
+        dados["itens"][1].update({
+            "protocolo_candidatos": [],
+            "protocolo_planilha": {"numero": "2600035769", "origem": "planilha",
+                                   "motivo": "Protocolo não encontrado no portal do convênio",
+                                   "valor_cobrado": None, "competencia_portal": None},
+        })
+        api_get.return_value = dados
+
+        response = self.client.get(URL)
+
+        self.assertContains(response, "Planilha DEMO: 2600035769")
+        self.assertContains(response, "A planilha DEMO indica o protocolo <b>2600035769</b>")
+        self.assertContains(response, "protocolo não encontrado no portal do convênio")
+        self.assertContains(response, "Confirmar protocolo 2600035769")
+        self.assertContains(response, "Planilha: Nº 2600035769 a conferir")
+        html = response.content.decode()
+        bloco = html[html.index("Confirmar protocolo 2600035769") - 600:html.index("Confirmar protocolo 2600035769")]
+        self.assertNotIn("confirmado_do_portal", bloco)
+
+    @patch("core.contas_receber.api_put")
+    @patch("core.contas_receber.api_get")
+    def test_confirmar_sugestao_da_planilha_grava_manual(self, api_get, api_put):
+        api_get.return_value = payload()
+        self.client.post(URL, {"acao": "protocolo_salvar", "cd_remessa": "20111", "numero": "2600035769"})
+        self.assertFalse(api_put.call_args.args[1]["confirmado_do_portal"])
+
+
 class OrigemNupGrupoTests(TestCase):
     def test_rotulo_da_nf_do_grupo(self):
         from core.contas_receber import ORIGENS
