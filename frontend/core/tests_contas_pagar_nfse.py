@@ -251,7 +251,7 @@ class NfseSetorViewTests(TestCase):
         self.assertContains(response, 'já importou esta nota')
 
     @patch('core.views.api_get')
-    def test_lancada_direto_no_mv_nao_mostra_pdf_nem_boleto(self, api_get):
+    def test_lancada_direto_no_mv_mostra_pdf_mas_nao_o_boleto(self, api_get):
         bol = {'quantidade': 1, 'soma': '10.00', 'primeiro_vencimento': '2026-12-10', 'com_divergencia': False,
                'ids': [70], 'enviado_por': [7]}
         direto = {**NOTA, 'chave': '44444444000144-1', 'prestador_cnpj': '44444444000144', 'numero_nfse': '1',
@@ -264,8 +264,8 @@ class NfseSetorViewTests(TestCase):
 
         html = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=lancada').content.decode()
 
-        self.assertIn('Lançada direto no MV', html)
-        self.assertNotIn('/nfse/44444444000144/1/pdf', html)
+        # PDF da NFS-e aparece para qualquer lançada que está na base; boleto só via Receita Certa.
+        self.assertIn('/nfse/44444444000144/1/pdf', html)
         self.assertNotIn('/boletos/70/', html)
         self.assertIn('/nfse/55555555000155/2/pdf', html)
         self.assertIn('/boletos/71/', html)
