@@ -9967,6 +9967,18 @@ def contas_pagar_nfse_setor(request):
     }
     nota_aberta = None
     chave = request.GET.get("nota") or ""
+    if chave and "itens" in payload:
+        chaves = [i.get("chave") for i in itens]
+        if chave not in chaves:
+            # A nota saiu do filtro (ex.: importada no MV ou enviada ao financeiro):
+            # volta para a lista do filtro, sem o card dela.
+            retorno = {k: v for k, v in request.GET.items() if k not in {"nota", "simular", "page"} and v}
+            destino = reverse("contas_pagar_nfse_setor")
+            return redirect(f"{destino}?{urlencode(retorno)}" if retorno else destino)
+        pagina_da_nota = chaves.index(chave) // CP_NFSE_POR_PAGINA + 1
+        if pagina_da_nota != page:
+            retorno = {k: v for k, v in request.GET.items() if k != "page" and v}
+            return redirect(f"{reverse('contas_pagar_nfse_setor')}?{urlencode({**retorno, 'page': pagina_da_nota})}#nota-{chave}")
     if re.fullmatch(r"\d{14}-[0-9A-Za-z]{1,30}", chave):
         cnpj, numero = chave.split("-", 1)
         try:
