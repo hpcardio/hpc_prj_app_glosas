@@ -3,6 +3,7 @@
 {% block breadcrumb_label %}Financeiro · Contas a Pagar{% endblock %}
 {% block page_title %}Conferência do financeiro{% endblock %}
 {% block content_class %}follow-up-compact{% endblock %}
+{% block topbar_acoes %}{% with mv_login_topo=True %}{% include "partials/mv_login_status.html" %}{% endwith %}{% endblock %}
 {% block content %}
 
 {% if desfazer %}
@@ -117,8 +118,6 @@
         {% if pagination.total %}<span class="results-subtitle">{{ pagination.start }}-{{ pagination.end }} de {{ pagination.total }} notas · ordenadas pelo vencimento{% if prazo_minimo_hoje %} · boletos enviados hoje vencem a partir de {{ prazo_minimo_hoje|api_date }}{% endif %}</span>{% endif %}
       </div>
       <div class="collapse-actions cf-cabecalho-acoes">
-        {% include "partials/mv_login_status.html" %}
-        <a class="btn-acatar cf-botao" href="{% url 'contas_pagar_nfse_setor' %}?cadastrar=1#cadastro" title="Notas que não vêm do ISS Fortaleza: envie o PDF da NFS-e">Cadastrar NFS-e de outro município</a>
         {% if itens %}
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-expandir'))">Expandir</button>
         <button type="button" class="collapse-action" onclick="window.dispatchEvent(new CustomEvent('cf-colapsar'))">Colapsar todos</button>
