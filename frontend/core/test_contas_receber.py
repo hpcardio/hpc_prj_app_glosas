@@ -25,8 +25,8 @@ def payload():
                 {"chave": "nfs_autorizada", "quantidade": 1, "valor": "1771.52"},
                 {"chave": "nao_autorizada", "quantidade": 0, "valor": "0.00"},
                 {"chave": "aguardando_recebimento", "quantidade": 0, "valor": "0.00"},
-                {"chave": "recebido", "quantidade": 0, "valor": "0.00"},
                 {"chave": "recebido_sem_conciliacao", "quantidade": 0, "valor": "0.00"},
+                {"chave": "recebido", "quantidade": 0, "valor": "0.00"},
             ],
             "total_remessas": 4,
             "valor_total": "2071.52",
@@ -90,7 +90,7 @@ class FluxoTests(TestCase):
         self.assertContains(response, "etapa=nfs_autorizada")
         self.assertEqual([c["chave"] for c in response.context["funil"]], [
             "protocolo", "nfs_autorizada", "nao_autorizada", "aguardando_recebimento",
-            "recebido", "recebido_sem_conciliacao"])
+            "recebido_sem_conciliacao", "recebido"])
         self.assertContains(response, "Recebidas s/ conciliação bancária")
         self.assertContains(response, "NFS não autorizadas")
         self.assertContains(response, "NFS autorizadas")
