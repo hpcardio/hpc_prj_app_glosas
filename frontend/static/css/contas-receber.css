@@ -10,8 +10,6 @@
   --cr-recebimento-soft: #fff5e3;
   --cr-concluido: #23855a;
   --cr-concluido-soft: #e8f6ef;
-  --cr-nfs-autorizada: #3f63b8;
-  --cr-nfs-autorizada-soft: #ecf1fc;
   --cr-nao-autorizada: #8a4f9e;
   --cr-nao-autorizada-soft: #f5edf8;
   --cr-sem-conciliacao: #1f7a86;
@@ -52,12 +50,11 @@
 .cr-hero-total strong { color: var(--primary-dark); font-size: 24px; line-height: 1.1; }
 .cr-hero-total span { color: var(--primary-dark); font-size: 12px; font-weight: 700; }
 
-.cr-funil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
+.cr-funil { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .cr-etapa { --cor: var(--cr-protocolo); --suave: var(--cr-protocolo-soft); position: relative; }
 .cr-etapa--nfse { --cor: var(--cr-nfse); --suave: var(--cr-nfse-soft); }
 .cr-etapa--recebimento { --cor: var(--cr-recebimento); --suave: var(--cr-recebimento-soft); }
 .cr-etapa--concluido { --cor: var(--cr-concluido); --suave: var(--cr-concluido-soft); }
-.cr-etapa--nfs_autorizada { --cor: var(--cr-nfs-autorizada); --suave: var(--cr-nfs-autorizada-soft); }
 .cr-etapa--nao_autorizada { --cor: var(--cr-nao-autorizada); --suave: var(--cr-nao-autorizada-soft); }
 .cr-etapa--aguardando_recebimento { --cor: var(--cr-recebimento); --suave: var(--cr-recebimento-soft); }
 .cr-etapa--recebido { --cor: var(--cr-concluido); --suave: var(--cr-concluido-soft); }
@@ -124,7 +121,6 @@
 .cr-card--nfse .follow-up-glosa-card-header { border-left-color: var(--cr-nfse); }
 .cr-card--recebimento .follow-up-glosa-card-header { border-left-color: var(--cr-recebimento); }
 .cr-card--concluido .follow-up-glosa-card-header { border-left-color: var(--cr-concluido); }
-.cr-card--nfs_autorizada .follow-up-glosa-card-header { border-left-color: var(--cr-nfs-autorizada); }
 .cr-card--nao_autorizada .follow-up-glosa-card-header { border-left-color: var(--cr-nao-autorizada); }
 .cr-card--aguardando_recebimento .follow-up-glosa-card-header { border-left-color: var(--cr-recebimento); }
 .cr-card--recebido .follow-up-glosa-card-header { border-left-color: var(--cr-concluido); }
@@ -135,7 +131,6 @@
 .cr-situacao--nfse { background: var(--cr-nfse-soft); color: var(--cr-nfse); }
 .cr-situacao--recebimento { background: var(--cr-recebimento-soft); color: #8a5a12; }
 .cr-situacao--concluido { background: var(--cr-concluido-soft); color: var(--cr-concluido); }
-.cr-situacao--nfs_autorizada { background: var(--cr-nfs-autorizada-soft); color: var(--cr-nfs-autorizada); }
 .cr-situacao--nao_autorizada { background: var(--cr-nao-autorizada-soft); color: var(--cr-nao-autorizada); }
 .cr-situacao--aguardando_recebimento { background: var(--cr-recebimento-soft); color: #8a5a12; }
 .cr-situacao--recebido { background: var(--cr-concluido-soft); color: var(--cr-concluido); }
@@ -180,7 +175,7 @@
 .cr-erro { color: #b24d32; }
 .cr-tabela td, .cr-tabela th { white-space: nowrap; }
 
-@media (max-width: 1400px) {
+@media (max-width: 1250px) {
   .cr-funil { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cr-etapa:nth-child(3n)::after { display: none; }
 }

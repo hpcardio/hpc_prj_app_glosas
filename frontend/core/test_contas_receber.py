@@ -22,9 +22,8 @@ def payload():
         "resumo": {
             "etapas": [
                 {"chave": "protocolo", "quantidade": 3, "valor": "300.00"},
-                {"chave": "nfs_autorizada", "quantidade": 1, "valor": "1771.52"},
                 {"chave": "nao_autorizada", "quantidade": 0, "valor": "0.00"},
-                {"chave": "aguardando_recebimento", "quantidade": 0, "valor": "0.00"},
+                {"chave": "aguardando_recebimento", "quantidade": 1, "valor": "1771.52"},
                 {"chave": "recebido", "quantidade": 0, "valor": "0.00"},
                 {"chave": "recebido_sem_conciliacao", "quantidade": 0, "valor": "0.00"},
             ],
@@ -41,7 +40,7 @@ def payload():
                               "valor_cobrado": "1771.52", "valor_liberado": "1190.47",
                               "data_protocolo": None, "solicitacao_nota_em": None},
                 "protocolo_candidatos": [], "nfse": None, "recebimentos": [], "valor_recebido": "0.00",
-                "etapa_atual": "nfse", "situacao_fluxo": "nfs_autorizada", "pendencia": "NFS autorizadas",
+                "etapa_atual": "nfse", "situacao_fluxo": "aguardando_recebimento", "pendencia": "Aguardando recebimento",
                 "nota_portal": {"situacao": "pendente", "nf_a_enviar": True, "valor": "1190.47", "nup": "G-77",
                                 "pago_desde": None},
                 "etapas": etapas,
@@ -87,12 +86,14 @@ class FluxoTests(TestCase):
         self.assertEqual(params["page_size"], 10)
         self.assertContains(response, "Onde está o dinheiro dos convênios?")
         self.assertContains(response, "Aguardando protocolo")
-        self.assertContains(response, "etapa=nfs_autorizada")
+        self.assertContains(response, "etapa=aguardando_recebimento")
         self.assertEqual([c["chave"] for c in response.context["funil"]], [
-            "protocolo", "nfs_autorizada", "nao_autorizada", "aguardando_recebimento",
+            "protocolo", "nao_autorizada", "aguardando_recebimento",
             "recebido", "recebido_sem_conciliacao"])
-        self.assertContains(response, "Recebidos s/ conciliação bancária")
-        self.assertContains(response, "cr-card--nfs_autorizada")
+        self.assertContains(response, "Recebidas s/ conciliação bancária")
+        self.assertContains(response, "NFS não autorizadas")
+        self.assertNotContains(response, "NFS autorizadas")
+        self.assertContains(response, "cr-card--aguardando_recebimento")
         self.assertContains(response, "portal: pede a NF (ENVIAR)")
         self.assertContains(response, "Pendente · ENVIAR a NF")
         self.assertContains(response, "75% das remessas")
@@ -111,12 +112,12 @@ class FluxoTests(TestCase):
     def test_card_ativo_remove_o_proprio_filtro(self, api_get):
         api_get.return_value = payload()
 
-        response = self.client.get(URL, {"etapa": "nfs_autorizada", "convenio": "46"})
+        response = self.client.get(URL, {"etapa": "nao_autorizada", "convenio": "46"})
 
-        self.assertEqual(api_get.call_args.args[1]["etapa"], "nfs_autorizada")
+        self.assertEqual(api_get.call_args.args[1]["etapa"], "nao_autorizada")
         cards = {c["chave"]: c for c in response.context["funil"]}
-        self.assertTrue(cards["nfs_autorizada"]["ativo"])
-        self.assertEqual(cards["nfs_autorizada"]["url"], "?convenio=46")
+        self.assertTrue(cards["nao_autorizada"]["ativo"])
+        self.assertEqual(cards["nao_autorizada"]["url"], "?convenio=46")
         self.assertIn("etapa=protocolo", cards["protocolo"]["url"])
 
     @patch("core.contas_receber.api_get")
