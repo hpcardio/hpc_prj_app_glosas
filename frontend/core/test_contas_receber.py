@@ -371,3 +371,76 @@ class ExplicacaoRetencaoTests(TestCase):
         })
         self.assertIn("4,20% da Configuração por Convênio", estimado["explicacao_estimativa"])
         self.assertIn("(ISS R$ 30,00 · IR R$ 12,00)", estimado["explicacao_estimativa"])
+
+
+class VinculosManuaisTests(TestCase):
+    """Entrega 2: protocolo, solicitação de nota e NFS pela tela."""
+
+    def setUp(self):
+        session = self.client.session
+        session["api_access_token"] = "token"
+        session["api_user"] = {"id": 7, "nome": "Financeiro", "perfil": "usuario", "telas_permitidas": ["contas_receber_fluxo"]}
+        session.save()
+
+    @patch("core.contas_receber.api_get", return_value=payload())
+    def test_card_mostra_acoes_de_vinculo(self, _):
+        html = self.client.get(URL + "?aberta=20323").content.decode()
+
+        self.assertIn('id="remessa-20323"', html)
+        self.assertIn("Confirmar protocolo 2600044294", html)              # sugerido pelo portal
+        self.assertIn('name="protocolo_numero" value="2600044294"', html)  # solicitação/NF gravam o protocolo junto
+        self.assertIn("Solicitação de nota pelo convênio", html)
+        self.assertIn("Pesquisar a NFS para vincular", html)
+        self.assertEqual(html.count('value="protocolo_salvar"') >= 3, True)  # confirmar candidatos da 20111 + formulários
+
+    @patch("core.contas_receber.api_put", return_value={})
+    def test_confirmar_protocolo_do_portal(self, api_put):
+        response = self.client.post(URL, {
+            "acao": "protocolo_salvar", "cd_remessa": "20323", "numero": " 2600044294 ",
+            "confirmado_do_portal": "1", "convenio": "46", "page": "2",
+        })
+
+        api_put.assert_called_once_with("/app_glosas/financeiro/contas-a-receber/remessas/20323/protocolo", {
+            "numero": "2600044294", "data_protocolo": None, "confirmado_do_portal": True,
+        })
+        self.assertRedirects(response, URL + "?convenio=46&page=2&aberta=20323#remessa-20323", fetch_redirect_response=False)
+
+    @patch("core.contas_receber.api_put", return_value={})
+    def test_solicitacao_e_nfse_levam_o_protocolo_sugerido(self, api_put):
+        self.client.post(URL, {"acao": "solicitacao_salvar", "cd_remessa": "20323", "data": "2026-11-20",
+                               "observacao": " por e-mail ", "protocolo_numero": "2600044294"})
+        api_put.assert_called_with("/app_glosas/financeiro/contas-a-receber/remessas/20323/solicitacao-nota", {
+            "data": "2026-11-20", "observacao": "por e-mail", "protocolo_numero": "2600044294"})
+
+        self.client.post(URL, {"acao": "nfse_vincular", "cd_remessa": "20323", "prestador_cnpj": "08.711.085/0001-28",
+                               "numero_nfse": "30083", "protocolo_numero": "2600044294"})
+        api_put.assert_called_with("/app_glosas/financeiro/contas-a-receber/remessas/20323/nfse", {
+            "prestador_cnpj": "08711085000128", "numero_nfse": "30083", "protocolo_numero": "2600044294"})
+
+    @patch("core.contas_receber.api_delete", return_value=None)
+    def test_remover_vinculos(self, api_delete):
+        for acao, caminho in (("protocolo_remover", "protocolo"), ("solicitacao_remover", "solicitacao-nota"), ("nfse_remover", "nfse")):
+            self.client.post(URL, {"acao": acao, "cd_remessa": "20323"})
+            api_delete.assert_called_with(f"/app_glosas/financeiro/contas-a-receber/remessas/20323/{caminho}")
+
+    @patch("core.contas_receber.api_put", side_effect=ApiError('{"detail":"Vincule o protocolo da remessa antes."}', 409))
+    def test_erro_da_api_vira_mensagem(self, _):
+        response = self.client.post(URL, {"acao": "solicitacao_salvar", "cd_remessa": "20323", "data": "2026-11-20"}, follow=True)
+        self.assertContains(response, "Vincule o protocolo da remessa antes.")
+
+    def test_acao_invalida(self):
+        response = self.client.post(URL, {"acao": "apagar_tudo", "cd_remessa": "20323"}, follow=True)
+        self.assertContains(response, "Ação inválida.")
+
+    @patch("core.contas_receber.api_get")
+    def test_pesquisa_de_nfse_no_card(self, api_get):
+        notas = {"notas": [{"prestador_cnpj": "08711085000128", "numero_nfse": "30083", "tomador": "FASSEC",
+                            "data_emissao": "2026-11-10", "valor": "572156.82", "valor_liquido": "548126.24",
+                            "discriminacao": "Serviços", "protocolos_vinculados": ["2600033103", "2600033215"]}]}
+        api_get.side_effect = lambda path, params=None, **kw: notas if path.endswith("/nfse") else payload()
+
+        html = self.client.get(URL + "?aberta=20323&nf_q=30083").content.decode()
+
+        api_get.assert_any_call("/app_glosas/financeiro/contas-a-receber/nfse", {"q": "30083"}, timeout=60)
+        self.assertIn("2 protocolos", html)
+        self.assertIn('name="numero_nfse" value="30083"', html)

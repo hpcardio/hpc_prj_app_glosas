@@ -8,12 +8,13 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_http_methods
 
 from .contas_receber_export import build_contas_receber_workbook
-from .services import ApiError, api_get
+from .services import ApiError, api_delete, api_get, api_put
 
-FLUXO_PATH = "/app_glosas/financeiro/contas-a-receber/fluxo"
+CR_PATH = "/app_glosas/financeiro/contas-a-receber"
+FLUXO_PATH = f"{CR_PATH}/fluxo"
 POR_PAGINA = 10
 TIMEOUT = 60
 EXPORT_TIMEOUT = 110
@@ -209,8 +210,85 @@ def _funil(resumo, filtros):
     return cards
 
 
-@require_GET
+FILTROS_DA_TELA = ("convenio", "competencia_de", "competencia_ate", "q", "etapa", "a_confirmar", "ordenar_por", "page")
+
+
+def _erro_api(exc):
+    from .views import extract_api_error_message  # noqa: PLC0415 (views é pesado)
+
+    return extract_api_error_message(exc)
+
+
+def _voltar(request, cd_remessa, extra=None):
+    """Volta para a tela com os filtros e o card da remessa aberto."""
+    query = {k: v for k, v in request.POST.items() if k in FILTROS_DA_TELA and v}
+    query.update({"aberta": cd_remessa, **(extra or {})})
+    return redirect(f"{request.path}?{urlencode(query)}#remessa-{cd_remessa}")
+
+
+def _executar_vinculo(request, acao, cd_remessa):
+    """Ações da entrega 2 (vínculos manuais). A API grava a auditoria."""
+    base = f"{CR_PATH}/remessas/{cd_remessa}"
+    protocolo_numero = " ".join((request.POST.get("protocolo_numero") or "").split()) or None
+    if acao == "protocolo_salvar":
+        numero = " ".join((request.POST.get("numero") or "").split())
+        if not numero:
+            messages.error(request, "Informe o número do protocolo.")
+            return
+        api_put(f"{base}/protocolo", {
+            "numero": numero,
+            "data_protocolo": request.POST.get("data_protocolo") or None,
+            "confirmado_do_portal": request.POST.get("confirmado_do_portal") == "1",
+        })
+        messages.success(request, f"Protocolo {numero} vinculado à remessa {cd_remessa}.")
+    elif acao == "protocolo_remover":
+        api_delete(f"{base}/protocolo")
+        messages.success(request, f"A remessa {cd_remessa} saiu do protocolo.")
+    elif acao == "solicitacao_salvar":
+        if not request.POST.get("data"):
+            messages.error(request, "Informe a data da solicitação de nota.")
+            return
+        api_put(f"{base}/solicitacao-nota", {
+            "data": request.POST["data"],
+            "observacao": (request.POST.get("observacao") or "").strip()[:400] or None,
+            "protocolo_numero": protocolo_numero,
+        })
+        messages.success(request, f"Solicitação de nota registrada na remessa {cd_remessa}.")
+    elif acao == "solicitacao_remover":
+        api_delete(f"{base}/solicitacao-nota")
+        messages.success(request, "Solicitação de nota removida.")
+    elif acao == "nfse_vincular":
+        numero = (request.POST.get("numero_nfse") or "").strip()
+        api_put(f"{base}/nfse", {
+            "prestador_cnpj": "".join(ch for ch in request.POST.get("prestador_cnpj") or "" if ch.isdigit()),
+            "numero_nfse": numero,
+            "protocolo_numero": protocolo_numero,
+        })
+        messages.success(request, f"NFS {numero} vinculada à remessa {cd_remessa}.")
+    elif acao == "nfse_remover":
+        api_delete(f"{base}/nfse")
+        messages.success(request, "NFS desvinculada da remessa.")
+    else:
+        messages.error(request, "Ação inválida.")
+
+
+ACOES_VINCULO = {"protocolo_salvar", "protocolo_remover", "solicitacao_salvar",
+                 "solicitacao_remover", "nfse_vincular", "nfse_remover"}
+
+
+@require_http_methods(["GET", "POST"])
 def fluxo(request):
+    if request.method == "POST":
+        acao = request.POST.get("acao")
+        cd_remessa = request.POST.get("cd_remessa") or ""
+        if acao not in ACOES_VINCULO or not cd_remessa.isdigit():
+            messages.error(request, "Ação inválida.")
+            return redirect(request.path)
+        try:
+            _executar_vinculo(request, acao, int(cd_remessa))
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível salvar: {_erro_api(exc)}")
+        return _voltar(request, cd_remessa)
     filtros = {
         "convenio": (request.GET.get("convenio") or "").strip(),
         "competencia_de": (request.GET.get("competencia_de") or "").strip()[:7],
@@ -255,6 +333,16 @@ def fluxo(request):
     page = min(page, total_pages)
     base_query = {k: v for k, v in filtros.items() if v}
     itens = [_enriquecer(item) for item in payload.get("itens") or []]
+    aberta = request.GET.get("aberta") or ""
+    # Pesquisa de NFS para vincular, dentro do card da remessa aberta.
+    busca_nf = {"remessa": "", "q": "", "notas": None}
+    nf_q = (request.GET.get("nf_q") or "").strip()[:60]
+    if aberta.isdigit() and len(nf_q) >= 2:
+        busca_nf = {"remessa": aberta, "q": nf_q, "notas": []}
+        try:
+            busca_nf["notas"] = api_get(f"{CR_PATH}/nfse", {"q": nf_q}, timeout=TIMEOUT).get("notas") or []
+        except ApiError as exc:
+            messages.error(request, f"Não foi possível pesquisar a NFS: {_erro_api(exc)}")
     pagination = {
         "page": page,
         "total_pages": total_pages,
@@ -284,6 +372,9 @@ def fluxo(request):
         "atualizado_em": payload.get("atualizado_em"),
         "tem_estimativa": any((i.get("valores") or {}).get("estimado") for i in itens),
         "export_url": f"?{urlencode({**{k: v for k, v in filtros.items() if v}, 'export': 'xlsx'})}",
+        "aberta": aberta,
+        "busca_nf": busca_nf,
+        "filtros_post": {k: v for k, v in {**filtros, "page": page}.items() if v},
     })
     response["Cache-Control"] = "private, no-store"
     return response

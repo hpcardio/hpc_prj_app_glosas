@@ -4,7 +4,7 @@
 {% block page_title %}Fluxo do recebimento{% endblock %}
 {% block content_class %}follow-up-compact{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=3">
+<link rel="stylesheet" href="{% static 'css/contas-receber.css' %}?v=4">
 <div class="cr-page">
 
 <section class="cr-hero" aria-label="Remessas paradas em cada etapa">
@@ -127,7 +127,8 @@
   {% if itens %}
   <div class="results-list follow-up-glosa-list">
     {% for item in itens %}
-    <article class="follow-up-glosa-card cr-card cr-card--{{ item.etapa_atual }}" x-data="{ open: false }" @cr-expandir.window="open = true" @cr-colapsar.window="open = false">
+    {% with cd=item.cd_remessa|stringformat:'s' %}
+    <article id="remessa-{{ item.cd_remessa }}" class="follow-up-glosa-card cr-card cr-card--{{ item.etapa_atual }}{% if aberta == cd %} is-aberta{% endif %}" x-data="{ open: {% if aberta == cd %}true{% else %}false{% endif %} }" @cr-expandir.window="open = true" @cr-colapsar.window="open = false">
       <div class="follow-up-glosa-card-header-row">
         <div class="follow-up-glosa-card-header cr-card-header">
           <button type="button" class="follow-up-glosa-chevron" :class="{ 'is-open': open }" @click="open = !open" :aria-expanded="open" aria-label="Expandir ou recolher a remessa {{ item.cd_remessa }}">&#9654;</button>
@@ -172,29 +173,77 @@
             </div>
           </section>
 
+          {% with p=item.protocolo %}
           <section class="account-group-section">
-            <header class="account-group-header"><span class="account-group-title">Protocolo no convênio</span></header>
-            {% if item.protocolo %}
+            <header class="account-group-header"><span class="account-group-title">Protocolo no convênio</span>
+              {% if p and p.situacao == 'automatico' %}<span class="cr-resumo">sugerido pelo portal · confirme para gravar</span>{% endif %}</header>
+            {% if p %}
             <div class="cr-campos">
-              <span class="follow-up-glosa-card-field"><small>PROTOCOLO</small><strong>{{ item.protocolo.numero }}</strong></span>
-              <span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>{{ item.protocolo.origem_label }}</strong></span>
-              {% if item.protocolo.valor_cobrado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR COBRADO</small><strong>R$ {{ item.protocolo.valor_cobrado|br_currency }}</strong></span>{% endif %}
-              {% if item.protocolo.valor_liberado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR LIBERADO</small><strong>R$ {{ item.protocolo.valor_liberado|br_currency }}</strong></span>{% endif %}
-              {% if item.protocolo.glosa_portal %}<span class="follow-up-glosa-card-field"><small>GLOSADO NO PORTAL</small><strong class="cr-erro">R$ {{ item.protocolo.glosa_portal|br_currency }}</strong></span>{% endif %}
-              <span class="follow-up-glosa-card-field"><small>NOTA SOLICITADA PELO CONVÊNIO</small><strong>{% if item.protocolo.solicitacao_nota_em %}{{ item.protocolo.solicitacao_nota_em|api_date }}{% else %}Não registrada{% endif %}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>PROTOCOLO</small><strong>{{ p.numero }}</strong></span>
+              <span class="follow-up-glosa-card-field"><small>ORIGEM</small><strong>{{ p.origem_label }}</strong></span>
+              {% if p.data_protocolo %}<span class="follow-up-glosa-card-field"><small>ENTRADA NO CONVÊNIO</small><strong>{{ p.data_protocolo|api_date }}</strong></span>{% endif %}
+              {% if p.valor_cobrado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR COBRADO</small><strong>R$ {{ p.valor_cobrado|br_currency }}</strong></span>{% endif %}
+              {% if p.valor_liberado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR LIBERADO</small><strong>R$ {{ p.valor_liberado|br_currency }}</strong></span>{% endif %}
+              {% if p.glosa_portal %}<span class="follow-up-glosa-card-field"><small>GLOSADO NO PORTAL</small><strong class="cr-erro">R$ {{ p.glosa_portal|br_currency }}</strong></span>{% endif %}
+            </div>
+            <div class="cr-acoes">
+              {% if p.situacao == 'automatico' %}
+              <form method="post">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+                <input type="hidden" name="acao" value="protocolo_salvar"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+                <input type="hidden" name="numero" value="{{ p.numero }}"><input type="hidden" name="confirmado_do_portal" value="1">
+                {% if p.data_protocolo %}<input type="hidden" name="data_protocolo" value="{{ p.data_protocolo|slice:':10' }}">{% endif %}
+                <button class="btn-acatar cf-botao" type="submit">Confirmar protocolo {{ p.numero }}</button>
+              </form>
+              {% else %}
+              <form method="post" onsubmit="return confirm('Tirar a remessa {{ item.cd_remessa }} do protocolo {{ p.numero }}? O protocolo, a NF e a solicitação continuam gravados.')">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+                <input type="hidden" name="acao" value="protocolo_remover"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+                <button class="btn-glosar cf-botao" type="submit">Remover vínculo</button>
+              </form>
+              {% endif %}
+              <details class="cr-editar"><summary>Alterar protocolo</summary>
+                {% include "partials/contas_receber_form_protocolo.html" with numero=p.numero data=p.data_protocolo %}
+              </details>
             </div>
             {% elif item.protocolo_candidatos %}
-            <p class="cr-mensagem cr-mensagem--atencao">O casamento com o portal não é único: há outro processo ou outra remessa com a mesma competência e o mesmo valor. Confira qual processo corresponde a esta remessa; a confirmação pela tela entra na próxima etapa do projeto.</p>
+            <p class="cr-mensagem cr-mensagem--atencao">O casamento com o portal não é único: há outro processo ou outra remessa com a mesma competência e o mesmo valor. Confirme o processo desta remessa.</p>
             <div class="table-responsive detail-table-wrap account-group-table-wrap">
               <table class="table align-middle account-table cr-tabela">
-                <thead><tr><th>PROCESSO NO PORTAL</th><th>VALOR COBRADO</th><th>VALOR LIBERADO</th></tr></thead>
-                <tbody>{% for c in item.protocolo_candidatos %}<tr class="item-row"><td>{{ c.numero }}</td><td>R$ {{ c.valor_cobrado|br_currency }}</td><td>{% if c.valor_liberado is not None %}R$ {{ c.valor_liberado|br_currency }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+                <thead><tr><th>PROCESSO NO PORTAL</th><th>VALOR COBRADO</th><th>VALOR LIBERADO</th><th></th></tr></thead>
+                <tbody>{% for c in item.protocolo_candidatos %}<tr class="item-row"><td>{{ c.numero }}</td><td>R$ {{ c.valor_cobrado|br_currency }}</td><td>{% if c.valor_liberado is not None %}R$ {{ c.valor_liberado|br_currency }}{% else %}—{% endif %}</td>
+                  <td class="cr-direita"><form method="post">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+                    <input type="hidden" name="acao" value="protocolo_salvar"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+                    <input type="hidden" name="numero" value="{{ c.numero }}"><input type="hidden" name="confirmado_do_portal" value="1">
+                    <button class="btn-acatar cf-botao" type="submit">Confirmar</button></form></td></tr>{% endfor %}</tbody>
               </table>
             </div>
+            <div class="cr-acoes"><details class="cr-editar"><summary>Informar outro protocolo</summary>{% include "partials/contas_receber_form_protocolo.html" %}</details></div>
             {% else %}
-            <p class="cr-vazio">Sem protocolo. {% if item.convenio == 'ISSEC' %}Nenhum processo do portal tem a mesma competência e valor.{% else %}Este convênio ainda não tem coleta automática de protocolos.{% endif %}</p>
+            <p class="cr-vazio">Sem protocolo. {% if item.convenio == 'ISSEC' %}Nenhum processo do portal tem a mesma competência e valor.{% else %}Este convênio não tem coleta automática de protocolos: informe o protocolo abaixo.{% endif %}</p>
+            {% include "partials/contas_receber_form_protocolo.html" %}
             {% endif %}
           </section>
+
+          {% if p %}
+          <section class="account-group-section">
+            <header class="account-group-header"><span class="account-group-title">Solicitação de nota pelo convênio</span></header>
+            <form method="post" class="cr-form">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+              <input type="hidden" name="acao" value="solicitacao_salvar"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+              {% if p.situacao == 'automatico' %}<input type="hidden" name="protocolo_numero" value="{{ p.numero }}">{% endif %}
+              <div class="filter-group cr-form-data"><label for="cr-sol-{{ item.cd_remessa }}">Data da solicitação</label>
+                <input id="cr-sol-{{ item.cd_remessa }}" class="form-control" type="date" name="data" value="{{ p.solicitacao_nota_em|slice:':10' }}" required></div>
+              <div class="filter-group cr-form-largo"><label for="cr-sol-obs-{{ item.cd_remessa }}">Observação</label>
+                <input id="cr-sol-obs-{{ item.cd_remessa }}" class="form-control" name="observacao" maxlength="400" value="{{ p.solicitacao_nota_obs|default:'' }}" placeholder="Ex.: pedido por e-mail da auditoria do convênio"></div>
+              <div class="filter-actions"><button class="btn btn-primary" type="submit">{% if p.solicitacao_nota_em %}Salvar{% else %}Registrar{% endif %}</button></div>
+            </form>
+            {% if p.solicitacao_nota_em %}
+            <form method="post" class="cr-acoes" onsubmit="return confirm('Remover a solicitação de nota?')">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+              <input type="hidden" name="acao" value="solicitacao_remover"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+              <span class="cr-resumo">Registrada em {{ p.solicitacao_nota_em|api_date }}</span>
+              <button class="btn-glosar cf-botao" type="submit">Remover solicitação</button>
+            </form>
+            {% endif %}
+          </section>
+          {% endif %}
 
           <section class="account-group-section">
             <header class="account-group-header"><span class="account-group-title">NFS e recebimento</span></header>
@@ -214,10 +263,51 @@
               <span class="follow-up-glosa-card-field"><small>RECEBIMENTO</small><strong>Sem lançamento de extrato</strong></span>
               {% endfor %}
             </div>
+            {% if item.nfse and item.nfse.origem != 'nup_grupo' %}
+            <form method="post" class="cr-acoes" onsubmit="return confirm('Desvincular a NFS {{ item.nfse.numero }} desta remessa?')">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+              <input type="hidden" name="acao" value="nfse_remover"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+              <button class="btn-glosar cf-botao" type="submit">Desvincular NFS</button>
+            </form>
+            {% endif %}
+            {% if p %}
+            <form method="get" class="cr-form cr-busca-nf" action="#remessa-{{ item.cd_remessa }}">
+              {% for k, v in filtros_post.items %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+              <input type="hidden" name="aberta" value="{{ item.cd_remessa }}">
+              <div class="filter-group cr-form-largo"><label for="cr-nf-{{ item.cd_remessa }}">{% if item.nfse %}Trocar a NFS{% else %}Pesquisar a NFS para vincular{% endif %}</label>
+                <input id="cr-nf-{{ item.cd_remessa }}" class="form-control" name="nf_q" minlength="2" maxlength="60" required value="{% if busca_nf.remessa == cd %}{{ busca_nf.q }}{% endif %}" placeholder="Número da NF, valor (ex.: 2.118,58), tomador ou CNPJ do tomador"></div>
+              <div class="filter-actions"><button class="btn btn-outline-secondary" type="submit">Pesquisar</button></div>
+            </form>
+            {% if busca_nf.remessa == cd and busca_nf.notas is not None %}
+            {% if busca_nf.notas %}
+            <div class="table-responsive detail-table-wrap account-group-table-wrap">
+              <table class="table align-middle account-table cr-tabela cr-tabela-nf">
+                <thead><tr><th>NFS</th><th>EMISSÃO</th><th class="col-desc">TOMADOR</th><th>VALOR</th><th>LÍQUIDO</th><th class="col-desc">JÁ VINCULADA A</th><th></th></tr></thead>
+                <tbody>{% for n in busca_nf.notas %}<tr class="item-row">
+                  <td><strong>{{ n.numero_nfse }}</strong>{% if n.prestador_cnpj != '08711085000128' %}<span class="cr-sub">PA</span>{% endif %}</td>
+                  <td>{{ n.data_emissao|api_date }}</td>
+                  <td class="col-desc" title="{{ n.discriminacao }}">{{ n.tomador }}</td>
+                  <td class="cr-direita">{% if n.valor is not None %}R$ {{ n.valor|br_currency }}{% else %}—{% endif %}</td>
+                  <td class="cr-direita">{% if n.valor_liquido is not None %}R$ {{ n.valor_liquido|br_currency }}{% else %}—{% endif %}</td>
+                  <td class="col-desc">{% if n.protocolos_vinculados %}<span title="{{ n.protocolos_vinculados|join:', ' }}">{{ n.protocolos_vinculados|length }} protocolo{{ n.protocolos_vinculados|length|pluralize }}</span>{% else %}—{% endif %}</td>
+                  <td class="cr-direita"><form method="post">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+                    <input type="hidden" name="acao" value="nfse_vincular"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+                    <input type="hidden" name="prestador_cnpj" value="{{ n.prestador_cnpj }}"><input type="hidden" name="numero_nfse" value="{{ n.numero_nfse }}">
+                    {% if p.situacao == 'automatico' %}<input type="hidden" name="protocolo_numero" value="{{ p.numero }}">{% endif %}
+                    <button class="btn-acatar cf-botao" type="submit">Vincular</button></form></td>
+                </tr>{% endfor %}</tbody>
+              </table>
+            </div>
+            {% else %}<p class="cr-vazio">Nenhuma NFS emitida pelo hospital/PA encontrada para “{{ busca_nf.q }}”.</p>{% endif %}
+            {% endif %}
+            {% else %}
+            <p class="cr-vazio">Vincule o protocolo para poder vincular a NFS.</p>
+            {% endif %}
           </section>
+          {% endwith %}
         </div>
       </div>
     </article>
+    {% endwith %}
     {% endfor %}
   </div>
   {% else %}
