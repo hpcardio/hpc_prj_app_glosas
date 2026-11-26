@@ -15761,6 +15761,7 @@ a.collapse-action { text-decoration: none; }
 /* A lançar · falta boleto: o que o setor ainda precisa fazer (vem primeiro na lista). */
 .ns-card--pendente { border-color: #efcf9b; box-shadow: 0 1px 4px rgba(168, 101, 15, 0.12); }
 .ns-card--pendente .follow-up-glosa-card-header { border-left: 5px solid #d98c2b; background: #fff8ec; }
+.ns-card--pendente .follow-up-glosa-card-header-row { background: #fff8ec; } /* inclui a área do PDF/BOLETO */
 .ns-card--pronta .follow-up-glosa-card-header { border-left-color: #2f8a5f; }
 .ns-card--divergencia .follow-up-glosa-card-header { border-left-color: #b24d32; }
 .ns-card--a_classificar .follow-up-glosa-card-header { border-left-color: #d98c2b; }
