@@ -102,9 +102,9 @@
 
 /* Cards */
 .cr-card-header {
-  grid-template-columns: 18px minmax(56px, .4fr) minmax(72px, .6fr) minmax(84px, .55fr) minmax(104px, .8fr)
-    minmax(52px, .4fr) minmax(168px, 1.15fr) minmax(66px, .45fr)
-    minmax(100px, .75fr) minmax(98px, .65fr) minmax(92px, .6fr) minmax(100px, .75fr);
+  grid-template-columns: 18px minmax(56px, .4fr) minmax(66px, .55fr) minmax(76px, .5fr) minmax(100px, .75fr)
+    minmax(52px, .4fr) minmax(150px, 1.05fr) minmax(62px, .45fr)
+    minmax(98px, .7fr) minmax(92px, .6fr) minmax(98px, .7fr) minmax(88px, .6fr) minmax(98px, .7fr);
   column-gap: 10px;
 }
 .cr-valor-glosa strong.is-positiva { color: #b24d32; }

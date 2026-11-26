@@ -219,8 +219,9 @@ class ValoresDoCardTests(TestCase):
             "valor": "562.69",
             "nfse": {"valor": "402.73", "valor_liquido": "367.09"},
         })
-        self.assertEqual(com_nf["bruto"], Decimal("562.69"))
+        self.assertEqual(com_nf["total"], Decimal("562.69"))          # valor da remessa no MV
         self.assertEqual(com_nf["glosas"], Decimal("159.96"))
+        self.assertEqual(com_nf["valor_bruto"], Decimal("402.73"))    # total − glosas
         self.assertEqual(com_nf["retencoes"], Decimal("35.64"))
         self.assertEqual(com_nf["liquido"], Decimal("367.09"))
         self.assertEqual(com_nf["origem_glosa"], "nf")
@@ -231,12 +232,14 @@ class ValoresDoCardTests(TestCase):
         })
         self.assertEqual(pelo_portal["glosas"], Decimal("581.05"))
         self.assertEqual(pelo_portal["origem_glosa"], "portal")
+        self.assertEqual(pelo_portal["valor_bruto"], Decimal("1190.47"))
         self.assertIsNone(pelo_portal["retencoes"])
         self.assertIsNone(pelo_portal["liquido"])
 
         nf_fora_da_base = valores_do_card({"valor": "100", "nfse": {"valor": None}})
         self.assertIsNone(nf_fora_da_base["glosas"])
         self.assertIsNone(nf_fora_da_base["retencoes"])
+        self.assertIsNone(nf_fora_da_base["valor_bruto"])
 
     @patch("core.contas_receber.api_get")
     def test_card_mostra_os_quatro_valores(self, api_get):
@@ -245,11 +248,16 @@ class ValoresDoCardTests(TestCase):
                                      "data_emissao": "2026-02-12", "origem": "planilha"}
         api_get.return_value = dados
         response = self.client.get(URL)
-        for rotulo in ("VALOR BRUTO", "GLOSAS", "RETENÇÕES", "VALOR LÍQUIDO"):
-            self.assertContains(response, rotulo)
-        self.assertContains(response, "R$ 271,52")   # 1.771,52 - 1.500,00
-        self.assertContains(response, "R$ 100,00")   # retenções
-        self.assertContains(response, "R$ 1.400,00")  # líquido
+        html = response.content.decode()
+        # Ordem lógica: total → glosas → bruto → impostos → líquido.
+        rotulos = ("VALOR TOTAL</small>", "GLOSAS</small>", "VALOR BRUTO</small>", "IMPOSTOS</small>", "VALOR LÍQUIDO</small>")
+        posicoes = [html.index(r) for r in rotulos]
+        self.assertEqual(posicoes, sorted(posicoes))
+        self.assertContains(response, "R$ 1.771,52")  # total
+        self.assertContains(response, "R$ 271,52")    # glosas: 1.771,52 − 1.500,00
+        self.assertContains(response, "R$ 1.500,00")  # bruto
+        self.assertContains(response, "R$ 100,00")    # impostos
+        self.assertContains(response, "R$ 1.400,00")  # líquido = bruto − impostos
 
 
 class RetencaoEstimadaTests(TestCase):
