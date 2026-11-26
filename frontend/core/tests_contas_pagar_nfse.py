@@ -270,6 +270,24 @@ class NfseSetorViewTests(TestCase):
         self.assertIn('/nfse/55555555000155/2/pdf', html)
         self.assertIn('/boletos/71/', html)
 
+    @patch('core.views.api_get', return_value={'oficinas': [], 'itens': [NOTA]})
+    def test_nota_que_saiu_do_filtro_volta_para_a_lista(self, api_get):
+        # Ex.: importada no MV e ainda com ?nota= na URL: não mostra "fora do filtro".
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta&nota=22222222000122-9&simular=1')
+
+        self.assertRedirects(response, '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta',
+                             fetch_redirect_response=False)
+
+    @patch('core.views.api_get')
+    def test_nota_em_outra_pagina_abre_a_pagina_dela(self, api_get):
+        itens = [{**NOTA, 'chave': f'11111111000111-{n}', 'numero_nfse': str(n)} for n in range(1, 13)]
+        api_get.return_value = {'oficinas': [], 'itens': itens}
+
+        response = self.client.get('/financeiro/contas-a-pagar/nfse-do-setor/?situacao=todas&nota=11111111000111-12')
+
+        self.assertRedirects(response, '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=todas&nota=11111111000111-12&page=2#nota-11111111000111-12',
+                             fetch_redirect_response=False)
+
 class NfseRegrasViewTests(TestCase):
     def setUp(self):
         session = self.client.session
@@ -577,6 +595,11 @@ BOLETOS = {'nota': {'prestador_cnpj': '63554067000198', 'numero_nfse': '93125822
            'boletos': [], 'resumo': {'quantidade': 1, 'soma': '2708.73', 'valor_liquido': '2708.73', 'pronta': True}}
 
 
+# Nota aberta pelos testes de simulação/importação: precisa estar na lista do filtro.
+NOTA_ABERTA = {**NOTA, 'chave': '63554067000198-93125822', 'prestador_cnpj': '63554067000198',
+               'numero_nfse': '93125822', 'pronta': True}
+
+
 class SimulacaoImportacaoTests(TestCase):
     URL = '/financeiro/contas-a-pagar/nfse-do-setor/?situacao=pronta&nota=63554067000198-93125822'
 
@@ -587,7 +610,7 @@ class SimulacaoImportacaoTests(TestCase):
         session.save()
 
     def _api_get(self, path, params=None, **kwargs):
-        return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+        return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': [NOTA_ABERTA]}
 
     @patch('core.views._mv_vinculo', return_value={'pode_gravar_no_mv': True})
     @patch('core.views.api_post', return_value=SIMULACAO)
@@ -689,7 +712,7 @@ class ImportacaoMvTests(TestCase):
         self.addCleanup(vinculo.stop)
 
     def _api_get(self, path, params=None, **kwargs):
-        return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+        return BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': [NOTA_ABERTA]}
 
     def _post(self, **extra):
         dados = {'acao': 'importar_mv', 'cnpj': '63554067000198', 'numero': '93125822',
@@ -844,7 +867,8 @@ class PrazoBoletoTests(TestCase):
             'resumo': {'quantidade': 1, 'soma': '1400.00', 'valor_liquido': '1400.00', 'pronta': True},
             'prazo_minimo_hoje': '2026-11-23T10:00:00',
         }
-        api_get.side_effect = lambda path, params=None, **kwargs: boletos if path.endswith('/boletos') else {'oficinas': [], 'itens': []}
+        nota = {**NOTA, 'chave': '11111111000111-123'}
+        api_get.side_effect = lambda path, params=None, **kwargs: boletos if path.endswith('/boletos') else {'oficinas': [], 'itens': [nota]}
         response = self.client.get(self.URL + '?nota=11111111000111-123')
         self.assertContains(response, 'a partir de 23/11/2026')
         self.assertContains(response, 'name="justificativa_atraso"', html=False)
@@ -917,7 +941,7 @@ class SimulacaoComImpostosTests(TestCase):
         vinculo.start()
         self.addCleanup(vinculo.stop)
 
-    @patch('core.views.api_get', side_effect=lambda path, params=None, **kwargs: BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': []})
+    @patch('core.views.api_get', side_effect=lambda path, params=None, **kwargs: BOLETOS if path.endswith('/boletos') else {'oficinas': [], 'itens': [NOTA_ABERTA]})
     @patch('core.views.api_post')
     def test_titulo_previsto_mostra_liquido_e_titulos_de_imposto(self, api_post, api_get):
         titulo = {**SIMULACAO['importacao']['titulo_previsto'], 'vl_bruto_conta': '30487.20', 'vl_liquido': '27697.63',
