@@ -1,0 +1,8 @@
+<form method="post" class="cr-form">{% csrf_token %}{% include "partials/contas_receber_filtros_post.html" %}
+  <input type="hidden" name="acao" value="protocolo_salvar"><input type="hidden" name="cd_remessa" value="{{ item.cd_remessa }}">
+  <div class="filter-group"><label for="cr-prot-{{ item.cd_remessa }}">Número do protocolo</label>
+    <input id="cr-prot-{{ item.cd_remessa }}" class="form-control" name="numero" maxlength="60" required value="{{ numero|default:'' }}" placeholder="Processo/protocolo no convênio"></div>
+  <div class="filter-group cr-form-data"><label for="cr-prot-data-{{ item.cd_remessa }}">Entrada no convênio</label>
+    <input id="cr-prot-data-{{ item.cd_remessa }}" class="form-control" type="date" name="data_protocolo" value="{{ data|slice:':10' }}"></div>
+  <div class="filter-actions"><button class="btn btn-primary" type="submit">Salvar protocolo</button></div>
+</form>
