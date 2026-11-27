@@ -399,6 +399,7 @@ def fluxo(request):
         "a_confirmar_url": f"?{urlencode({**sem_confirmar, 'a_confirmar': '1'})}",
         "remover_a_confirmar_url": f"?{urlencode(sem_confirmar)}" if sem_confirmar else "?",
         "atualizado_em": payload.get("atualizado_em"),
+        "guias_carregando": bool(payload.get("guias_carregando")),
         "tem_estimativa": any((i.get("valores") or {}).get("estimado") for i in itens),
         "export_url": f"?{urlencode({**{k: v for k, v in filtros.items() if v}, 'export': 'xlsx'})}",
         "aberta": aberta,
