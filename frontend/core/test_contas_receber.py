@@ -193,7 +193,9 @@ class ExportacaoTests(TestCase):
         sheet = load_workbook(BytesIO(response.content))["BASE"]
         self.assertEqual(
             HEADERS[:6], ("Convênio", "Remessa", "Competência", "Data Entrega", "Valor Total", "Dias"))
-        self.assertEqual(HEADERS[-4:], ("Ano2", "mês", "ano prev.recb", "mês prev.rcbto"))
+        self.assertEqual(HEADERS[19:23], ("Ano2", "mês", "ano prev.recb", "mês prev.rcbto"))
+        self.assertEqual(HEADERS[23:], ("SITUAÇÃO", "PARADA HÁ (DIAS)", "SITUAÇÃO NO PORTAL",
+                                        "PROTOCOLO A CONFERIR", "VALORES ESTIMADOS"))
         self.assertEqual([c.value for c in sheet[1]], list(HEADERS))
         linha = {h: c.value for h, c in zip(HEADERS, sheet[2])}
         self.assertEqual(linha["Convênio"], "ISSEC")
@@ -514,3 +516,44 @@ class VinculosManuaisTests(TestCase):
         api_get.assert_any_call("/app_glosas/financeiro/contas-a-receber/nfse", {"q": "30083"}, timeout=60)
         self.assertIn("2 protocolos", html)
         self.assertIn('name="numero_nfse" value="30083"', html)
+
+
+class ExportacaoIgualATelaTests(TestCase):
+    def setUp(self):
+        FluxoTests.setUp(self)
+
+    @patch("core.contas_receber.api_get")
+    def test_planilha_tem_os_valores_e_a_situacao_do_card(self, api_get):
+        from decimal import Decimal
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        from core.contas_receber import valores_do_card
+        from core.contas_receber_export import HEADERS
+
+        dados = payload()
+        item = dados["itens"][0]
+        item.update({
+            "estimativa": {"aliquota": "4.20", "fonte_aliquota": "configuracao", "origem_base": "liberado",
+                           "base": "1190.47", "retencoes": "50.00", "liquido": "1140.47"},
+            "protocolo_planilha": None,
+        })
+        dados["itens"][1]["protocolo_planilha"] = {"numero": "2600035769", "motivo": "x"}
+        api_get.return_value = dados
+
+        response = self.client.get(URL, {"convenio": "46", "export": "xlsx"})
+
+        sheet = load_workbook(BytesIO(response.content))["BASE"]
+        linhas = [{h: c.value for h, c in zip(HEADERS, row)} for row in sheet.iter_rows(min_row=2)]
+        primeira = next(l for l in linhas if l["Remessa"] == 20323)
+        card = valores_do_card({**item, "protocolo": {**item["protocolo"], "glosa_portal": Decimal("581.05")}})
+        self.assertEqual(Decimal(str(primeira["VLR BRUTO"])), card["valor_bruto"])
+        self.assertEqual(Decimal(str(primeira["IMPOSTOS"])), Decimal("50.00"))
+        self.assertEqual(Decimal(str(primeira["VLR LIQ NF"])), Decimal("1140.47"))
+        self.assertEqual(primeira["VALORES ESTIMADOS"], "SIM")
+        self.assertEqual(primeira["SITUAÇÃO"], "NFS autorizadas")
+        self.assertEqual(primeira["PARADA HÁ (DIAS)"], 21)
+        self.assertEqual(primeira["SITUAÇÃO NO PORTAL"], "Pendente · ENVIAR a NF")
+        segunda = next(l for l in linhas if l["Remessa"] == 20111)
+        self.assertEqual(segunda["PROTOCOLO A CONFERIR"], 2600035769)

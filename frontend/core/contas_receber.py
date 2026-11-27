@@ -340,7 +340,10 @@ def fluxo(request):
             base = {k: v for k, v in filtros.items() if v}
             return redirect(f"{request.path}?{urlencode(base)}" if base else request.path)
         response = HttpResponse(
-            build_contas_receber_workbook(dados.get("itens") or [], timezone.localdate()),
+            # Mesmos dados do card da tela (valores, situação, dias parados).
+            build_contas_receber_workbook(
+                [_enriquecer(item) for item in dados.get("itens") or []], timezone.localdate()
+            ),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         response["Content-Disposition"] = f'attachment; filename="fluxo-contas-a-receber-{timezone.localdate():%Y%m%d}.xlsx"'

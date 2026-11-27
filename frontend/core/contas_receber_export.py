@@ -8,6 +8,12 @@ Regras de preenchimento (iguais às fórmulas da DEMO):
 - Status: 1-REALIZADO (recebida), VENCIDOS (previsão de recebimento
   vencida) ou A RECEBER;
 - STATUS2: PAGO (paga no portal ou recebida no extrato), NF EMITIDA (NF sem recebimento) ou A RECEBER.
+
+Pedido de 27/11/2026: a planilha mostra os mesmos dados da tela. GLOSA,
+VLR BRUTO, IMPOSTOS e VLR LIQ NF são os valores do card (inclusive os
+estimados pela alíquota do convênio quando ainda não há NF), e depois das
+23 colunas da DEMO vêm a situação do funil, os dias parados, a situação no
+portal, o protocolo da planilha a conferir e se os valores são estimados.
 """
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -71,15 +77,36 @@ def _contexto(item, hoje):
         status = "VENCIDOS" if previsao and previsao < hoje else "A RECEBER"
         status2 = "NF EMITIDA" if nf else "A RECEBER"
     referencia = recebido_em or previsao
+    # Valores do card da tela (calculados por contas_receber.valores_do_card).
+    valores = item.get("valores") or {}
+    if valores:
+        glosa = _dinheiro(valores.get("glosas"))
+        bruto = _dinheiro(valores.get("valor_bruto"))
+        impostos = _dinheiro(valores.get("retencoes"))
+        liquido = _dinheiro(valores.get("liquido"))
+    else:
+        glosa = (total - bruto) if bruto is not None else None
+        impostos = (bruto - liquido) if bruto is not None and liquido is not None else None
     return {
         "nf": nf, "protocolo": protocolo, "bruto": bruto, "liquido": liquido, "total": total,
         "entrega": entrega, "previsao": previsao, "recebido_em": recebido_em,
         "status": status, "status2": status2,
         "dias": ((recebido_em or hoje) - entrega).days if entrega else None,
-        "glosa": (total - bruto) if bruto is not None else None,
-        "impostos": (bruto - liquido) if bruto is not None and liquido is not None else None,
+        "glosa": glosa,
+        "impostos": impostos,
+        "estimado": bool(valores.get("estimado")),
         "ano_ref": f"{MESES[referencia.month - 1]}-{referencia.year}" if referencia else None,
     }
+
+
+def _situacao_portal(item):
+    """Situação do processo no portal, como no card (ex.: Em Análise, Paga)."""
+    nota = item.get("nota_portal") or {}
+    if nota.get("situacao") == "paga":
+        return "Paga"
+    if nota.get("situacao") == "pendente":
+        return "Pendente · ENVIAR a NF" if nota.get("nf_a_enviar") else "Pendente · NF entregue"
+    return (item.get("protocolo") or {}).get("situacao_portal")
 
 
 def _competencia(valor):
@@ -112,6 +139,12 @@ COLUMNS = (
     ("mês", None, 12, lambda i, c: MESES[c["recebido_em"].month - 1] if c["recebido_em"] else None),
     ("ano prev.recb", NUMBER, 10, lambda i, c: c["previsao"].year if c["previsao"] else None),
     ("mês prev.rcbto", None, 12, lambda i, c: MESES[c["previsao"].month - 1] if c["previsao"] else None),
+    # Depois das colunas da DEMO: o que a tela mostra no card.
+    ("SITUAÇÃO", None, 30, lambda i, c: i.get("pendencia")),
+    ("PARADA HÁ (DIAS)", NUMBER, 10, lambda i, c: i.get("dias_na_etapa")),
+    ("SITUAÇÃO NO PORTAL", None, 22, lambda i, c: _situacao_portal(i)),
+    ("PROTOCOLO A CONFERIR", NUMBER, 16, lambda i, c: _numero((i.get("protocolo_planilha") or {}).get("numero"))),
+    ("VALORES ESTIMADOS", None, 10, lambda i, c: "SIM" if c["estimado"] else "NÃO"),
 )
 HEADERS = tuple(column[0] for column in COLUMNS)
 
