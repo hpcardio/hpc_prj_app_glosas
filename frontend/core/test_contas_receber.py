@@ -24,7 +24,7 @@ def payload():
                 {"chave": "protocolo", "quantidade": 3, "valor": "300.00"},
                 {"chave": "nfs_autorizada", "quantidade": 1, "valor": "1771.52"},
                 {"chave": "nao_autorizada", "quantidade": 0, "valor": "0.00"},
-                {"chave": "aguardando_recebimento", "quantidade": 0, "valor": "0.00"},
+                {"chave": "aguardando_recebimento", "quantidade": 0, "valor": "0.00", "base_valor": "liquido"},
                 {"chave": "recebido_sem_conciliacao", "quantidade": 0, "valor": "0.00"},
                 {"chave": "recebido", "quantidade": 0, "valor": "0.00"},
             ],
@@ -92,6 +92,10 @@ class FluxoTests(TestCase):
             "protocolo", "nfs_autorizada", "nao_autorizada", "aguardando_recebimento",
             "recebido_sem_conciliacao", "recebido"])
         self.assertContains(response, "Recebidas s/ conciliação bancária")
+        cards = {c["chave"]: c for c in response.context["funil"]}
+        self.assertTrue(cards["aguardando_recebimento"]["liquido"])
+        self.assertFalse(cards["protocolo"]["liquido"])
+        self.assertContains(response, "<small>líquido</small>")
         self.assertContains(response, "NFS não autorizadas")
         self.assertContains(response, "NFS autorizadas")
         self.assertContains(response, "cr-card--nfs_autorizada")

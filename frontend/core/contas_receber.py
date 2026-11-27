@@ -227,6 +227,8 @@ def _funil(resumo, filtros):
             "ajuda": ajuda,
             "quantidade": quantidade,
             "valor": dados.get("valor") or "0",
+            # Cards de recebimento: valor líquido (pedido de 27/11/2026).
+            "liquido": dados.get("base_valor") == "liquido",
             "percentual": round(quantidade * 100 / total) if total else 0,
             "ativo": ativo,
             "url": f"?{urlencode(query)}" if query else "?",
