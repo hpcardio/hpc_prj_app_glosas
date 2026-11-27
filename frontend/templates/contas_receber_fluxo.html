@@ -27,7 +27,7 @@
         <span class="cr-etapa-numero" aria-hidden="true">{{ forloop.counter }}</span>
         <span class="cr-etapa-rotulo">{{ card.rotulo }}</span>
         <strong class="cr-etapa-qtd">{{ card.quantidade }}<small> remessa{{ card.quantidade|pluralize }}</small></strong>
-        <span class="cr-etapa-valor">R$ {{ card.valor|br_currency }}</span>
+        <span class="cr-etapa-valor"{% if card.liquido %} title="Soma do valor líquido (NF ou estimado), o que deve entrar no banco"{% endif %}>R$ {{ card.valor|br_currency }}{% if card.liquido %} <small>líquido</small>{% endif %}</span>
         <span class="cr-etapa-barra" aria-hidden="true"><span style="width: {{ card.percentual }}%"></span></span>
         <span class="cr-etapa-pct">{{ card.percentual }}% das remessas{% if card.ativo %} · <b>filtro ativo</b>{% endif %}</span>
       </a>
