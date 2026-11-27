@@ -186,6 +186,7 @@
               {% if p.valor_cobrado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value"><small>VALOR COBRADO</small><strong>R$ {{ p.valor_cobrado|br_currency }}</strong></span>{% endif %}
               {% if p.valor_liberado is not None %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR LIBERADO</small><strong>R$ {{ p.valor_liberado|br_currency }}</strong></span>{% endif %}
               {% if p.glosa_portal %}<span class="follow-up-glosa-card-field"><small>GLOSADO NO PORTAL</small><strong class="cr-erro">R$ {{ p.glosa_portal|br_currency }}</strong></span>{% endif %}
+              {% if p.situacao_portal %}<span class="follow-up-glosa-card-field"><small>SITUAÇÃO NO PORTAL</small><strong>{{ p.situacao_portal }}</strong></span>{% endif %}
               {% with np=item.nota_portal %}{% if np %}<span class="follow-up-glosa-card-field"><small>NOTAS FISCAIS NO PORTAL</small><strong>{% if np.paga %}Paga{% if np.pago_desde %} · vista em {{ np.pago_desde|api_date }}{% endif %}{% elif np.nf_a_enviar %}Pendente · ENVIAR a NF{% else %}Pendente · NF entregue{% endif %}</strong></span>
               {% if np.paga and np.valor %}<span class="follow-up-glosa-card-field follow-up-glosa-card-value follow-up-glosa-card-value--treated"><small>VALOR PAGO NO PORTAL</small><strong title="Valor pago informado pelo convênio{% if np.nup %} (NUP {{ np.nup }}){% endif %}">R$ {{ np.valor|br_currency }}</strong></span>{% endif %}{% endif %}{% endwith %}
             </div>

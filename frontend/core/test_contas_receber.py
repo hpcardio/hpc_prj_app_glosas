@@ -38,7 +38,7 @@ def payload():
                 "competencia": "2026-10-01", "valor": "1771.52", "qt_contas": 4,
                 "dt_fechamento": "2026-11-03",
                 "protocolo": {"id": None, "numero": "2600044294", "origem": "portal", "situacao": "automatico",
-                              "valor_cobrado": "1771.52", "valor_liberado": "1190.47",
+                              "valor_cobrado": "1771.52", "valor_liberado": "1190.47", "situacao_portal": "Em Análise",
                               "data_protocolo": None, "solicitacao_nota_em": None},
                 "protocolo_candidatos": [], "nfse": None, "recebimentos": [], "valor_recebido": "0.00",
                 "etapa_atual": "nfse", "situacao_fluxo": "nfs_autorizada", "pendencia": "NFS autorizadas",
@@ -107,6 +107,8 @@ class FluxoTests(TestCase):
         self.assertContains(response, "2600037002")
         self.assertContains(response, "<b>2</b> remessas com mais de um protocolo")
         self.assertContains(response, "GLOSADO NO PORTAL")
+        self.assertContains(response, "SITUAÇÃO NO PORTAL")
+        self.assertContains(response, "Em Análise")
         self.assertContains(response, "cr-passo--atual")
 
     @patch("core.contas_receber.api_get")
