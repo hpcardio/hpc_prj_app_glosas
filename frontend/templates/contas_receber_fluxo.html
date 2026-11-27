@@ -34,6 +34,9 @@
     </li>
     {% endfor %}
   </ol>
+  {% if guias_carregando %}
+  <p class="cr-mensagem cr-mensagem--atencao" role="status">Carregando do MV as guias das remessas (cerca de 2 minutos depois de uma atualização do sistema). Até terminar, os vínculos pelas guias não aparecem e os números dos cards podem mudar: recarregue a página em instantes.</p>
+  {% endif %}
   {% if resumo.protocolos_a_confirmar or filtros.a_confirmar %}
   <div class="cr-alertas">
     {% if filtros.a_confirmar %}

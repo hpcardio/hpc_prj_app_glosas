@@ -561,3 +561,18 @@ class ExportacaoIgualATelaTests(TestCase):
         self.assertEqual(primeira["SITUAÇÃO NO PORTAL"], "Pendente · ENVIAR a NF")
         segunda = next(l for l in linhas if l["Remessa"] == 20111)
         self.assertEqual(segunda["PROTOCOLO A CONFERIR"], 2600035769)
+
+
+class AvisoGuiasTests(TestCase):
+    def setUp(self):
+        FluxoTests.setUp(self)
+
+    @patch("core.contas_receber.api_get")
+    def test_aviso_enquanto_as_guias_carregam(self, api_get):
+        dados = payload()
+        dados["guias_carregando"] = True
+        api_get.return_value = dados
+        self.assertContains(self.client.get(URL), "Carregando do MV as guias das remessas")
+
+        dados["guias_carregando"] = False
+        self.assertNotContains(self.client.get(URL), "Carregando do MV as guias das remessas")
