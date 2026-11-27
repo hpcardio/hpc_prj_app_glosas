@@ -376,6 +376,22 @@ class NfDeGrupoTests(TestCase):
         self.assertEqual(pendente["status2"], "NF EMITIDA")
 
 
+class CriterioGuiaTests(TestCase):
+    def setUp(self):
+        FluxoTests.setUp(self)
+
+    @patch("core.contas_receber.api_get")
+    def test_etiqueta_mostra_casamento_pela_guia(self, api_get):
+        dados = payload()
+        dados["itens"][0]["protocolo"]["criterio"] = "guia"
+        api_get.return_value = dados
+
+        response = self.client.get(URL)
+
+        self.assertContains(response, "Casado automaticamente pelas guias")
+        self.assertContains(response, ">guia</em>")
+
+
 class SugestaoPlanilhaTests(TestCase):
     def setUp(self):
         FluxoTests.setUp(self)
